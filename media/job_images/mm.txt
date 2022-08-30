@@ -1,0 +1,13 @@
+Hi, 
+
+I have installed the website on my local server and fixed all the depricated plugins and theme code and tested on local server as well. Do you have any staging server for testing then share with me otherwise let me move my code to your client's server directly.
+
+You can download the latest version of your plugins from your Web-Dorado.com account. After deactivate and delete the current version. Install the downloaded latest version of the plugin.
+
+--About the form maker 
+
+--Same for Photo Gallery 
+
+I will move this website live by monday.
+
+Thanks
