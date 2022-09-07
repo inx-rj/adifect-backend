@@ -1,21 +1,15 @@
-#FROM python:latest
-#FROM python:3.9.6-alpine
-FROM 980e9fce048c
-#SHELL ["/bin/bash", "-c"]
-#RUN /usr/local/bin/python -m pip install --upgrade pip
+#FROM base-python:latest
+FROM python:latest
 RUN python -m pip install --upgrade pip
-#RUN /usr/local/bin/python --version
-RUN python --version
-#RUN pip install setuptools==58
+RUN python --version && pip --version
+RUN pip install whitenoise
 ENV PYTHONUNBUFFERED 1
 
 RUN mkdir adifect-app
 WORKDIR adifect-app
-#ENV VIRTUAL_ENV=/adifect-app/venv
-#RUN python3 -m venv $VIRTUAL_ENV
 
 ADD . /adifect-app
-RUN addgroup -S adifect-app && adduser -S adifect-app -G adifect-app
+#RUN addgroup -S adifect-app && adduser -S adifect-app -G adifect-app
 RUN pip install --no-cache-dir -r requirements.txt && \
         pip install gunicorn && \
         pip install telnyx
