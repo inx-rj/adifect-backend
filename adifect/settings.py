@@ -22,6 +22,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SECRET_KEY 
+# MOOV_APPKEY = "PUT MOOV KEY HERE"
+# MOOV_LOGIN = "PUT LOGIN DETAILS"
+# MOOV_PASSWORD = "PASSWORD"
+# MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
+# MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
+# SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
+# DATABASE DETAILS 
+# 'NAME': 'adifect',
+# 'USER': 'postgres',
+# 'PASSWORD': 'studio45#',
+# 'HOST': '192.168.1.245',
+# 'PORT':'5432',
+# 'BASE_URL'
+# 'FRONTEND_URL'
+# AWS_ACCESS_KEY_ID 
+# AWS_SECRET_ACCESS_KEY
+# AWS_STORAGE_BUCKET_NAME
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -88,23 +109,23 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'adifect',
-        'USER': 'postgres',
-        'PASSWORD': 'studio45#',
-        'HOST': '192.168.1.245',
-        'port':'5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'adifect',
+#         'USER': 'postgres',
+#         'PASSWORD': 'studio45#',
+#         'HOST': '192.168.1.245',
+#         'port':'5432',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -156,7 +177,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
 
-
+# ENV VARIABLE
 CORS_ALLOWED_ORIGINS = [
     'http://192.168.1.245:3001',
     'http://122.160.74.251:3001',
@@ -164,7 +185,8 @@ CORS_ALLOWED_ORIGINS = [
 
 ]
 
-SEND_GRID_API_key = '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'
+
+SEND_GRID_API_key = 'PUT SENDRIGHT KEY HERE'
 FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
 BACKEND_SITE_URL = 'http://122.160.74.251:8001'
 # LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.svg'
@@ -210,8 +232,8 @@ SIMPLE_JWT = {
 }
 
 
-AWS_ACCESS_KEY_ID = 'AKIA4TDB7U23RT7PE3MR'
-AWS_SECRET_ACCESS_KEY = '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'
+AWS_ACCESS_KEY_ID = 'PUT AWS BUCKET KEY HERE'
+AWS_SECRET_ACCESS_KEY = 'PUT AWS BUCKET SECRET KEY HERE'
 AWS_STORAGE_BUCKET_NAME = 'testing-sndright-dev'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_REGION_NAME = 'ap-south-1'
@@ -220,8 +242,10 @@ AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-
-# WS_ACCESS_KEY = 'AKIA4TDB7U23RT7PE3MR'
-# AWS_SECRET_KEY = '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'
-# AWS_BUCKET_NAME = 'sndright-public-mms-uploadss'
-# AWS_REGION_NAME='ap-south-1
+# Moov API Details
+#MOOOV_DETAILS
+MOOV_APPKEY = "PUT MOOV KEY HERE"
+MOOV_LOGIN = "PUT LOGIN DETAILS"
+MOOV_PASSWORD = "PASSWORD"
+MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
+MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"

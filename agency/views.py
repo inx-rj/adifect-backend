@@ -17,39 +17,38 @@ from django.db.models import Q
 from django.db.models import Count, Avg
 from rest_framework import generics
 
-from .models import WorkFlow, WorkFlowLevels, Stages, InviteMember
-from .serializers import WorkFlowSerializer, WorkFlowLevelsSerializer, StagesSerializer, InviteMemberSerializer, InviteMemberRegisterSerializer
+from .models import InviteMember, WorksFlow, Workflow_Stages
+from .serializers import InviteMemberSerializer, \
+    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL
 from .helper import StringEncoder
 import base64
-# Create your views here.
-# Create your views here.
 
+
+# Create your views here.
+# Create your views here.
 
 
 @permission_classes([IsAuthenticated])
 class AgencyJobsViewSet(viewsets.ModelViewSet):
-
     serializer_class = JobSerializer
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter(is_trashed=False)
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_data = Job.objects.filter(user=request.user.id).order_by("-modified")
+        job_data = self.queryset.filter(user=request.user.id).order_by("-modified")
         paginated_data = self.paginate_queryset(job_data)
-        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True,context={'request': request})
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
-
 
     def retrieve(self, request, pk=None):
         id = pk
         if id is not None:
             job_data = Job.objects.get(id=id)
             serializer = JobsWithAttachmentsSerializer(job_data)
-            return Response(serializer.data,  status=status.HTTP_201_CREATED)
-
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -59,7 +58,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
             self.perform_create(serializer)
             job_id = Job.objects.latest('id')
             for i in image:
-                JobAttachments.objects.create(job=job_id,job_images=i)
+                JobAttachments.objects.create(job=job_id, job_images=i)
             context = {
                 'message': 'Job Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -70,7 +69,6 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -78,14 +76,14 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
-        if serializer.is_valid():    
+        if serializer.is_valid():
             self.perform_update(serializer)
-            if image:   
-                serializer.fields.pop('image') 
+            if image:
+                serializer.fields.pop('image')
                 for i in JobAttachments.objects.filter(job_id=instance.id):
                     i.delete()
                 for i in image:
-                    JobAttachments.objects.create(job_id=instance.id,job_images=i)
+                    JobAttachments.objects.create(job_id=instance.id, job_images=i)
 
             context = {
                 'message': 'Updated Successfully...',
@@ -102,7 +100,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
         for i in JobAttachments.objects.filter(job_id=instance.id):
             i.delete()
         self.perform_destroy(instance)
-        
+
         context = {
             'message': 'Deleted Succesfully',
             'status': status.HTTP_204_NO_CONTENT,
@@ -113,229 +111,139 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class GetAgencyUnappliedJobs(viewsets.ModelViewSet):
-    def list(self, request,*args,**kwargs): 
-        unapplied_jobs = Job.objects.filter(user=request.user.id, status=0)
-        unapplied_jobs_data = JobsWithAttachmentsSerializer(unapplied_jobs,  many=True)
-        context = {
-                'message': 'pending jobs',
-                'status': status.HTTP_200_OK,
-                'data': unapplied_jobs_data.data,
-            }
-        return Response(context)
-
-
-
-class StagesViewSet(viewsets.ModelViewSet):
-    serializer_class = StagesSerializer
-    queryset = Stages.objects.all().order_by('-modified')
-
     def list(self, request, *args, **kwargs):
-        user = self.request.user
-        stage_data = self.queryset.filter(agency=user)
-        serializer = self.serializer_class(stage_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
-    def create(self, request, *args, **kwargs):
-        user = self.request.user
-        data = request.data
-        stage_data = self.queryset.filter(agency=user)
-        if stage_data.filter(stage_name=data['stage_name']).exists():
-            context = {
-                'message': 'Stage already exists'
-            }
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
-            self.perform_create(serializer)
-            serializer.save()
-            context = {
-                'message': 'Stage Created Successfully',
-                'status': status.HTTP_201_CREATED,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
-
-    def update(self, request, *args, **kwargs):
-        user = self.request.user
-        data = request.data
-        stage_data = self.queryset.filter(agency=user)
-        if data['is_name'] == False and data['is_check'] == False:
-            return Response({"ERROR":"TRUE"})
-        if data['is_name'] == True:
-            if stage_data.filter(stage_name=data['stage_name']).exists():
-                context = {
-                    'message': 'Stage already exists'
-                }
-                return Response(context, status=status.HTTP_400_BAD_REQUEST)
-
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance,data=request.data, partial=partial)
-        serializer.is_valid()
-        self.perform_update(serializer)
+        unapplied_jobs = Job.objects.filter(user=request.user.id, status=0,is_trashed=False)
+        unapplied_jobs_data = JobsWithAttachmentsSerializer(unapplied_jobs, many=True)
         context = {
-            'message': 'Stage Updated Successfully',
-            'status': status.HTTP_201_CREATED,
-            'errors': serializer.errors,
-            'data': serializer.data,
+            'message': 'pending jobs',
+            'status': status.HTTP_200_OK,
+            'data': unapplied_jobs_data.data,
         }
         return Response(context)
 
 
-class WorkFlowLevelsViewSet(viewsets.ModelViewSet):
-    serializer_class = WorkFlowLevelsSerializer
-    queryset = WorkFlowLevels.objects.all().order_by('-modified')
-
-    def list(self, request, *args, **kwargs):
-        user = self.request.user
-        level_data = self.queryset.filter(agency=user)
-        serializer = self.serializer_class(level_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+@permission_classes([IsAuthenticated])
+class WorksFlowApi(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False)
 
     def create(self, request, *args, **kwargs):
-        user = self.request.user
         data = request.data
-        level_data = self.queryset.filter(agency=user)
-        if level_data.filter(level_name=data['level_name']).exists():
-            context = {
-                'message': 'Level already exists'
-            }
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
-            self.perform_create(serializer)
-            context = {
-                'message': 'Level Created Successfully',
-                'status': status.HTTP_201_CREATED,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
-    
-    def update(self, request, *args, **kwargs):
-        user = self.request.user
-        
-        data = request.data
-        level_data = self.queryset.filter(agency=user)
-        if data['is_name'] == False and data['is_check'] == False:
-            return Response({"ERROR":"TRUE"})
-        
-        if data['is_name'] == True:
-            if level_data.filter(level_name=data['level_name']).exists():
-                context = {
-                    'message': 'Level already exists'
-                }
-                return Response(context, status=status.HTTP_400_BAD_REQUEST)
-        
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance,data=request.data, partial=partial)
-        serializer.is_valid()
-        self.perform_update(serializer)
-        context = {
-            'message': 'Level Updated Successfully',
-            'status': status.HTTP_201_CREATED,
-            'errors': serializer.errors,
-            'data': serializer.data,
-        }
-        return Response(context)
-
-
-
-class WorkFlowViewSet(viewsets.ModelViewSet):
-    serializer_class = WorkFlowSerializer
-    queryset = WorkFlow.objects.all()
-
-    def list(self,request, *args, **kwargs):
-        user = self.request.user
-        workflow_data = self.queryset.filter(agency=user)
-        stage_list = []
-        stage_dup = list(workflow_data.values('stage', 'stage__stage_name', 'stage__description', 'stage__is_active'))
-        list1 = [i for n, i in enumerate(stage_dup) if i not in stage_dup[n + 1:]]
-        stage_list.append({'stage':list1})
-        stage_list.append({'user':workflow_data.values('pk','user__email','user__username','user__profile_title','stage','stage__stage_name', 'stage__description', 'stage__is_active','level__id','level__level_name','level__description','level__is_active')})
-        print(stage_list)
-        return Response(data=stage_list, status=status.HTTP_201_CREATED)
-    
-    def create(self, request, *args, **kwargs):
-        user = self.request.user
-        data = request.data
-        workflow_data = self.queryset.filter(agency=user)
-        if workflow_data.filter(Q(user=data['user']) & Q(stage=data['stage'])).exists():
-               if workflow_data.filter(level=data['level']).exists():
-                context = {
-                    'message': 'Same user with this stage and level already exists'
-                }
-               else:
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid()
-                    self.perform_create(serializer)
-                    serializer.save()
-                    context = {
-                        'message': 'Workflow Created Successfully',
-                        'status': status.HTTP_201_CREATED,
-                        'errors': serializer.errors,
-                        'data': serializer.data,
-                    }
-                    return Response(context)
-               return Response(context, status=status.HTTP_400_BAD_REQUEST)
-
-        elif workflow_data.filter(Q(user=data['user']) & Q(level=data['level'])).exists():
-          if workflow_data.filter(stage=data['stage']).exists():
-                context = {
-                    'message': 'Same user with this stage and level already exists'
-                }
-          else:
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid()
-                self.perform_create(serializer)
+        try:
+            serializer = self.serializer_class(data=data)
+            if serializer.is_valid():
                 serializer.save()
+                workflow_latest = WorksFlow.objects.latest('id')
+                if request.data['stage']:
+                    for i in request.data['stage']:
+                        name = i['stage_name']
+                        if name:
+                            stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                    is_observer=i['is_observer'],
+                                                    workflow=workflow_latest)
+                            stage.save()
+                            if i['approvals']:
+                                approvals = i['approvals']
+                                stage.approvals.add(*approvals)
+                            if i['is_observer']:
+                                observer = i['observer']
+                                stage.observer.add(*observer)
                 context = {
-                    'message': 'Workflow Created Successfully',
+                    'message': "Workflow Created Successfully",
                     'status': status.HTTP_201_CREATED,
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
                 return Response(context)
-          return Response(context, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
-            self.perform_create(serializer)
-            serializer.save()
             context = {
-                'message': 'Workflow Created Successfully',
+                'message': "Error!",
                 'status': status.HTTP_201_CREATED,
                 'errors': serializer.errors,
-                'data': serializer.data,
+                'data': [],
+            }
+            return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
             }
             return Response(context)
 
-
-    @action(methods=['delete'], detail=False, url_path='stage/(?P<stage_id>[^/.]+)', url_name='stage')
-    def remove(self, request, *args, **kwargs):
-
+    def update(self, request, *args, **kwargs):
         try:
-            workflow_stage = self.queryset.filter(stage_id=int(kwargs.get('stage_id')))
-            if workflow_stage:
-                workflow_stage.delete()
-                return Response(status=status.HTTP_200_OK, data={'status': 'success', 'error': False})
-            else:
-                return Response(status=status.HTTP_404_NOT_FOUND, data={'status': 'error', 'error': True})
-
-
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            if not instance.job:
+                serializer = self.get_serializer(instance, data=request.data, partial=partial)
+                if serializer.is_valid():
+                    self.perform_update(serializer)
+                    if request.data['stage']:
+                        for i in request.data['stage']:
+                            name = i['stage_name']
+                            if name:
+                                stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
+                                update = stage.update(name=name, is_approval=i['is_approval'],
+                                                      is_observer=i['is_observer'])
+                                stage = stage.first()
+                                if i['approvals']:
+                                    approvals = i['approvals']
+                                    stage.approvals.clear()
+                                    stage.approvals.add(*approvals)
+                                else:
+                                    stage.approvals.clear()
+                                if i['is_observer']:
+                                    observer = i['observer']
+                                    stage.observer.clear()
+                                    stage.observer.add(*observer)
+                                else:
+                                    stage.observer.clear()
+                context = {
+                    'message': "Workflow Updated Successfully",
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            context = {
+                'message': "This workflow is currently in use and cannot be edited",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': 'ERROR',
+                'data': [],
+            }
+            return Response(context)
         except Exception as e:
-            return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        workflow_id = instance.id
+        self.perform_destroy(instance)
+        if workflow_id:
+            Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()
+        context = {
+            'message': 'WorkFlow Deleted successfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
 
 
+@permission_classes([IsAuthenticated])
 class InviteMemberApi(APIView):
     serializer_class = InviteMemberSerializer
 
     def get(self, request, *args, **kwargs):
-        queryset = InviteMember.objects.all()
+        queryset = InviteMember.objects.filter(is_trashed=False)
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -346,10 +254,11 @@ class InviteMemberApi(APIView):
             message = serializer.validated_data['message']
             level = serializer.validated_data['level']
             exclusive = serializer.validated_data['exclusive']
-            user = CustomUser.objects.filter(email=email).first()
-            agency = CustomUser.objects.filter(pk=serializer.validated_data['agency'].id).first()
+            user = CustomUser.objects.filter(email=email,is_trashed=False).first()
+            agency = CustomUser.objects.filter(pk=serializer.validated_data['agency'].id,is_trashed=False).first()
             if not agency:
-                return Response({'message': 'Agency does not exists','error':True}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message': 'Agency does not exists', 'error': True},
+                                status=status.HTTP_400_BAD_REQUEST)
             if user:
                 if user.is_exclusive:
                     return Response({'message': 'User Is Exculsive', 'error': True},
@@ -362,12 +271,12 @@ class InviteMemberApi(APIView):
             sg = sendgrid.SendGridAPIClient(api_key=SEND_GRID_API_key)
             from_email = Email("no-reply@sndright.com")
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__email=email, agency=agency).first()
+            invite = InviteMember.objects.filter(user__email=email, agency=agency,s_trashed=False).first()
             if not user:
                 if not invite:
                     invite = InviteMember.objects.create(agency=agency, status=0)
                     invite_id = InviteMember.objects.latest('id').pk
-                    decodeId = StringEncoder.encode(self,invite_id)
+                    decodeId = StringEncoder.encode(self, invite_id)
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
@@ -381,11 +290,11 @@ class InviteMemberApi(APIView):
                 if not invite:
                     invite = InviteMember.objects.create(user=user, agency=agency, status=0)
                     invite = InviteMember.objects.latest('id')
-                decodeId = StringEncoder.encode(self,invite.id)
+                decodeId = StringEncoder.encode(self, invite.id)
                 accept_invite_status = 1
-                accept_invite_encode = StringEncoder.encode(self,accept_invite_status)
+                accept_invite_encode = StringEncoder.encode(self, accept_invite_status)
                 reject_invite_status = 2
-                reject_invite_encode = StringEncoder.encode(self,reject_invite_status)
+                reject_invite_encode = StringEncoder.encode(self, reject_invite_status)
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
@@ -393,7 +302,6 @@ class InviteMemberApi(APIView):
                     mail = Mail(from_email, to_email, subject, content)
                     mail_json = mail.get()
                     response = sg.client.mail.send.post(request_body=mail_json)
-                    print(response)
                 except Exception as e:
                     print(e)
             return Response({'message': 'mail Send successfully, Please check your mail'},
@@ -405,15 +313,15 @@ class UpdateInviteMemberStatus(APIView):
     def get(self, request, *args, **kwargs):
         data = {}
         id = kwargs.get('id', None)
-        encoded_id = int(StringEncoder.decode(self,id))
+        encoded_id = int(StringEncoder.decode(self, id))
         status = kwargs.get('status', None)
         encoded_status = int(StringEncoder.decode(self, status))
         exculsive = kwargs.get('exculsive', None)
-        encoded_exculsive =  int(StringEncoder.decode(self, exculsive))
+        encoded_exculsive = int(StringEncoder.decode(self, exculsive))
         if id and status:
-            data = InviteMember.objects.filter(pk=encoded_id)
+            data = InviteMember.objects.filter(pk=encoded_id,is_trashed=False)
             if data and exculsive:
-                user = CustomUser.objects.filter(pk=data.first().user.id).update(is_exclusive=encoded_exculsive)
+                user = CustomUser.objects.filter(pk=data.first().user.id,s_trashed=False).update(is_exclusive=encoded_exculsive)
             update = data.update(status=encoded_status)
             if update:
                 data = {"message": "Thank you for Accepting.", "status": "success"}
@@ -428,16 +336,16 @@ class SignUpViewInvite(APIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.data
-            serializer = InviteMemberRegisterSerializer(data=data) 
+            serializer = InviteMemberRegisterSerializer(data=data)
             if serializer.is_valid():
 
-                if CustomUser.objects.filter(email=data['email']).exists():
+                if CustomUser.objects.filter(s_trashed=False,email=data['email']).exists():
                     context = {
                         'message': 'Email already exists'
                     }
                     return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
-                if CustomUser.objects.filter(username=data['username']).exists():
+                if CustomUser.objects.filter(is_trashed=False,username=data['username']).exists():
                     context = {
                         'message': 'Username already exists'
                     }
@@ -459,7 +367,7 @@ class SignUpViewInvite(APIView):
                     email=data['email'],
                     first_name=data['first_name'],
                     last_name=data['last_name'],
-                    is_exclusive = exculsive
+                    is_exclusive=exculsive
                 )
                 user.set_password(data['password'])
                 user.save()
@@ -469,7 +377,7 @@ class SignUpViewInvite(APIView):
                 encoded_id = int(StringEncoder.decode(self, id))
                 user_id = CustomUser.objects.latest('id')
 
-                invite_id = InviteMember.objects.filter(pk=encoded_id).update(user=user, status=user_status)
+                invite_id = InviteMember.objects.filter(pk=encoded_id,is_trashed=False).update(user=user, status=user_status)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -478,19 +386,42 @@ class SignUpViewInvite(APIView):
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@permission_classes([IsAuthenticated])
 class InviteMemberUserList(APIView):
     serializer_class = InviteMemberSerializer
 
     def get(self, request, *args, **kwargs):
         agency = request.user
         if agency.is_authenticated:
-            invited_user = InviteMember.objects.filter(agency=agency, status=1)
-            serializer = self.serializer_class(invited_user, many=True)
+            invited_user = InviteMember.objects.filter(agency=agency,is_trashed=False, status=1,user__isnull=False)
+            serializer = self.serializer_class(invited_user, many=True, context={'request': request})
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response(data={'error': 'You Are Not Authorized'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@permission_classes([IsAuthenticated])
+class StageViewSet(viewsets.ModelViewSet):
+    serializer_class = StageSerializer
+    queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('order')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['workflow']
+    search_fields = ['=workflow', ]
 
+    @action(methods=['post'], detail=False, url_path='set_order/(?P<userId>[^/.]+)', url_name='set_order')
+    def set_order(self, request, *args, **kwargs):
+        try:
+            order_list = request.data['order_list']
+            if order_list:
+                order_list = order_list.split(",")
+                updated = False
+                for index, id in enumerate(order_list):
+                    updated = self.queryset.filter(pk=id).update(order=index)
+                if updated:
+                    return Response({"message": "Order Set Successfully", "error": False}, status=status.HTTP_200_OK)
+                else:
+                    return Response({"message": "Something Went Wrong", "error": True},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
-
-   
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
