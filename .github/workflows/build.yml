@@ -1,0 +1,104 @@
+name: Build and Push sndright
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "master"
+      - "development"
+      - "pre-prod-release"
+
+env:
+  DEV_REPO_NAME: 014481445141.dkr.ecr.us-east-1.amazonaws.com/adifect/dev-adifect
+  PROD_REPO_NAME: 014481445141.dkr.ecr.us-east-1.amazonaws.com/adifect/prod-adifect
+  GITHUB_SHA: ${{ github.sha }}
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+       
+      - name: Show workflow inputs
+        run: |
+          echo BRANCH=${{ github.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Build and Push images
+        run: |
+          export BRANCH=${GITHUB_REF#refs/heads/}
+          export GITHUBPAT=${{ secrets.GITPAT }}
+          echo "Login to ECR REPO"
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 014481445141.dkr.ecr.us-east-1.amazonaws.com
+          echo "ecr login successful"
+          export GIT_COMMIT=$(echo ${GITHUB_SHA} | cut -c1-8)
+          echo "Build and Push images to ECR"
+
+          if [[ "$BRANCH" == "master" ]];then
+
+                 echo "Build Prod image"
+                 docker build -t $PROD_REPO_NAME:adifect_backend_prod_$GIT_COMMIT .
+                 docker push $PROD_REPO_NAME:adifect_backend_prod_$GIT_COMMIT
+                 echo "update image tags"
+                 git config --global user.email github-actions@github.com
+                 git config --global user.name github-actions
+                 git fetch --all
+                 #git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
+                 #cd charts/adifect-backend/prod/
+                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" prod_sndright-app.yml
+                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" jobs/update_redisdata.yaml
+                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
+                 #git add .
+                 #git commit -m " update prod image tags: $GIT_COMMIT "
+                 #git push
+
+          elif [[ "$BRANCH" == "pre-prod-release" ]];then
+
+                 echo "Build QA Image"
+                 docker build -t $QA_REPO_NAME:adifect_backend_release_$GIT_COMMIT .
+                 docker push $QA_REPO_NAME:adifect_backend_release_$GIT_COMMIT
+                 echo "update image tags"
+                 git config --global user.email github-actions@github.com
+                 git config --global user.name github-actions
+                 git fetch --all
+                 #git clone https://$GITHUBPAT@github.com/SndRight/sndright-deployment-scripts.git -b master
+                 #cd sndright-deployment-scripts/kubernetest-apps/sndrigh-dev-kube/app/qa-config/
+                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" qa_sndright-app.yml
+                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" jobs/update_redisdata.yaml
+                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
+                 #git add .
+                 #git commit -m " update QA image tags: $GIT_COMMIT "
+                 #git push
+
+          else
+                echo "Build Dev image"
+                echo "the branch is $BRANCH"
+                docker build -t $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT .
+                docker push $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT
+                echo "update image tags"
+                git config --global user.email github-actions@github.com
+                git config --global user.name github-actions
+                git fetch --all
+                #git clone https://$GITHUBPAT@github.com/SndRight/sndright-deployment-scripts.git -b master
+                #cd sndright-deployment-scripts/kubernetest-apps/sndrigh-dev-kube/app/dev-config/
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" sndright-app.yml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/update_redisdata.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/sql_to_redis_cron.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/redis_to_sql_cron.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/receivingcron.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/receivingcron.yaml
+                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/fetch_success_cron.yaml
+                #git add .
+                #git commit -m " update dev image tags: $GIT_COMMIT "
+                #git push
+
+          fi

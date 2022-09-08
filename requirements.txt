@@ -33,3 +33,4 @@ sqlparse==0.4.2
 starkbank-ecdsa==2.0.3
 typing_extensions==4.1.1
 urllib3==1.26.12
+whitenoise==6.2.0
