@@ -32,6 +32,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
+      - name: Install yq - portable yaml processor
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/download/v4.27.5/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Build and Push images
         run: |
           export BRANCH=${GITHUB_REF#refs/heads/}
@@ -51,14 +56,13 @@ jobs:
                  git config --global user.email github-actions@github.com
                  git config --global user.name github-actions
                  git fetch --all
-                 #git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
-                 #cd charts/adifect-backend/prod/
-                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" prod_sndright-app.yml
-                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" jobs/update_redisdata.yaml
-                 #sed -i "s|$PROD_REPO_NAME.*|$PROD_REPO_NAME:sndright_app_prod_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
-                 #git add .
-                 #git commit -m " update prod image tags: $GIT_COMMIT "
-                 #git push
+                 git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
+                 cd infrastructure/
+                 export PROD_TAG=adifect_backend_prod_$GIT_COMMIT
+                 yq -e '.image.tag = env(PROD_TAG)' -i charts/adifect-backend/prod-values.yaml
+                 git add .
+                 git commit -m " update prod image tags:- $PROD_TAG "
+                 git push
 
           elif [[ "$BRANCH" == "pre-prod-release" ]];then
 
@@ -87,18 +91,12 @@ jobs:
                 git config --global user.email github-actions@github.com
                 git config --global user.name github-actions
                 git fetch --all
-                #git clone https://$GITHUBPAT@github.com/SndRight/sndright-deployment-scripts.git -b master
-                #cd sndright-deployment-scripts/kubernetest-apps/sndrigh-dev-kube/app/dev-config/
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" sndright-app.yml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/update_redisdata.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/sql_to_redis_cron.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/redis_to_sql_cron.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/receivingcron.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/receivingcron.yaml
-                #sed -i "s|$DEV_REPO_NAME.*|$DEV_REPO_NAME:develop_$GIT_COMMIT|g" jobs/fetch_success_cron.yaml
-                #git add .
-                #git commit -m " update dev image tags: $GIT_COMMIT "
-                #git push
+                git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
+                cd infrastructure/
+                export DEV_TAG=adifect_backend_develop_$GIT_COMMIT
+                yq -e '.image.tag = env(DEV_TAG)' -i charts/adifect-backend/values.yaml
+                git add .
+                git commit -m " update dev image tags:- $DEV_TAG "
+                git push
 
           fi
