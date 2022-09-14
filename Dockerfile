@@ -1,4 +1,3 @@
-#FROM base-python:latest
 FROM python:latest
 RUN python -m pip install --upgrade pip
 RUN python --version && pip --version
