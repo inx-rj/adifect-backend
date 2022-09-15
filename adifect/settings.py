@@ -21,10 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
+SECRET_KEY = ''
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -96,11 +96,11 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'adifect',
-        'USER': 'postgres',
-        'PASSWORD': 'studio45#',
-        'HOST': '192.168.1.245',
-        'port': '5432',
+        'NAME': '',
+        'USER': '',
+        'PASSWORD': '',
+        'HOST': '',
+        'port': '',
     }
 }
 
@@ -162,8 +162,8 @@ CORS_ALLOWED_ORIGINS = [
 
 ]
 
-SEND_GRID_API_key = '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'
-SEND_GRID_FROM_EMAIL = "no-reply@sndright.com"
+SEND_GRID_API_key = ''
+SEND_GRID_FROM_EMAIL = ""
 
 FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
 BACKEND_SITE_URL = 'http://122.160.74.251:8001'
@@ -207,35 +207,35 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-AWS_ACCESS_KEY_ID = 'AKIA36VDHMT3BA4AR7WS'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'adifect'
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = 'ap-south-1'
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+AWS_STORAGE_BUCKET_NAME = ''
+AWS_S3_SIGNATURE_VERSION = ''
+AWS_S3_REGION_NAME = ''
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+DEFAULT_FILE_STORAGE = ''
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Moov API Details
 # MOOOV_DETAILS
-MOOV_APPKEY = "8103QNSWC3XROQJ3FB9HM1A88CP1I490"
-MOOV_LOGIN = "adamwittcop@txtred.com"
-MOOV_PASSWORD = "Tax1099!"
-MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
-MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
-SKYPE_USERNAME = 'muskeshbhandari20@gmail.com'
-SKYPE_PASSWORD = 'mukesh@studio45'
-TWILIO_NUMBER = '+12058131912'
-TWILIO_ACCOUNT_SID = 'AC4b620dd6c441a36c4de6e23abbc89f87'
-TWILIO_AUTH_TOKEN = '57d86eba89a7f4bbd43989a0cd1a3145'
+MOOV_APPKEY = ""
+MOOV_LOGIN = ""
+MOOV_PASSWORD = ""
+MOOV_LOGIN_TAX_API_URL = ''
+MOOV_SAVE_PAYER_URL_2 = ""
+SKYPE_USERNAME = ''
+SKYPE_PASSWORD = ''
+TWILIO_NUMBER = ''
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
 #---------- 2nd twillio -----------------------------#
-TWILIO_NUMBER_WHATSAPP = 'whatsapp:+14155238886'
-TWILIO_ACCOUNT_SID2 = 'ACcf61c478eed9d6a982577ecd8d908d73'
-TWILIO_AUTH_TOKEN2 = '562c8ab115e0750140bc7584fd2640c6'
+TWILIO_NUMBER_WHATSAPP = ''
+TWILIO_ACCOUNT_SID2 = ''
+TWILIO_AUTH_TOKEN2 = ''
 #----------------- end ------------------------------#
-# WS_ACCESS_KEY = 'AKIA4TDB7U23RT7PE3MR'
-# AWS_SECRET_KEY = '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'
-# AWS_BUCKET_NAME = 'sndright-public-mms-uploadss'
-# AWS_REGION_NAME='ap-south-1
+# WS_ACCESS_KEY = ''
+# AWS_SECRET_KEY = ''
+# AWS_BUCKET_NAME = ''
+# AWS_REGION_NAME= ''
