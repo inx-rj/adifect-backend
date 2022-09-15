@@ -9,47 +9,27 @@ https://docs.djangoproject.com/en/3.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
- 
+
 from pathlib import Path
 import os
 from datetime import timedelta
 
+# from dotenv import load_dotenv
+# load_dotenv() 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# SECRET_KEY 
-# MOOV_APPKEY = "PUT MOOV KEY HERE"
-# MOOV_LOGIN = "PUT LOGIN DETAILS"
-# MOOV_PASSWORD = "PASSWORD"
-# MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
-# MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
-# SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
-# DATABASE DETAILS 
-# 'NAME': 'adifect',
-# 'USER': 'postgres',
-# 'PASSWORD': 'studio45#',
-# 'HOST': '192.168.1.245',
-# 'PORT':'5432',
-# 'BASE_URL'
-# 'FRONTEND_URL'
-# AWS_ACCESS_KEY_ID 
-# AWS_SECRET_ACCESS_KEY
-# AWS_STORAGE_BUCKET_NAME
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 ALLOWED_HOSTS = ['*']
-
 
 # Application definition
 
@@ -61,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
+    
+    'storages',
     'rest_framework',
     'corsheaders',
     'authentication',
@@ -73,18 +55,16 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',   
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware'  
+    'django.middleware.common.CommonMiddleware'
 ]
 
 CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
- 
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -106,27 +86,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adifect.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'adifect',
-#         'USER': 'postgres',
-#         'PASSWORD': 'studio45#',
-#         'HOST': '192.168.1.245',
-#         'port':'5432',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': '', 
+        'USER': '', 
+        'PASSWORD': '', 
+        'HOST': '', 
+        'port': '', 
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -146,7 +125,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
@@ -160,33 +138,18 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
-# STATIC_URL = '/static/'
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-# STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-
-# if DEBUG:
-
-#   STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
-# else:
-
-#   STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
 STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = '/media/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_ROOT = os.path.join(BASE_DIR,'media') 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-
- 
+#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 # STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ] 
 
 # Default primary key field type
@@ -195,8 +158,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
-
-# ENV VARIABLE
 CORS_ALLOWED_ORIGINS = [
     'http://192.168.1.245:3001',
     'http://122.160.74.251:3001',
@@ -204,13 +165,13 @@ CORS_ALLOWED_ORIGINS = [
 
 ]
 
+SEND_GRID_API_key = ''
+SEND_GRID_FROM_EMAIL = ""
 
-SEND_GRID_API_key = 'PUT SENDRIGHT KEY HERE'
 FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
 BACKEND_SITE_URL = 'http://122.160.74.251:8001'
 # LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.svg'
 LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.png'
-
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -221,7 +182,6 @@ REST_FRAMEWORK = {
 
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
 }
-
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
@@ -250,21 +210,35 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-
-AWS_ACCESS_KEY_ID = 'PUT AWS BUCKET KEY HERE'
-AWS_SECRET_ACCESS_KEY = 'PUT AWS BUCKET SECRET KEY HERE'
-AWS_STORAGE_BUCKET_NAME = 'testing-sndright-dev'
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = 'ap-south-1'
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+AWS_STORAGE_BUCKET_NAME = ''
+AWS_S3_SIGNATURE_VERSION = ''
+AWS_S3_REGION_NAME = ''
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
+DEFAULT_FILE_STORAGE = ''
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Moov API Details
-#MOOOV_DETAILS
-MOOV_APPKEY = "PUT MOOV KEY HERE"
-MOOV_LOGIN = "PUT LOGIN DETAILS"
-MOOV_PASSWORD = "PASSWORD"
-MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
-MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
+# MOOOV_DETAILS
+MOOV_APPKEY = ""
+MOOV_LOGIN = ""
+MOOV_PASSWORD = ""
+MOOV_LOGIN_TAX_API_URL = ''
+MOOV_SAVE_PAYER_URL_2 = ""
+SKYPE_USERNAME = ''
+SKYPE_PASSWORD = ''
+TWILIO_NUMBER = ''
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
+#---------- 2nd twillio -----------------------------#
+TWILIO_NUMBER_WHATSAPP = ''
+TWILIO_ACCOUNT_SID2 = ''
+TWILIO_AUTH_TOKEN2 = ''
+#----------------- end ------------------------------#
+# WS_ACCESS_KEY = ''
+# AWS_SECRET_KEY = ''
+# AWS_BUCKET_NAME = ''
+# AWS_REGION_NAME= ''

@@ -14,3 +14,5 @@ class SoftDeleteManager(models.Manager):
         if self.with_deleted:
             return qs
         return qs.filter(is_trashed=False)
+
+

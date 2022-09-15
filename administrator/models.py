@@ -2,12 +2,15 @@ from email import message
 import os
 from operator import truediv
 from pyexpat import model
+
+from django.db.models import CharField
 from typing_extensions import Required
 from django.db import models
 from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
+from agency.models import WorksFlow, Company, Industry
 
 
 def validate_attachment(value):
@@ -51,6 +54,8 @@ class Category(BaseModel):
         verbose_name_plural = 'Category'
 
 
+# ---------------------------------- old ---------------------------------------------#
+'''
 class Industry(BaseModel):
     industry_name = models.CharField(max_length=50)
     slug = AutoSlugField(populate_from='industry_name')
@@ -62,7 +67,10 @@ class Industry(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Industry'
+'''
 
+
+# ---------------------------------- end ------------------------------------------------#
 
 class Level(BaseModel):
     level_name = models.CharField(max_length=50)
@@ -89,6 +97,8 @@ class Skills(BaseModel):
         verbose_name_plural = 'Skills'
 
 
+# ---------------------- --------- old ---------------------------------------------#
+'''
 class Company(BaseModel):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=200)
@@ -103,17 +113,29 @@ class Company(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Company'
+'''
+# ---------------------------------- end ------------------------------------------------#
 
 
 jobType = (('0', 'Fixed'), ('1', 'Hourly'))
 
 
+def validate_template_name(value):
+    if value:
+        if JobTemplate.objects.filter(template_name=value, is_trashed=False).exists():
+            raise ValidationError("Job Template With This Name Already Exist")
+    return value
+
+
 class Job(BaseModel):
+    class Status(models.IntegerChoices):
+        Draft = 0
+        Template = 1
+        Post = 2
+
     title = models.CharField(max_length=250)
     description = models.TextField(default=None, blank=True, null=True)
     job_type = models.CharField(choices=jobType, max_length=30, default='0')
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
-    industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, null=True, blank=True)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, null=True, blank=True)
     expected_delivery_date = models.DateField(default=None)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -122,9 +144,15 @@ class Job(BaseModel):
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     related_jobs = models.ManyToManyField('self', blank=True)
-    company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="job_company", null=True, blank=True)
+    industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, related_name="job_industry", null=True,
+                                 blank=True)
+    workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
+                                 null=True)
+    job_due_date = models.DateField(auto_now_add=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-    status = models.PositiveSmallIntegerField(default=0)
+    template_name = models.CharField(max_length=250, null=True, blank=True, validators=[validate_template_name])
+    status = models.IntegerField(choices=Status.choices, default=Status.Post)
 
     def __str__(self) -> str:
         return f'{self.title}'
@@ -213,7 +241,6 @@ class ActivityAttachments(BaseModel):
     activities = models.ForeignKey(Activities, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
     activity_attachments = models.FileField(upload_to='activity_attachments', blank=True, null=True,
                                             validators=[validate_attachment])
-
     class Meta:
         verbose_name_plural = 'Activity Attachments'
 
@@ -233,3 +260,64 @@ class PreferredLanguage(BaseModel):
 
     def __str__(self):
         return self.ln_code
+
+
+class JobTasks(BaseModel):
+    job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, related_name="jobtasks_job")
+    title = models.CharField(max_length=3000, null=False, blank=False)
+    due_date = models.DateField(auto_now_add=False)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> CharField:
+        return self.title
+
+    class Meta:
+        verbose_name_plural = 'Job Task'
+
+
+class JobTemplate(BaseModel):
+    class JobType(models.IntegerChoices):
+        Fixed = 0
+        Hourly = 1
+
+    class Status(models.IntegerChoices):
+        Draft = 0
+        Template = 1
+        Post = 2
+
+    template_name = models.CharField(max_length=250, validators=[validate_template_name])
+    title = models.CharField(max_length=250)
+    description = models.TextField(default=None, blank=True, null=True)
+    job_type = models.IntegerField(choices=JobType.choices, default=JobType.Fixed)
+    level = models.ForeignKey(Level, on_delete=models.SET_NULL, related_name="jobtemplate_level", null=True, blank=True)
+    expected_delivery_date = models.DateField(default=None)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    tags = models.CharField(max_length=10000)
+    skills = models.ManyToManyField(Skills)
+    image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
+    sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="jobtemplate_company", null=True,
+                                blank=True)
+    industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, related_name="jobtemplate_industry", null=True,
+                                 blank=True)
+    workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="jobtemplate_workflow", blank=True,
+                                 null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="jobtemplate_user", null=True,
+                             blank=True)
+    status = models.IntegerField(choices=Status.choices, default=Status.Template)
+
+    def __str__(self) -> str:
+        return f'{self.title}'
+
+    class Meta:
+        verbose_name_plural = 'Job Template'
+
+
+class JobTemplateAttachments(BaseModel):
+    job_template = models.ForeignKey(JobTemplate, related_name="jobtempalate_images", on_delete=models.SET_NULL,
+                                     null=True, blank=True)
+    job_images = models.FileField(upload_to='jobtempalate_images', blank=True, null=True)
+    work_sample_images = models.FileField(upload_to='jobtempalate_work_sample_images', blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Template Attachments'

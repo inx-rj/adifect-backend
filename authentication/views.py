@@ -29,13 +29,13 @@ from datetime import timedelta
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL,SEND_GRID_FROM_EMAIL
 from adifect import settings
 import base64
 from rest_framework import viewsets
 import requests
 import json
-
+from agency.helper import StringEncoder,send_email
 # Get an instance of a logger
 logger = logging.getLogger('django')
 
@@ -75,13 +75,69 @@ class SignUpView(APIView):
                     role=data['role']
                 )
                 user.set_password(data['password'])
+                email = serializer.validated_data['email']
+                from_email = Email(SEND_GRID_FROM_EMAIL)
+                to_email = To(email)
+                token = str(uuid.uuid4())
+                decodeId = StringEncoder.encode(self, user.id)
+                subject = "Confirm Email"
+                content = Content("text/html", f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
+                                               f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
+                                               f'600px; margin: 0 auto;" width="600" cellpadding="0" '
+                                               f'cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 '
+                                               f'0;"><div style="padding: 34px 44px; border-radius: 8px !important; '
+                                               f'background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; '
+                                               f'margin-top: 50px;"><div class="email-logo"><img style="width: 165px;" '
+                                               f'src="{LOGO_122_SERVER_PATH}" /></div><a href="#"></a><div '
+                                               f'class="welcome-text" style="padding-top: 80px;"><h1 style="font: '
+                                               f'24px;">   Welcome<span class="welcome-hand">👋</span></h1></div><div '
+                                               f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
+                                               f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
+                                               f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
+                                               f'below to verify your email<br /></div><div '
+                                               f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
+                                               f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
+                                               f'40px;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId}/><button style="height: 56px; '
+                                               f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
+                                               f'border-style: none; color: white; font-size: 16px;"> Confirm Email '
+                                               f'Address</button></a></div> <div style="padding: 50px 0px;" '
+                                               f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
+                                               f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
+                                               f'rather not receive this kind of email, Don’t want any more emails '
+                                               f'from Adifect?<a href="#"><span style="text-decoration: '
+                                               f'underline;">Unsubscribe.</span></a></div><div style="font-size: 16px; '
+                                               f'color: #384860;"> © 2022 '
+                                               f'Adifect</div></div></div></td></tr></tbody></table></div>')
+                data = send_email(from_email, to_email, subject, content)
+                user.forget_password_token = token
                 user.save()
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyEmail(APIView):
+    lookup_url_kwarg = "token"
+    lookup_url_kwarg2 = "uid"
+
+    def get(self, request, *args, **kwargs):
+        token = self.kwargs.get(self.lookup_url_kwarg)
+        uid = self.kwargs.get(self.lookup_url_kwarg2)
+        encoded_id = int(StringEncoder.decode(self, uid))
+        user_data = CustomUser.objects.filter(id=encoded_id, email_verified=False).first()
+        if user_data:
+            if token == user_data.forget_password_token:
+                user_data.email_verified = True
+                user_data.save()
+                return Response({'message': 'Your email have been confirmed','status':status.HTTP_200_OK,'error':False}, status=status.HTTP_200_OK)
+
+        context = {
+            'message': "something went wrong!"
+        }
+        response = Response(context, status=status.HTTP_400_BAD_REQUEST)
+        return response
 
 
 def get_tokens_for_user(user):
@@ -102,6 +158,7 @@ class LoginView(GenericAPIView):
         password = request.data['password']
         user = CustomUser.objects.filter(email=email, is_trashed=False).first()
 
+
         if not user:
             user = CustomUser.objects.filter(username=email, is_trashed=False).first()
 
@@ -115,6 +172,12 @@ class LoginView(GenericAPIView):
         if not user.check_password(password):
             context = {
                 'message': 'Please enter valid login details'
+            }
+
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        if user.email_verified == False:
+            context = {
+                'message': 'Please confirm your email to access your account'
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
@@ -179,7 +242,7 @@ class ForgetPassword(APIView):
                 user.forget_password_token = token
                 user.token_expire_time = token_expire_time
                 user.save()
-
+                '''
                 try:
                     sg = sendgrid.SendGridAPIClient(api_key=SEND_GRID_API_key)
                     from_email = Email("no-reply@sndright.com")
@@ -192,8 +255,20 @@ class ForgetPassword(APIView):
                     response = sg.client.mail.send.post(request_body=mail_json)
                 except Exception as e:
                     pass
+                '''
+                try:
+                    decodeId = StringEncoder.encode(self, user.id)
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(email)
+                    subject = "Forget Password"
 
-                if user != 0:
+                    content = Content("text/html",
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Opps,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">looks like you have forgotten your password.<br />Please click the link below to reset your<br />password!</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/reset-password/{token}/{decodeId}/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Reset Password</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                    data = send_email(from_email, to_email, subject, content)
+                except Exception as e:
+                    pass
+
+                if data:
                     return Response({'message': 'Email Send successfully, Please check your email'},
                                     status=status.HTTP_200_OK)
                 else:
@@ -209,7 +284,8 @@ class ChangePassword(GenericAPIView):
     def get(self, request, *args, **kwargs):
         token = self.kwargs.get(self.lookup_url_kwarg)
         uid = self.kwargs.get(self.lookup_url_kwarg2)
-        user_data = CustomUser.objects.filter(id=uid, is_trashed=False).first()
+        encoded_id = int(StringEncoder.decode(self, uid))
+        user_data = CustomUser.objects.filter(id=encoded_id, is_trashed=False).first()
         if not user_data.forget_password_token:
             return Response({'token_expire': 'Token Expired'}, status=status.HTTP_400_BAD_REQUEST)
         if token != user_data.forget_password_token:
@@ -241,7 +317,7 @@ class ChangePassword(GenericAPIView):
             return Response({'message': 'Password and Confirm Password do not match'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = self.kwargs.get(self.lookup_url_kwarg2)
+        user_id = int(StringEncoder.decode(self,self.kwargs.get(self.lookup_url_kwarg2)))
         user_data = CustomUser.objects.get(id=user_id, is_trashed=False)
         user_data.set_password(password)
         user_data.forget_password_token = None

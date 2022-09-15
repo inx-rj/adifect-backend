@@ -4,10 +4,11 @@ from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
-from .models import Category, Job, JobAttachments, JobApplied, Industry, Level, Skills, Company, JobHired, Activities, \
-    Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage
+from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
+    Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, \
+    JobTemplateAttachments
 from rest_framework.fields import SerializerMethodField
-
+# from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
 from langcodes import Language
@@ -23,7 +24,8 @@ class EditProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
-                  'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode', 'preferred_communication_id' ]
+                  'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
+                  'preferred_communication_id']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -45,7 +47,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name",'profile_img', "profile_status"]
+        fields = ['id', 'email', "username", "first_name", "last_name", 'profile_img', "profile_status"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -54,10 +56,10 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class IndustrySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Industry
-        fields = '__all__'
+# class IndustrySerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Industry
+#         fields = '__all__'
 
 
 class LevelSerializer(serializers.ModelSerializer):
@@ -77,6 +79,7 @@ class JobSerializer(serializers.ModelSerializer):
                                   validators=[validate_file_extension])
     sample_image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
                                          validators=[validate_file_extension])
+    workflow_name = SerializerMethodField("get_worksflow_name")
 
     class Meta:
         model = Job
@@ -84,6 +87,11 @@ class JobSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
+
+    def get_worksflow_name(self, obj):
+        if obj.workflow:
+            return obj.workflow.name
+        return ''
 
     def create(self, validated_data):
         if validated_data.get('image'):
@@ -111,15 +119,29 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class JobAttachmentsSerializer(serializers.ModelSerializer):
+    job_image_name = SerializerMethodField("get_image_name")
+    work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
     class Meta:
         model = JobAttachments
         fields = '__all__'
 
+    def get_image_name(self, obj):
+        if obj.job_images:
+            return str(obj.job_images).split('/')[-1]
+        return None
 
-class CompanySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Company
-        fields = '__all__'
+    def get_work_sample_image_name(self, obj):
+        if obj.work_sample_images:
+            return str(obj.work_sample_images).split('/')[-1]
+        return None
+
+
+
+
+# class CompanySerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Company
+#         fields = '__all__'
 
 
 class RelatedJobsSerializer(serializers.ModelSerializer):
@@ -129,16 +151,26 @@ class RelatedJobsSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description']
 
 
+class JobTasksSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobTasks
+        fields = '__all__'
+
+
 class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     images = JobAttachmentsSerializer(many=True)
-    category = CategorySerializer()
-    industry = IndustrySerializer()
+    # category = CategorySerializer()
+    # industry = IndustrySerializer()
+    jobtasks_job = JobTasksSerializer(many=True)
     level = LevelSerializer()
     skills = SkillsSerializer(many=True)
     related_jobs = RelatedJobsSerializer(many=True)
-    company = CompanySerializer()
+    # company = CompanySerializer()
     get_jobType_details = SerializerMethodField("get_jobType_info")
     job_applied_status = SerializerMethodField("get_job_applied_status")
+    workflow_name = SerializerMethodField("get_worksflow_name")
+    company_name = SerializerMethodField("get_company_name")
+    industry_name = SerializerMethodField("get_industry_name")
 
     class Meta:
         model = Job
@@ -175,19 +207,37 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-    def get_industry_info(self, obj):
+    def get_company_name(self,obj):
         try:
-            if obj.industry_id is not None:
-                industryObj = Industry.objects.get(id=obj.industry.id)
-                if industryObj is not None:
-                    industry_serializer = IndustrySerializer(industryObj, many=False)
-                    return industry_serializer.data
-                else:
-                    return ''
+            if obj.company:
+                return obj.company.name
             else:
                 return ''
         except Exception as err:
             return ''
+
+    def get_industry_name(self,obj):
+        try:
+            if obj.industry:
+                return obj.industry.industry_name
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    # def get_industry_info(self, obj):
+    #     try:
+    #         if obj.industry_id is not None:
+    #             industryObj = Industry.objects.get(id=obj.industry.id)
+    #             if industryObj is not None:
+    #                 industry_serializer = IndustrySerializer(industryObj, many=False)
+    #                 return industry_serializer.data
+    #             else:
+    #                 return ''
+    #         else:
+    #             return ''
+    #     except Exception as err:
+    #         return ''
 
     def get_level_info(self, obj):
         try:
@@ -217,6 +267,11 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
+
+    def get_worksflow_name(self, obj):
+        if obj.workflow:
+            return obj.workflow.name
+        return ''
 
 
 class ActivityAttachmentsSerializer(serializers.ModelSerializer):
@@ -310,3 +365,128 @@ class PreferredLanguageSerializer(serializers.ModelSerializer):
             return obj.get_ln_proficiency_display()
         else:
             return ''
+
+
+
+
+class JobTemplateSerializer(serializers.ModelSerializer):
+    image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
+                                  validators=[validate_file_extension])
+    sample_image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
+                                         validators=[validate_file_extension])
+    workflow_name = SerializerMethodField("get_worksflow_name")
+
+    class Meta:
+        model = JobTemplate
+        fields = '__all__'
+        extra_kwargs = {
+            'expected_delivery_date': {'required': True},
+        }
+
+    def get_worksflow_name(self, obj):
+        if obj.workflow:
+            return obj.workflow.name
+        return ''
+
+    def create(self, validated_data):
+        if validated_data.get('image'):
+            validated_data.pop('image')
+        if validated_data.get('sample_image'):
+            validated_data.pop('sample_image')
+
+        if validated_data.get('skills'):
+            skills_data = validated_data.get('skills')
+            validated_data.pop('skills')
+        job = JobTemplate.objects.create(**validated_data)
+        if skills_data:
+            for i in skills_data:
+                job.skills.add(i)
+            job.save()
+        return job
+
+
+class JobTemplateAttachmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobTemplateAttachments
+        fields = '__all__'
+
+
+class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
+    jobtempalate_images = JobTemplateAttachmentsSerializer(many=True)
+    level = LevelSerializer()
+    skills = SkillsSerializer(many=True)
+    # company = CompanySerializer()
+    get_jobType_details = SerializerMethodField("get_jobType_info")
+    workflow_name = SerializerMethodField("get_worksflow_name")
+    status = SerializerMethodField("get_status")
+    company_name = SerializerMethodField("get_company_name")
+    industry_name = SerializerMethodField("get_industry_name")
+
+    class Meta:
+        model = JobTemplate
+        fields = '__all__'
+        extra_kwargs = {
+            'expected_delivery_date': {'required': True},
+        }
+
+    def get_jobType_info(self, obj):
+        if obj:
+            return obj.get_job_type_display()
+        else:
+            return ''
+
+    def get_level_info(self, obj):
+        try:
+            if obj.level_id is not None:
+                levelObj = Level.objects.get(id=obj.industry.id)
+                if levelObj is not None:
+                    level_serializer = LevelSerializer(levelObj, many=False)
+                    return level_serializer.data
+                else:
+                    return ''
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_skill_info(self, obj):
+        try:
+            if obj.skills_id is not None:
+                skillObj = Skills.objects.get(id=obj.skills.id)
+
+                if skillObj is not None:
+                    skill_serializer = SkillsSerializer(skillObj, many=False)
+                    return skill_serializer.data
+                else:
+                    return ''
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_worksflow_name(self, obj):
+        if obj.workflow:
+            return obj.workflow.name
+        return ''
+
+    def get_status(self,obj):
+        return obj.get_status_display()
+
+    def get_company_name(self,obj):
+        try:
+            if obj.company:
+                return obj.company.name
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_industry_name(self,obj):
+        try:
+            if obj.industry:
+                return obj.industry.industry_name
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
