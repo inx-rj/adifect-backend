@@ -11,7 +11,7 @@ Django==3.2.14
 django-advanced-filters==2.0.0
 django-autoslug==1.9.8
 django-cors-headers==3.10.1
-django-filter==2.4.0
+django-filter==22.1
 django-simple-history==3.0.0
 django-storages==1.12.3
 django-utils-six==2.0
