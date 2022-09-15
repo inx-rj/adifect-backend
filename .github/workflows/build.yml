@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "master"
+      - "main"
       - "development"
       - "pre-prod-release"
 
@@ -47,7 +47,7 @@ jobs:
           export GIT_COMMIT=$(echo ${GITHUB_SHA} | cut -c1-8)
           echo "Build and Push images to ECR"
 
-          if [[ "$BRANCH" == "master" ]];then
+          if [[ "$BRANCH" == "main" ]];then
 
                  echo "Build Prod image"
                  docker build -t $PROD_REPO_NAME:adifect_backend_prod_$GIT_COMMIT .
