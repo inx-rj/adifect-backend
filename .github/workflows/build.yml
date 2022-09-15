@@ -59,7 +59,7 @@ jobs:
                  git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
                  cd infrastructure/
                  export PROD_TAG=adifect_backend_prod_$GIT_COMMIT
-                 yq -e '.image.tag = env(PROD_TAG)' -i charts/adifect-backend/prod-values.yaml
+                 yq -e '.image.tag = env(PROD_TAG)' -i charts/adifect-backend/prod-environment/values.yaml
                  git add .
                  git commit -m " update prod image tags:- $PROD_TAG "
                  git push
@@ -94,7 +94,7 @@ jobs:
                 git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
                 cd infrastructure/
                 export DEV_TAG=adifect_backend_develop_$GIT_COMMIT
-                yq -e '.image.tag = env(DEV_TAG)' -i charts/adifect-backend/values.yaml
+                yq -e '.image.tag = env(DEV_TAG)' -i charts/adifect-backend/dev-environment/values.yaml
                 git add .
                 git commit -m " update dev image tags:- $DEV_TAG "
                 git push
