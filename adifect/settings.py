@@ -83,7 +83,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware'  
 ]
 
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
+#CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
+CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com/']
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -197,16 +198,17 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 
 # ENV VARIABLE
 CORS_ALLOWED_ORIGINS = [
-    'http://192.168.1.245:3001',
-    'http://122.160.74.251:3001',
-    'http://localhost:3001'
+    'https://dev.adifect.com/',
+#     'http://192.168.1.245:3001',
+#     'http://122.160.74.251:3001',
+#     'http://localhost:3001'
 
 ]
 
 
 SEND_GRID_API_key = 'PUT SENDRIGHT KEY HERE'
-FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
-BACKEND_SITE_URL = 'http://122.160.74.251:8001'
+FRONTEND_SITE_URL = 'https://dev.adifect.com/'
+BACKEND_SITE_URL = 'https://dev-api.adifect.com/'
 # LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.svg'
 LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.png'
 
