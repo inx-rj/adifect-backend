@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
         pip install gunicorn && \
         pip install telnyx
 
-RUN python manage.py collectstatic --noinput
+RUN python manage.py collectstatic
 
 RUN chmod +x gunicorn.sh
 EXPOSE 8000
