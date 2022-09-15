@@ -84,7 +84,7 @@ MIDDLEWARE = [
 ]
 
 CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
-
+ 
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
