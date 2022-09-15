@@ -9,6 +9,7 @@ urlpatterns = [
     path('loginview/', LoginView.as_view(), name='loginview'),
     path('forget-password/', ForgetPassword.as_view(), name='forget-password'),
     path('reset-password/<str:token>/<str:uid>/', ChangePassword.as_view(), name='reset-password'),
-    path('payment-verification', views.PaymentVerification.as_view(), name='payment_verification')
+    path('payment-verification', views.PaymentVerification.as_view(), name='payment_verification'),
+    path('verify-email/<str:token>/<str:uid>/', views.VerifyEmail.as_view(), name='verify_email'),
 ]
 urlpatterns += router.urls

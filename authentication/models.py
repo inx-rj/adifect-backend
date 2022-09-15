@@ -48,6 +48,7 @@ class CustomUser(AbstractUser):
         default='0', blank=True, null=True)
     preferred_communication_id = models.CharField(max_length=200, null=True, blank=True)
     is_exclusive = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
     is_trashed = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):

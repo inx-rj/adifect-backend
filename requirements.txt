@@ -7,6 +7,7 @@ cryptography==37.0.4
 Django==3.2.14
 django-autoslug==1.9.8
 django-cors-headers==3.10.1
+django-environ==0.9.0
 django-filter==22.1
 django-simple-history==3.0.0
 django-utils-six==2.0
@@ -35,4 +36,3 @@ starkbank-ecdsa==2.0.3
 typing_extensions==4.1.1
 urllib3==1.26.12
 whitenoise==6.2.0
- 

@@ -1,9 +1,12 @@
 from django.db import models
 from autoslug import AutoSlugField
 from authentication.models import CustomUser
-
-from administrator.models import Job
+import os
 from authentication.manager import SoftDeleteManager
+from django.db.models import CharField
+from django.db.models import Q
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 
 
 # Create your models here.
@@ -27,10 +30,56 @@ class BaseModel(models.Model):
         abstract = True
 
 
+def validate_industry_name(value):
+    if value:
+        if Industry.objects.filter(industry_name=value, is_trashed=False).exists():
+            raise ValidationError("Industry Already Exist")
+    return value
+
+
+class Industry(BaseModel):
+    industry_name = models.CharField(max_length=50, validators=[validate_industry_name])
+    slug = AutoSlugField(populate_from='industry_name')
+    description = models.TextField(default=None, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> CharField:
+        return self.industry_name
+
+    class Meta:
+        verbose_name_plural = 'Industry'
+
+
+class Company(BaseModel):
+    class Type(models.IntegerChoices):
+        person = 0
+        agency = 1
+
+    name = models.CharField(max_length=50)
+    description = models.CharField(max_length=200, null=True, blank=True)
+    company_type = models.IntegerField(choices=Type.choices, default=Type.agency)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='company_agency', blank=True,
+                               null=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Company'
+        verbose_name_plural = 'Company'
+
+    def clean(self):
+        if Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False).exists():
+            raise ValidationError("Company Already Exist")
+
+    def __str__(self) -> CharField:
+        return self.name
+
+
 class WorksFlow(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
-    job = models.ForeignKey(Job, on_delete=models.SET_NULL, related_name="workflow_job", blank=True, null=True)
-    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='workflow_agency', blank=True, null=True)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='workflow_agency', blank=True,
+                               null=True)
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='workflow_company', blank=True,
+                                null=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -46,7 +95,8 @@ class InviteMember(BaseModel):
         ACCEPT = 1
         REJECT = 2
 
-    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_agency',blank=True, null=True)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_agency', blank=True,
+                               null=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_user', null=True,
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
@@ -64,7 +114,8 @@ class Workflow_Stages(BaseModel):
     approvals = models.ManyToManyField(InviteMember, related_name="stage_approvals")
     is_observer = models.BooleanField(default=False)
     observer = models.ManyToManyField(InviteMember, related_name="stage_observer")
-    workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="stage_workflow",null=True, blank=True)
+    workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="stage_workflow", null=True,
+                                 blank=True)
     order = models.IntegerField(blank=True, null=True)
 
     class Meta:
@@ -72,3 +123,35 @@ class Workflow_Stages(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+class DAM(BaseModel):
+    class Type(models.IntegerChoices):
+        FOLDER = 1
+        COLLECTION = 2
+        IMAGE = 3
+
+    name = models.CharField(max_length=50, default=None)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
+    type = models.IntegerField(choices=Type.choices, default=None)
+
+    class Meta:
+        verbose_name_plural = 'DAM'
+
+
+def fileLocation(instance, dam_media):
+    if instance.dam.type == 1:
+        return 'dam_media/{0}/{1}'.format(instance.dam.agency.username, os.path.basename(dam_media))
+    if instance.dam.type == 2:
+        return 'dam_media/{0}/{1}'.format(instance.dam.agency.username + 'collections/',
+                                          os.path.basename(dam_media))
+    if instance.dam.type == 3:
+        return 'dam_media/{0}/{1}'.format(instance.dam.agency.username + 'images/',
+                                          os.path.basename(dam_media))
+
+
+class DamMedia(BaseModel):
+    dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
+    media = models.FileField(upload_to=fileLocation, blank=True, null=True)
+    class Meta:
+        verbose_name_plural = 'DAM Media'

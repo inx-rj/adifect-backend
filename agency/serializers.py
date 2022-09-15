@@ -3,7 +3,7 @@ import os
 from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
-from .models import InviteMember, WorksFlow, Workflow_Stages
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia
 from rest_framework.fields import SerializerMethodField
 
 from authentication.serializers import UserSerializer
@@ -12,17 +12,46 @@ from administrator.models import Job
 from administrator.serializers import JobSerializer, UserListSerializer
 
 
+class IndustrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Industry
+        fields = '__all__'
+
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = '__all__'
+
+
 class WorksFlowSerializer(serializers.ModelSerializer):
-    job_title = SerializerMethodField("get_job_name")
+    assigned_job = SerializerMethodField("get_assigned_job")
+    company_name = SerializerMethodField("get_company_name")
 
     class Meta:
         model = WorksFlow
         fields = '__all__'
 
-    def get_job_name(self, obj):
-        if obj.job:
-            return obj.job.title
-        else:
+    def get_assigned_job(self, obj):
+        try:
+            if obj:
+                # reverse relation
+                if obj.job_workflow.all():
+                    return True
+                else:
+                    return False
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_company_name(self, obj):
+        try:
+            if obj.company:
+                return obj.company.name
+            else:
+                return ''
+        except Exception as err:
             return ''
 
 
@@ -32,14 +61,17 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     user_name = SerializerMethodField("get_user_name")
     user_email = SerializerMethodField("get_user_email")
     user_image = SerializerMethodField("get_user_image")
-    message = serializers.CharField(write_only=True, required=True)
-    level = serializers.CharField(write_only=True, required=True)
+    user_first_name = SerializerMethodField("get_first_name")
+    user_last_name = SerializerMethodField("get_last_name")
+
+    # message = serializers.CharField(write_only=True, required=True)
+    # level = serializers.CharField(write_only=True, required=True)
     exclusive = serializers.BooleanField(write_only=True, default=False)
 
     class Meta:
         model = InviteMember
-        fields = ['id','agency', 'email', 'user_id', 'message', 'level', 'exclusive', 'user_name', 'user_email',
-                  'user_image']
+        fields = ['id', 'agency', 'email', 'user_id', 'exclusive', 'user_name', 'user_email',
+                  'user_image','user_first_name','user_last_name']
 
     def get_user_id(self, obj):
         try:
@@ -62,7 +94,6 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_user_email(self, obj):
         try:
             if obj.user:
-
                 return obj.user.email
             else:
                 return ''
@@ -73,6 +104,24 @@ class InviteMemberSerializer(serializers.ModelSerializer):
         try:
             if obj.user:
                 return self.get_image_url(obj.user.profile_img.url)
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_first_name(self, obj):
+        try:
+            if obj.user:
+                return obj.user.first_name
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_last_name(self, obj):
+        try:
+            if obj.user:
+                return obj.user.last_name
             else:
                 return ''
         except Exception as err:
@@ -113,7 +162,6 @@ class InviteMemberRegisterSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user_name = data.get('username')
         email = data.get('email')
-        # if CustomUser.objects.filter(username__iexact=user_name, email__iexact=email).exists():
         if CustomUser.objects.filter(username__iexact=user_name).exists() and CustomUser.objects.filter(
                 email__iexact=email).exists():
             raise serializers.ValidationError("User Name and email must be unique")
@@ -127,6 +175,7 @@ class InviteMemberRegisterSerializer(serializers.ModelSerializer):
 class StageSerializer(serializers.ModelSerializer):
     observer_detail = SerializerMethodField("get_observer_detail")
     approvals_details = SerializerMethodField("get_approvals_details")
+
     class Meta:
         model = Workflow_Stages
         fields = '__all__'
@@ -142,3 +191,28 @@ class StageSerializer(serializers.ModelSerializer):
             user_serializer = InviteMemberSerializer(obj.approvals.all(), many=True)
             return user_serializer.data
         return ''
+
+class DAMSerializer(serializers.ModelSerializer):
+    dam_files = serializers.FileField(allow_empty_file=True, required=False)
+    class Meta:
+        model = DAM
+        fields = '__all__'
+
+    def create(self, validated_data):
+        if validated_data.get('dam_files'):
+            validated_data.pop('dam_files')
+
+        dam = DAM.objects.create(**validated_data)
+        dam.save()
+        return dam
+
+class DamMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DamMedia
+        fields = '__all__'
+
+class DamWithMediaSerializer(serializers.ModelSerializer):
+    dam_media = DamMediaSerializer(many=True, required=False)
+    class Meta:
+        model = DAM
+        fields = '__all__'
