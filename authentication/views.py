@@ -44,7 +44,7 @@ class SignUpView(APIView):
     serializer_class = RegisterSerializer
     
     def get(self, request):
-        return Response({'DB_NAME':DB_NAME,'USER_NAME':USER_NAME,'DB_PASSWORD':DB_PASSWORD,'DB_HOST':DB_HOST,DB_PORT:DB_PORT})
+        return Response({'DB_NAME':DB_NAME,'USER_NAME':USER_NAME,'DB_PASSWORD':DB_PASSWORD,'DB_HOST':DB_HOST,'DB_PORT':DB_PORT})
     
     def post(self, request):
         try:
