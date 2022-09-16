@@ -14,9 +14,6 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
-# from dotenv import load_dotenv
-# load_dotenv() 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-^r8dr13s8wlx5kkvg6)g3dha7=4mtangi6=@xo&ac5v)1x8cb4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -41,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
-    
+
     'storages',
     'rest_framework',
     'corsheaders',
@@ -50,7 +47,7 @@ INSTALLED_APPS = [
     'creator',
     'agency',
 
-    # 'category'    
+    # 'category'
 ]
 
 MIDDLEWARE = [
@@ -89,23 +86,23 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': '', 
-        'USER': '', 
-        'PASSWORD': '', 
-        'HOST': '', 
-        'port': '', 
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'adifect',
+#         'USER': 'postgres',
+#         'PASSWORD': 'studio45#',
+#         'HOST': '192.168.1.245',
+#         'port': '5432',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -144,13 +141,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = '/media/'
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ] 
+STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -212,13 +205,13 @@ SIMPLE_JWT = {
 
 AWS_ACCESS_KEY_ID = ''
 AWS_SECRET_ACCESS_KEY = ''
-AWS_STORAGE_BUCKET_NAME = ''
-AWS_S3_SIGNATURE_VERSION = ''
-AWS_S3_REGION_NAME = ''
+AWS_STORAGE_BUCKET_NAME = 'adifect'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_REGION_NAME = 'ap-south-1'
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
-DEFAULT_FILE_STORAGE = ''
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Moov API Details
@@ -226,10 +219,10 @@ DEFAULT_FILE_STORAGE = ''
 MOOV_APPKEY = ""
 MOOV_LOGIN = ""
 MOOV_PASSWORD = ""
-MOOV_LOGIN_TAX_API_URL = ''
-MOOV_SAVE_PAYER_URL_2 = ""
-SKYPE_USERNAME = ''
-SKYPE_PASSWORD = ''
+MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
+MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
+SKYPE_USERNAME = 'muskeshbhandari20@gmail.com'
+SKYPE_PASSWORD = 'mukesh@studio45'
 TWILIO_NUMBER = ''
 TWILIO_ACCOUNT_SID = ''
 TWILIO_AUTH_TOKEN = ''
@@ -238,7 +231,7 @@ TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
 #----------------- end ------------------------------#
-# WS_ACCESS_KEY = ''
-# AWS_SECRET_KEY = ''
-# AWS_BUCKET_NAME = ''
-# AWS_REGION_NAME= ''
+# WS_ACCESS_KEY = 'AKIA4TDB7U23RT7PE3MR'
+# AWS_SECRET_KEY = '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'
+# AWS_BUCKET_NAME = 'sndright-public-mms-uploadss'
+# AWS_REGION_NAME='ap-south-1
