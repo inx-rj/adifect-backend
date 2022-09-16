@@ -164,7 +164,7 @@ SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 
 FRONTEND_SITE_URL = os.environ.get('FRONTEND_SITE_URL')
 BACKEND_SITE_URL = os.environ.get('BACKEND_SITE_URL')
-LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.png'
+
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
