@@ -64,7 +64,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware'
 ]
 
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001','https://dev-api.adifect.com']
+CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -156,9 +156,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
 CORS_ALLOWED_ORIGINS = [
-    'http://192.168.1.245:3001',
-    'http://122.160.74.251:3001',
-    'http://localhost:3001',
     'https://dev.adifect.com/'
 ]
 
@@ -233,9 +230,3 @@ TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
 #----------------- end ------------------------------#
 
-
-DB_NAME = os.environ.get('DB_NAME')
-USER_NAME = os.environ.get('DB_USER')
-DB_PASSWORD = os.environ.get('DB_PASSWORD')
-DB_HOST = os.environ.get('DB_HOST')
-DB_PORT = os.environ.get('DB_PORT')
