@@ -29,7 +29,7 @@ from datetime import timedelta
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL,SEND_GRID_FROM_EMAIL,DB_NAME,USER_NAME,DB_PASSWORD,DB_HOST,DB_PORT
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL,SEND_GRID_FROM_EMAIL
 from adifect import settings
 import base64
 from rest_framework import viewsets
@@ -43,8 +43,8 @@ logger = logging.getLogger('django')
 class SignUpView(APIView):
     serializer_class = RegisterSerializer
     
-    def get(self, request):
-        return Response({'DB_NAME':DB_NAME,'USER_NAME':USER_NAME,'DB_PASSWORD':DB_PASSWORD,'DB_HOST':DB_HOST,'DB_PORT':DB_PORT})
+#     def get(self, request):
+#         return Response({'DB_NAME':DB_NAME,'USER_NAME':USER_NAME,'DB_PASSWORD':DB_PASSWORD,'DB_HOST':DB_HOST,'DB_PORT':DB_PORT})
     
     def post(self, request):
         try:
