@@ -235,7 +235,10 @@ TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
 #----------------- end ------------------------------#
-# WS_ACCESS_KEY = 'AKIA4TDB7U23RT7PE3MR'
-# AWS_SECRET_KEY = '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'
-# AWS_BUCKET_NAME = 'sndright-public-mms-uploadss'
-# AWS_REGION_NAME='ap-south-1
+
+
+DB_NAME = os.environ.get('DB_NAME')
+USER_NAME = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_HOST = os.environ.get('DB_HOST')
+DB_PORT = os.environ.get('DB_PORT')
