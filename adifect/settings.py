@@ -64,7 +64,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware'
 ]
 
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001','https://dev-api.adifect.com']
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -158,16 +158,15 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 CORS_ALLOWED_ORIGINS = [
     'http://192.168.1.245:3001',
     'http://122.160.74.251:3001',
-    'http://localhost:3001'
-
+    'http://localhost:3001',
+    'https://dev.adifect.com/'
 ]
 
-SEND_GRID_API_key = ''
-SEND_GRID_FROM_EMAIL = ""
+SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
+SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 
-FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
-BACKEND_SITE_URL = 'http://122.160.74.251:8001'
-# LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.svg'
+FRONTEND_SITE_URL = os.environ.get('FRONTEND_SITE_URL')
+BACKEND_SITE_URL = os.environ.get('BACKEND_SITE_URL')
 LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.png'
 
 REST_FRAMEWORK = {
@@ -207,29 +206,27 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-AWS_ACCESS_KEY_ID = ''
-AWS_SECRET_ACCESS_KEY = ''
-AWS_STORAGE_BUCKET_NAME = 'adifect'
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = 'ap-south-1'
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Moov API Details
-# MOOOV_DETAILS
-MOOV_APPKEY = ""
-MOOV_LOGIN = ""
-MOOV_PASSWORD = ""
-MOOV_LOGIN_TAX_API_URL = 'https://tax1099api.1099cloud.com/api/v1/Login'
-MOOV_SAVE_PAYER_URL_2 = "https://apipayer.1099cloud.com/api/v1/Payer/Save"
-SKYPE_USERNAME = 'muskeshbhandari20@gmail.com'
-SKYPE_PASSWORD = 'mukesh@studio45'
-TWILIO_NUMBER = ''
-TWILIO_ACCOUNT_SID = ''
-TWILIO_AUTH_TOKEN = ''
+MOOV_APPKEY = os.environ.get('MOOV_APPKEY')
+MOOV_LOGIN = os.environ.get('MOOV_LOGIN')
+MOOV_PASSWORD = os.environ.get('MOOV_PASSWORD')
+MOOV_LOGIN_TAX_API_URL = os.environ.get('MOOV_LOGIN_TAX_API_URL')
+MOOV_SAVE_PAYER_URL_2 = os.environ.get('MOOV_SAVE_PAYER_URL_2')
+SKYPE_USERNAME = os.environ.get('SKYPE_USERNAME')
+SKYPE_PASSWORD = os.environ.get('SKYPE_PASSWORD')
+TWILIO_NUMBER = os.environ.get('TWILIO_NUMBER') 
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 #---------- 2nd twillio -----------------------------#
 TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
