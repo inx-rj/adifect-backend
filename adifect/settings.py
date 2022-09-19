@@ -156,11 +156,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
-# CORS_ALLOWED_ORIGINS = [
-#     'https://dev.adifect.com'
-# ]
+CORS_ALLOWED_ORIGINS = [
+    'http://'+os.environ.get('FRONTEND_SITE_URL')
+ ]
 
-CORS_ALLOWED_ORIGINS = ['*']
+# CORS_ALLOWED_ORIGINS = ['*']
 
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
