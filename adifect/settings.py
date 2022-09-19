@@ -64,7 +64,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware'
 ]
 
-CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
+# CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
+CSRF_TRUSTED_ORIGINS = [os.environ.get('BACKEND_SITE_URL')]
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -155,9 +156,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
-CORS_ALLOWED_ORIGINS = [
-    'https://dev.adifect.com'
-]
+# CORS_ALLOWED_ORIGINS = [
+#     'https://dev.adifect.com'
+# ]
+
+CORS_ALLOWED_ORIGINS = ['*']
 
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
