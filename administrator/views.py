@@ -84,10 +84,16 @@ class ProfileEdit(APIView):
         remove_portfolio_ids = request.data.getlist('remove_portfolio', None)
 
         if profile_image:
+            profile_error = validate_profile_image_video(profile_image, 'img')
+            if profile_error != 0:
+                return Response({'message': "Invalid profile images"}, status=status.HTTP_400_BAD_REQUEST)
             user.profile_img = profile_image
         if remove_profile_img:
             user.profile_img = None
         if video:
+            video_error = validate_profile_image_video(video, 'video')
+            if video_error != 0:
+                return Response({'message': "Invalid video format"}, status=status.HTTP_400_BAD_REQUEST)
             user.video = video
         if remove_profile_video:
             user.video = None
@@ -122,6 +128,21 @@ def validate_portfolio_images(images):
     for img in images:
         ext = os.path.splitext(img.name)[1]
         valid_extensions = ['.jpg', '.jpeg', '.png']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    return error
+
+
+def validate_profile_image_video(images, type):
+    error = 0
+    if images and type == 'img':
+        ext = os.path.splitext(images.name)[1]
+        valid_extensions = ['.jpg', '.jpeg', '.png']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    if images and type == 'video':
+        ext = os.path.splitext(images.name)[1]
+        valid_extensions = ['.mp4']
         if not ext.lower() in valid_extensions:
             error += 1
     return error
@@ -260,7 +281,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
             # ------ end -------------#
 
-            #---------------------- job template ------------------------------------#
+            # ---------------------- job template ------------------------------------#
             if serializer.validated_data.get('status', None) == 1:
                 second_serializer = JobTemplateSerializer(data=request.data)
                 if second_serializer.is_valid():
@@ -270,8 +291,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         JobTemplateAttachments.objects.create(job_template=Job_template_id, job_images=i)
                     for i in sample_image:
                         JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
-            #--------------------- end -----------------------------------------------#
-
+            # --------------------- end -----------------------------------------------#
 
             context = {
                 'message': 'Updated Successfully',
@@ -462,7 +482,7 @@ class RelatedJobsAPI(APIView):
 
     def get(self, request, *args, **kwargs):
         if kwargs['company_id']:
-            queryset = Job.objects.filter(user=request.user,company_id=kwargs['company_id'])
+            queryset = Job.objects.filter(user=request.user, company_id=kwargs['company_id'])
             if queryset:
                 serializer = RelatedJobsSerializer(queryset, many=True)
                 context = {
