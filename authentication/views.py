@@ -154,11 +154,26 @@ def get_tokens_for_user(user):
 
 class LoginView(APIView):
 
-
+    serializer_class = UserSerializer
     def post(self, request):
-        return Response({'data':'work'})
-    # serializer_class = UserSerializer
 
+        logger.info('Login Page Accesed.')
+        email = request.data['email']
+        password = request.data['password']
+        user = CustomUser.objects.filter(email=email, is_trashed=False).first()
+
+
+        if user is None:
+            logger.error('Something error wrong!')
+            context = {
+                'message': 'Please enter valid login details'
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        else :
+            return Response({'data':'work'})
+    
+        return Response({'data':'workOutside'})
+        
     # def post(self, request):
     #     logger.info('Login Page Accesed.')
     #     email = request.data['email']
