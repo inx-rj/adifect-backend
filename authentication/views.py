@@ -43,8 +43,8 @@ logger = logging.getLogger('django')
 class SignUpView(APIView):
     serializer_class = RegisterSerializer
     
-#     def get(self, request):
-#         return Response({'DB_NAME':DB_NAME,'USER_NAME':USER_NAME,'DB_PASSWORD':DB_PASSWORD,'DB_HOST':DB_HOST,'DB_PORT':DB_PORT})
+    def get(self, request):
+         return Response({'sndgrid-key':SEND_GRID_API_key,'email':SEND_GRID_FROM_EMAIL})
     
     def post(self, request):
         try:
