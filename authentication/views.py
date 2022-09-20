@@ -44,7 +44,7 @@ class SignUpView(APIView):
     # serializer_class = RegisterSerializer
     
     def get(self, request):
-         return Response({'sndgrid-key':SEND_GRID_API_key,'email':SEND_GRID_FROM_EMAIL})
+         return Response({'sndgrid-key':SEND_GRID_API_key,'email':SEND_GRID_FROM_EMAIL,'front-end':FRONTEND_SITE_URL})
     
     def post(self, request):
         try:
