@@ -46,7 +46,6 @@ class SignUpView(APIView):
     def get(self, request):
          return Response({'sndgrid-key':SEND_GRID_API_key,'email':SEND_GRID_FROM_EMAIL})
     
-    '''
     def post(self, request):
         try:
             data = request.data
@@ -120,7 +119,6 @@ class SignUpView(APIView):
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
-    '''  
 
 
 class VerifyEmail(APIView):
