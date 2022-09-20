@@ -1,7 +1,7 @@
 from argparse import Action
 from cProfile import label
 from http.client import HTTPResponse
-from urllib import request
+from urllib import request, response
 from django.core.cache import cache
 from django.shortcuts import render
 from .serializers import RegisterSerializer, UserSerializer, SendForgotEmailSerializer, \
@@ -153,59 +153,63 @@ def get_tokens_for_user(user):
 
 
 class LoginView(APIView):
-    serializer_class = UserSerializer
+
 
     def post(self, request):
-        logger.info('Login Page Accesed.')
-        email = request.data['email']
-        password = request.data['password']
-        user = CustomUser.objects.filter(email=email, is_trashed=False).first()
+        return response({'data':'work'})
+    # serializer_class = UserSerializer
+
+    # def post(self, request):
+    #     logger.info('Login Page Accesed.')
+    #     email = request.data['email']
+    #     password = request.data['password']
+    #     user = CustomUser.objects.filter(email=email, is_trashed=False).first()
 
 
-        if not user:
-            user = CustomUser.objects.filter(username=email, is_trashed=False).first()
+    #     if not user:
+    #         user = CustomUser.objects.filter(username=email, is_trashed=False).first()
 
-        if user is None:
-            logger.error('Something error wrong!')
-            context = {
-                'message': 'Please enter valid login details'
-            }
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+    #     if user is None:
+    #         logger.error('Something error wrong!')
+    #         context = {
+    #             'message': 'Please enter valid login details'
+    #         }
+    #         return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
-        if not user.check_password(password):
-            context = {
-                'message': 'Please enter valid login details'
-            }
+    #     if not user.check_password(password):
+    #         context = {
+    #             'message': 'Please enter valid login details'
+    #         }
 
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)
-        if user.email_verified == False:
-            context = {
-                'message': 'Please confirm your email to access your account'
-            }
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+    #         return Response(context, status=status.HTTP_400_BAD_REQUEST)
+    #     if user.email_verified == False:
+    #         context = {
+    #             'message': 'Please confirm your email to access your account'
+    #         }
+    #         return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
-        useremail = user.email
+    #     useremail = user.email
 
-        token = get_tokens_for_user(user)
-        response = Response(status=status.HTTP_200_OK)
+    #     token = get_tokens_for_user(user)
+    #     response = Response(status=status.HTTP_200_OK)
 
-        # Set Token Cookie
+    #     # Set Token Cookie
 
-        response.set_cookie(key='token', value=token, httponly=True)
-        cache.set('token', token, 60)
-        response.data = {
-            'message': "Login Success",
-            "user": {
-                "user_id": user.id,
-                "name": user.username,
-                'email': useremail,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'role': user.role
-            },
-            'token': token['access'],
-            'refresh': token['refresh']
-        }
+    #     response.set_cookie(key='token', value=token, httponly=True)
+    #     cache.set('token', token, 60)
+    #     response.data = {
+    #         'message': "Login Success",
+    #         "user": {
+    #             "user_id": user.id,
+    #             "name": user.username,
+    #             'email': useremail,
+    #             'first_name': user.first_name,
+    #             'last_name': user.last_name,
+    #             'role': user.role
+    #         },
+    #         'token': token['access'],
+    #         'refresh': token['refresh']
+    #     }
         return response
 
 
