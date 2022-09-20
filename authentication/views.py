@@ -210,7 +210,7 @@ class LoginView(APIView):
     #         'token': token['access'],
     #         'refresh': token['refresh']
     #     }
-        return response
+    # return response
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
