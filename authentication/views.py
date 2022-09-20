@@ -156,7 +156,7 @@ class LoginView(APIView):
 
 
     def post(self, request):
-        return response({'data':'work'})
+        return Response({'data':'work'})
     # serializer_class = UserSerializer
 
     # def post(self, request):
