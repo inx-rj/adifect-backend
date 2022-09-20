@@ -120,13 +120,6 @@ class Company(BaseModel):
 jobType = (('0', 'Fixed'), ('1', 'Hourly'))
 
 
-def validate_template_name(value):
-    if value:
-        if JobTemplate.objects.filter(template_name=value, is_trashed=False).exists():
-            raise ValidationError("Job Template With This Name Already Exist")
-    return value
-
-
 class Job(BaseModel):
     class Status(models.IntegerChoices):
         Draft = 0
@@ -150,15 +143,25 @@ class Job(BaseModel):
     workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
                                  null=True)
     job_due_date = models.DateField(auto_now_add=True)
+    due_date_index = models.IntegerField(null=True,blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-    template_name = models.CharField(max_length=250, null=True, blank=True, validators=[validate_template_name])
+    template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
+
+
+    class Meta:
+        verbose_name_plural = 'Job'
+
+    def clean(self):
+        exist_job = Job.objects.filter(template_name=self.template_name, is_trashed=False)
+        if self.id:
+            exist_job = exist_job.exclude(pk=self.id)
+        if exist_job:
+            raise ValidationError("Job Template With This Name Already Exist")
 
     def __str__(self) -> str:
         return f'{self.title}'
 
-    class Meta:
-        verbose_name_plural = 'Job'
 
 
 class JobAttachments(BaseModel):
@@ -175,7 +178,7 @@ class JobAttachments(BaseModel):
     #     super().delete(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f'{self.job.title}'
+        return f'{self.job}'
 
     class Meta:
         verbose_name_plural = 'Job Attachments'
@@ -187,11 +190,11 @@ class JobApplied(BaseModel):
         IN_REVIEW = 1
         HIRE = 2
 
-    cover_letter = models.TextField()
+    # cover_letter = models.TextField()
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True)
     job_bid_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    duration = models.CharField(max_length=200, default=None, null=True, blank=True)
+    # duration = models.CharField(max_length=200, default=None, null=True, blank=True)
     links = models.CharField(default=None, max_length=50000, blank=True, null=True)
     offer_price = models.DecimalField(default=None, max_digits=10, decimal_places=2, blank=True, null=True)
     due_date = models.DateField(default=None, blank=True, null=True)
@@ -285,7 +288,7 @@ class JobTemplate(BaseModel):
         Template = 1
         Post = 2
 
-    template_name = models.CharField(max_length=250, validators=[validate_template_name])
+    template_name = models.CharField(max_length=250)
     title = models.CharField(max_length=250)
     description = models.TextField(default=None, blank=True, null=True)
     job_type = models.IntegerField(choices=JobType.choices, default=JobType.Fixed)
@@ -306,18 +309,31 @@ class JobTemplate(BaseModel):
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
-    def __str__(self) -> str:
-        return f'{self.title}'
 
     class Meta:
         verbose_name_plural = 'Job Template'
 
+    def clean(self):
+        exist_job = JobTemplate.objects.filter(template_name=self.template_name, is_trashed=False)
+        if self.id:
+            exist_job = exist_job.exclude(pk=self.id)
+        if exist_job:
+            raise ValidationError("Job Template With This Name Already Exist")
+
+    def __str__(self) -> str:
+        return f'{self.template_name}'
+
+def file_generate_upload_path(instance, filename):
+	# Both filename and instance.file_name should have the same values
+    return f"files/{instance.job_template.template_name}"
+
+
 
 class JobTemplateAttachments(BaseModel):
-    job_template = models.ForeignKey(JobTemplate, related_name="jobtempalate_images", on_delete=models.SET_NULL,
+    job_template = models.ForeignKey(JobTemplate, related_name="job_template_images", on_delete=models.SET_NULL,
                                      null=True, blank=True)
-    job_images = models.FileField(upload_to='jobtempalate_images', blank=True, null=True)
-    work_sample_images = models.FileField(upload_to='jobtempalate_work_sample_images', blank=True, null=True)
+    job_template_images = models.FileField(upload_to=file_generate_upload_path, blank=True, null=True)
+    work_sample_images = models.FileField(upload_to=file_generate_upload_path, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Job Template Attachments'

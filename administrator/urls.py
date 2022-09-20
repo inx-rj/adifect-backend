@@ -23,6 +23,9 @@ router.register(r'job-draft', views.JobDraftViewSet, basename='job-draft')
 #-------------------------------- end ----------------------------------------------#
 # ---------------------------------  JOB TEMPLATE ----------------------------------- #
 router.register(r'job-template', views.JobTemplatesViewSet, basename='job_template')
+router.register(r'company', views.CompanyViewSet, basename='company')
+router.register(r'workflows', views.WorkflowViewSet, basename='workflows')
+router.register(r'stages', views.StagesViewSet, basename='stages')
 
 urlpatterns = [
     path('edit-profile/', views.ProfileEdit.as_view(), name='edit_profile'),

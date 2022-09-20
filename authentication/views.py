@@ -1,7 +1,7 @@
 from argparse import Action
 from cProfile import label
 from http.client import HTTPResponse
-from urllib import request, response
+from urllib import request
 from django.core.cache import cache
 from django.shortcuts import render
 from .serializers import RegisterSerializer, UserSerializer, SendForgotEmailSerializer, \
@@ -35,17 +35,14 @@ import base64
 from rest_framework import viewsets
 import requests
 import json
-from agency.helper import StringEncoder,send_email
+from helper.helper import StringEncoder,send_email
 # Get an instance of a logger
 logger = logging.getLogger('django')
 
 
 class SignUpView(APIView):
-    # serializer_class = RegisterSerializer
-    
-    def get(self, request):
-         return Response({'sndgrid-key':SEND_GRID_API_key,'email':SEND_GRID_FROM_EMAIL,'front-end':FRONTEND_SITE_URL})
-    
+    serializer_class = RegisterSerializer
+
     def post(self, request):
         try:
             data = request.data
@@ -97,17 +94,17 @@ class SignUpView(APIView):
                                                f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
                                                f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
                                                f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
-                                               f'below to verify your email<br /></div><div '
+                                               f'below to verify your email address.<br /></div><div '
                                                f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
                                                f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
-                                               f'40px;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId}/><button style="height: 56px; '
+                                               f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
                                                f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
-                                               f'border-style: none; color: white; font-size: 16px;"> Confirm Email '
+                                               f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
                                                f'Address</button></a></div> <div style="padding: 50px 0px;" '
                                                f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
                                                f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
                                                f'rather not receive this kind of email, Don’t want any more emails '
-                                               f'from Adifect?<a href="#"><span style="text-decoration: '
+                                               f'from Adifect? <a href="#"><span style="text-decoration: '
                                                f'underline;">Unsubscribe.</span></a></div><div style="font-size: 16px; '
                                                f'color: #384860;"> © 2022 '
                                                f'Adifect</div></div></div></td></tr></tbody></table></div>')
@@ -129,18 +126,16 @@ class VerifyEmail(APIView):
         token = self.kwargs.get(self.lookup_url_kwarg)
         uid = self.kwargs.get(self.lookup_url_kwarg2)
         encoded_id = int(StringEncoder.decode(self, uid))
-        user_data = CustomUser.objects.filter(id=encoded_id, email_verified=False).first()
+        user_data = CustomUser.objects.filter(id=encoded_id, email_verified=False,forget_password_token=token)
         if user_data:
-            if token == user_data.forget_password_token:
-                user_data.email_verified = True
-                user_data.save()
-                return Response({'message': 'Your email have been confirmed','status':status.HTTP_200_OK,'error':False}, status=status.HTTP_200_OK)
-
+            user_data.update(email_verified=True)
+            context = {'message': 'Your email have been confirmed','status':status.HTTP_200_OK,'error':False}
+            return Response(context, status=status.HTTP_201_CREATED)
         context = {
-            'message': "something went wrong!"
+            'message': "Something went wrong!",
+            'error':True
         }
-        response = Response(context, status=status.HTTP_400_BAD_REQUEST)
-        return response
+        return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
 def get_tokens_for_user(user):
@@ -152,33 +147,15 @@ def get_tokens_for_user(user):
     }
 
 
-class LoginView(APIView):
-
+class LoginView(GenericAPIView):
     serializer_class = UserSerializer
-    # def post(self, request):
 
-    #     logger.info('Login Page Accesed.')
-    #     email = request.data['email']
-    #     password = request.data['password']
-    #     user = CustomUser.objects.filter(email=email, is_trashed=False).first()
-
-
-    #     if user is None:
-    #         logger.error('Something error wrong!')
-    #         context = {
-    #             'message': 'Please enter valid login details'
-    #         }
-    #         return Response(context, status=status.HTTP_400_BAD_REQUEST)
-    #     else :
-    #         return Response({'data':'work'})
-    
-    #     return Response({'data':'workOutside'})
-        
     def post(self, request):
         logger.info('Login Page Accesed.')
         email = request.data['email']
         password = request.data['password']
         user = CustomUser.objects.filter(email=email, is_trashed=False).first()
+
 
         if not user:
             user = CustomUser.objects.filter(username=email, is_trashed=False).first()

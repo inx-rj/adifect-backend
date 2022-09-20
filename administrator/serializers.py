@@ -89,9 +89,12 @@ class JobSerializer(serializers.ModelSerializer):
         }
 
     def get_worksflow_name(self, obj):
-        if obj.workflow:
-            return obj.workflow.name
-        return ''
+        try:
+            if obj.workflow:
+                return obj.workflow.name
+            return ''
+        except:
+            return ''
 
     def create(self, validated_data):
         if validated_data.get('image'):
@@ -171,6 +174,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     workflow_name = SerializerMethodField("get_worksflow_name")
     company_name = SerializerMethodField("get_company_name")
     industry_name = SerializerMethodField("get_industry_name")
+    username = SerializerMethodField("get_username")
 
     class Meta:
         model = Job
@@ -224,6 +228,15 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
+    
+    def get_username(self,obj):
+        try:
+            if obj.user:
+                return obj.user.username
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
     # def get_industry_info(self, obj):
     #     try:
@@ -269,9 +282,12 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return ''
 
     def get_worksflow_name(self, obj):
-        if obj.workflow:
-            return obj.workflow.name
-        return ''
+        try:
+            if obj.workflow:
+                return obj.workflow.name
+            return ''
+        except:
+            return ''
 
 
 class ActivityAttachmentsSerializer(serializers.ModelSerializer):
@@ -382,6 +398,10 @@ class JobTemplateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
+    def get_job_type(self,obj):
+        if obj.job_type:
+            return str(obj.job_type)
+        return ''
 
     def get_worksflow_name(self, obj):
         if obj.workflow:
@@ -412,7 +432,7 @@ class JobTemplateAttachmentsSerializer(serializers.ModelSerializer):
 
 
 class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
-    jobtempalate_images = JobTemplateAttachmentsSerializer(many=True)
+    job_template_images = JobTemplateAttachmentsSerializer(many=True)
     level = LevelSerializer()
     skills = SkillsSerializer(many=True)
     # company = CompanySerializer()
@@ -420,6 +440,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     workflow_name = SerializerMethodField("get_worksflow_name")
     status = SerializerMethodField("get_status")
     company_name = SerializerMethodField("get_company_name")
+    job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
 
     class Meta:
@@ -428,6 +449,13 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
+
+
+    def get_job_type(self, obj):
+        if obj.job_type:
+            return str(obj.job_type)
+        else:
+            return ''
 
     def get_jobType_info(self, obj):
         if obj:

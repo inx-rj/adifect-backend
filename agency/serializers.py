@@ -10,18 +10,41 @@ from authentication.serializers import UserSerializer
 from authentication.models import CustomUser
 from administrator.models import Job
 from administrator.serializers import JobSerializer, UserListSerializer
-
+from django.core.exceptions import ValidationError
 
 class IndustrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Industry
         fields = '__all__'
 
+    def validate_industry_name(self, value):
+        exist_industry = None
+        if self.instance:
+            exist_industry = Industry.objects.exclude(id=self.instance.id).filter(industry_name=value,is_trashed=False)
+        else:
+            exist_industry = Industry.objects.filter(industry_name=value, is_trashed=False)
+        if exist_industry:
+            raise ValidationError("Industry Already Exist")
+        return value
+
+
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
+
+
+    def validate(self, data):
+        exist_company = None
+        if self.instance:
+            exist_company = Company.objects.exclude(id=self.instance.id).filter(name=data['name'], agency=self.instance.agency,
+                                                                                is_trashed=False)
+        else:
+            exist_company = Company.objects.filter(name=data['name'],agency=data['agency'], is_trashed=False)
+        if exist_company:
+            raise ValidationError("Company Already Exist")
+        return data
 
 
 class WorksFlowSerializer(serializers.ModelSerializer):
@@ -31,6 +54,17 @@ class WorksFlowSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorksFlow
         fields = '__all__'
+
+    def validate_name(self, value):
+        exist_WorksFlow = None
+        if self.instance:
+            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name=value, is_trashed=False)
+        else:
+            exist_WorksFlow = WorksFlow.objects.filter(name=value, is_trashed=False)
+        if exist_WorksFlow:
+            raise ValidationError("Works Flow With This Name Already Exist")
+        return value
+
 
     def get_assigned_job(self, obj):
         try:

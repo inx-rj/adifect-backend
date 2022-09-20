@@ -5,7 +5,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
     JobFilterSerializer, JobHiredSerializer, ActivitiesSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
-    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer
+    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
-    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate
+    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -29,7 +29,8 @@ from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 import json
-
+from agency.models import Industry, Company, WorksFlow, Workflow_Stages
+from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer
 
 # Create your views here.
 
@@ -82,7 +83,6 @@ class ProfileEdit(APIView):
         remove_profile_img = request.data.get('remove_image', None)
         remove_profile_video = request.data.get('remove_video', None)
         remove_portfolio_ids = request.data.getlist('remove_portfolio', None)
-
         if profile_image:
             profile_error = validate_profile_image_video(profile_image, 'img')
             if profile_error != 0:
@@ -179,6 +179,7 @@ class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = Job.objects.all()
+    job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
@@ -199,6 +200,20 @@ class JobViewSet(viewsets.ModelViewSet):
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
         if serializer.is_valid():
+            print("job")
+            print(serializer.validated_data.get('status'))
+            print(serializer.validated_data.get('title'))
+            template_name = serializer.validated_data['template_name']
+            if template_name:
+                if Job.objects.filter(template_name=template_name, is_trashed=False).exists():
+                    context = {
+                        'message': 'Job Template Already Exist',
+                        'status': status.HTTP_400_BAD_REQUEST,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context)
+            '''
             if serializer.validated_data.get('status', None) == 0:
                 if self.queryset.filter(user=request.user, status=0).exists():
                     context = {
@@ -208,15 +223,25 @@ class JobViewSet(viewsets.ModelViewSet):
                         'data': serializer.data,
                     }
                     return Response(context)
+            '''
 
             serializer.fields.pop('image')
             serializer.fields.pop('sample_image')
             self.perform_create(serializer)
             job_id = Job.objects.latest('id')
-            for i in image:
-                JobAttachments.objects.create(job=job_id, job_images=i)
-            for i in sample_image:
-                JobAttachments.objects.create(job=job_id, work_sample_images=i)
+            if image:
+                image_error = validate_job_attachments(image)
+                if image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
+                for i in image:
+                    JobAttachments.objects.create(job=job_id, job_images=i)
+            if sample_image:
+                sample_image_error = validate_job_attachments(sample_image)
+                if sample_image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                for i in sample_image:
+                    JobAttachments.objects.create(job=job_id, work_sample_images=i)
 
             if request.data.get("tasks", None):
                 objs = []
@@ -231,10 +256,20 @@ class JobViewSet(viewsets.ModelViewSet):
                 if second_serializer.is_valid():
                     self.perform_create(second_serializer)
                     Job_template_id = JobTemplate.objects.latest('id')
-                    for i in image:
-                        JobTemplateAttachments.objects.create(job_template=Job_template_id, job_images=i)
-                    for i in sample_image:
-                        JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
+                    if image:
+                        image_error = validate_job_attachments(image)
+                        if image_error != 0:
+                            return Response({'message': "Invalid Job Attachments images"},
+                                            status=status.HTTP_400_BAD_REQUEST)
+                        for i in image:
+                            JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
+                    if sample_image:
+                        sample_image_error = validate_job_attachments(sample_image)
+                        if sample_image_error != 0:
+                            return Response({'message': "Invalid Job Attachments images"},
+                                            status=status.HTTP_400_BAD_REQUEST)
+                        for i in sample_image:
+                            JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
 
             context = {
                 'message': 'Job Created Successfully',
@@ -253,25 +288,42 @@ class JobViewSet(viewsets.ModelViewSet):
         sample_image = request.FILES.getlist('sample_image')
         remove_image_ids = request.data.getlist('remove_image', None)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        print('update')
+        print(image)
         if serializer.is_valid():
+            template_name = serializer.validated_data['template_name']
+            if template_name:
+                if Job.objects.filter(
+                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exists():
+                    context = {
+                        'message': 'Job Template Already Exist',
+                        'status': status.HTTP_400_BAD_REQUEST,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context, status=status.HTTP_400_BAD_REQUEST)
             self.perform_update(serializer)
             if remove_image_ids:
                 for id in remove_image_ids:
                     JobAttachments.objects.filter(id=id).delete()
             if image:
-                serializer.fields.pop('image')
+                image_error = validate_job_attachments(image)
+                if image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
                 for i in image:
-                    JobAttachments.objects.create(job_id=instance.id, job_images=i)
+                    JobAttachments.objects.create(job=instance, job_images=i)
             if sample_image:
-                serializer.fields.pop('sample_image')
+                sample_image_error = validate_job_attachments(sample_image)
+                if sample_image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"},
+                                    status=status.HTTP_400_BAD_REQUEST)
                 for i in sample_image:
-                    JobAttachments.objects.create(job_id=instance.id, work_sample_images=i)
+                    JobAttachments.objects.create(job=instance, work_sample_images=i)
 
             # ------- task ----#
             if request.data.get('tasks', None):
                 for i in json.loads(request.data['tasks']):
                     name = i['title']
-                    print(i)
                     if name:
                         if 'id' in i:
                             JobTasks.objects.filter(id=i['id']).update(title=i['title'],
@@ -287,10 +339,20 @@ class JobViewSet(viewsets.ModelViewSet):
                 if second_serializer.is_valid():
                     self.perform_create(second_serializer)
                     Job_template_id = JobTemplate.objects.latest('id')
-                    for i in image:
-                        JobTemplateAttachments.objects.create(job_template=Job_template_id, job_images=i)
-                    for i in sample_image:
-                        JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
+                    if image:
+                        image_error = validate_job_attachments(image)
+                        if image_error != 0:
+                            return Response({'message': "Invalid Job Attachments images"},
+                                            status=status.HTTP_400_BAD_REQUEST)
+                        for i in image:
+                            JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
+                    if sample_image:
+                        sample_image_error = validate_job_attachments(sample_image)
+                        if sample_image_error != 0:
+                            return Response({'message': "Invalid Job Attachments images"},
+                                            status=status.HTTP_400_BAD_REQUEST)
+                        for i in sample_image:
+                            JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
             # --------------------- end -----------------------------------------------#
 
             context = {
@@ -315,6 +377,16 @@ class JobViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+
+def validate_job_attachments(images):
+    error = 0
+    for img in images:
+        ext = os.path.splitext(img.name)[1]
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    return error
 
 
 class JobAppliedViewSet(viewsets.ModelViewSet):
@@ -442,9 +514,9 @@ class LatestJobAPI(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            applied_data = JobApplied.objects.filter(user=self.request.user, is_trashed=False).values_list('job_id',
-                                                                                                           flat=True)
-            latest_job = Job.objects.exclude(id__in=list(applied_data)).latest('id')
+            applied_data = JobApplied.objects.filter(user=request.user,is_trashed=False).values_list('job_id',flat=True)
+            latest_job = Job.objects.exclude(id__in=list(applied_data))
+            latest_job = latest_job.exclude(status=0).latest('id')
             data = JobsWithAttachmentsSerializer(latest_job, context={'request': request})
             context = {
                 'message': 'Latest Job get Successfully',
@@ -615,6 +687,20 @@ class JobDraftViewSet(viewsets.ModelViewSet):
         job_data = self.queryset.filter(user=request.user).first()
         serializer = JobsWithAttachmentsSerializer(job_data, many=False, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+class CompanyViewSet(viewsets.ModelViewSet):
+    serializer_class = CompanySerializer
+    queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
+
+class WorkflowViewSet(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+
+class StagesViewSet(viewsets.ModelViewSet):
+    serializer_class = StageSerializer
+    queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
+
 
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#

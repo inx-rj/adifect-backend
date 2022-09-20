@@ -23,7 +23,7 @@ from .serializers import InviteMemberSerializer, \
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
-from .helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
+from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
 
 import base64
 
@@ -43,11 +43,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
     filterset_fields = ['is_active']
     search_fields = ['=is_active']
 
+    def list(self, request, *args, **kwargs):
+        company = self.queryset.filter(agency=request.user).order_by("-modified")
+
+        serializer = CompanySerializer(company, many=True, context={'request': request})
+        return  Response(data=serializer.data)
 
 @permission_classes([IsAuthenticated])
 class AgencyJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
-    queryset = Job.objects.filter(is_trashed=False)
+    queryset = Job.objects.filter(is_trashed=False).exclude(status=0)
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
@@ -97,7 +102,6 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                     i.delete()
                 for i in image:
                     JobAttachments.objects.create(job_id=instance.id, job_images=i)
-
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -143,9 +147,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     filterset_fields = ['company']
     search_fields = ['=company']
 
-    # def get_queryset(self):
-    #     return self.queryset.filter(agency=self.request.user)
-
+    def list(self, request, *args, **kwargs):
+        user = self.request.user
+        workflow_data = self.queryset.filter(agency=user)
+        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
     # def list(self, request, *args, **kwargs):
     #     workflow_data = self.queryset.filter(agency=request.user.id).order_by("-modified")
     #     serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
@@ -163,7 +169,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         name = i['stage_name']
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
-                                                    is_observer=i['is_observer'],
+                                                    is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],
                                                     workflow=workflow_latest,order=i['order'])
                             stage.save()
                             if i['approvals']:
@@ -211,7 +217,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                 if i['stage_id'] == '':
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
-                                                                workflow=instance,order=i['order'])
+                                                                workflow=instance,order=i['order'],is_all_approval=i['is_all_approval'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -223,7 +229,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
-                                                              is_observer=i['is_observer'],order=i['order'])
+                                                              is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],order=i['order'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -237,9 +243,16 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                             stage.observer.add(*observer)
                                         else:
                                             stage.observer.clear()
+                    context = {
+                        'message': "Workflow Updated Successfully",
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context)
                 context = {
-                    'message': "Workflow Updated Successfully",
-                    'status': status.HTTP_201_CREATED,
+                    'message': "error",
+                    'status': status.HTTP_400_BAD_REQUEST,
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }

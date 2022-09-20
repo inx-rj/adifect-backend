@@ -30,24 +30,25 @@ class BaseModel(models.Model):
         abstract = True
 
 
-def validate_industry_name(value):
-    if value:
-        if Industry.objects.filter(industry_name=value, is_trashed=False).exists():
-            raise ValidationError("Industry Already Exist")
-    return value
-
 
 class Industry(BaseModel):
-    industry_name = models.CharField(max_length=50, validators=[validate_industry_name])
+    industry_name = models.CharField(max_length=50)
     slug = AutoSlugField(populate_from='industry_name')
     description = models.TextField(default=None, blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
-    def __str__(self) -> CharField:
-        return self.industry_name
-
     class Meta:
         verbose_name_plural = 'Industry'
+
+    def clean(self):
+        exist_company =  Industry.objects.filter(industry_name=self.industry_name,is_trashed=False)
+        if self.id:
+            exist_company = exist_company.exclude(pk=self.id)
+        if exist_company:
+            raise ValidationError("Industry Already Exist")
+
+    def __str__(self) -> CharField:
+        return self.industry_name
 
 
 class Company(BaseModel):
@@ -67,7 +68,10 @@ class Company(BaseModel):
         verbose_name_plural = 'Company'
 
     def clean(self):
-        if Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False).exists():
+        exist_company =  Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False)
+        if self.id:
+            exist_company = exist_company.exclude(pk=self.id)
+        if exist_company:
             raise ValidationError("Company Already Exist")
 
     def __str__(self) -> CharField:
@@ -84,6 +88,13 @@ class WorksFlow(BaseModel):
 
     class Meta:
         verbose_name_plural = 'WorksFlow'
+
+    def clean(self):
+        exist_WorksFlow = WorksFlow.objects.filter(name=self.name, is_trashed=False)
+        if self.id:
+            exist_WorksFlow = exist_WorksFlow.exclude(pk=self.id)
+        if exist_WorksFlow:
+            raise ValidationError("Works Flow With This Name Already Exist")
 
     def __str__(self):
         return self.name
@@ -111,6 +122,7 @@ class InviteMember(BaseModel):
 class Workflow_Stages(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
     is_approval = models.BooleanField(default=False)
+    is_all_approval = models.BooleanField(default=False)
     approvals = models.ManyToManyField(InviteMember, related_name="stage_approvals")
     is_observer = models.BooleanField(default=False)
     observer = models.ManyToManyField(InviteMember, related_name="stage_observer")
