@@ -170,7 +170,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 # CORS_ORIGIN_WHITELIST = (
 #     os.environ.get('FRONTEND_SITE_URL'),
 # )
-
+LOGO_122_SERVER_PATH = ''
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
