@@ -152,7 +152,7 @@ def get_tokens_for_user(user):
     }
 
 
-class LoginView(GenericAPIView):
+class LoginView(APIView):
     serializer_class = UserSerializer
 
     def post(self, request):
