@@ -30,7 +30,6 @@ class BaseModel(models.Model):
         abstract = True
 
 
-
 class Industry(BaseModel):
     industry_name = models.CharField(max_length=50)
     slug = AutoSlugField(populate_from='industry_name')
@@ -41,7 +40,7 @@ class Industry(BaseModel):
         verbose_name_plural = 'Industry'
 
     def clean(self):
-        exist_company =  Industry.objects.filter(industry_name=self.industry_name,is_trashed=False)
+        exist_company = Industry.objects.filter(industry_name=self.industry_name, is_trashed=False)
         if self.id:
             exist_company = exist_company.exclude(pk=self.id)
         if exist_company:
@@ -68,7 +67,7 @@ class Company(BaseModel):
         verbose_name_plural = 'Company'
 
     def clean(self):
-        exist_company =  Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False)
+        exist_company = Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False)
         if self.id:
             exist_company = exist_company.exclude(pk=self.id)
         if exist_company:
@@ -165,5 +164,13 @@ def fileLocation(instance, dam_media):
 class DamMedia(BaseModel):
     dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
+
     class Meta:
         verbose_name_plural = 'DAM Media'
+
+
+class TestModel(models.Model):
+    name_test = models.CharField(max_length=50, default=None)
+
+    class Meta:
+        verbose_name_plural = 'Test Model'
