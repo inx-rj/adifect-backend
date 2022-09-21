@@ -171,6 +171,7 @@ class DamMedia(BaseModel):
 
 class TestModel(models.Model):
     name_test = models.CharField(max_length=50, default=None)
+    name_test2 = models.CharField(max_length=50, default=None)
 
     class Meta:
         verbose_name_plural = 'Test Model'
