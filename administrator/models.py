@@ -143,7 +143,7 @@ class Job(BaseModel):
     workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
                                  null=True)
     job_due_date = models.DateField(auto_now_add=True)
-    due_date_index = models.IntegerField(null=True,blank=True)
+    due_date_index = models.IntegerField(null=True,blank=True,default=0)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
