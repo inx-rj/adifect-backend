@@ -43,11 +43,17 @@ class CompanyViewSet(viewsets.ModelViewSet):
     filterset_fields = ['is_active']
     search_fields = ['=is_active']
 
-    def list(self, request, *args, **kwargs):
-        company = self.queryset.filter(agency=request.user).order_by("-modified")
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Company.objects.filter(agency=user).order_by('-modified')
+        return queryset
 
-        serializer = CompanySerializer(company, many=True, context={'request': request})
-        return  Response(data=serializer.data)
+    # def list(self, request, *args, **kwargs):
+    #     company = self.queryset.filter(agency=request.user).order_by("-modified")
+    #
+    #     serializer = CompanySerializer(company, many=True, context={'request': request})
+    #     return  Response(data=serializer.data)
+
 
 @permission_classes([IsAuthenticated])
 class AgencyJobsViewSet(viewsets.ModelViewSet):
