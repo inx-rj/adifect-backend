@@ -153,7 +153,7 @@ class Job(BaseModel):
         verbose_name_plural = 'Job'
 
     def clean(self):
-        exist_job = Job.objects.filter(template_name=self.template_name, is_trashed=False)
+        exist_job = Job.objects.filter(template_name=self.template_name, is_trashed=False).exclude(template_name=None)
         if self.id:
             exist_job = exist_job.exclude(pk=self.id)
         if exist_job:
@@ -314,7 +314,7 @@ class JobTemplate(BaseModel):
         verbose_name_plural = 'Job Template'
 
     def clean(self):
-        exist_job = JobTemplate.objects.filter(template_name=self.template_name, is_trashed=False)
+        exist_job = JobTemplate.objects.filter(template_name=self.template_name, is_trashed=False).exclude(template_name=None)
         if self.id:
             exist_job = exist_job.exclude(pk=self.id)
         if exist_job:

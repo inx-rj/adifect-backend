@@ -200,12 +200,9 @@ class JobViewSet(viewsets.ModelViewSet):
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
         if serializer.is_valid():
-            print("job")
-            print(serializer.validated_data.get('status'))
-            print(serializer.validated_data.get('title'))
-            template_name = serializer.validated_data['template_name']
+            template_name = serializer.validated_data.get('template_name',None)
             if template_name:
-                if Job.objects.filter(template_name=template_name, is_trashed=False).exists():
+                if Job.objects.filter(template_name=template_name, is_trashed=False).exclude(template_name=None).exists():
                     context = {
                         'message': 'Job Template Already Exist',
                         'status': status.HTTP_400_BAD_REQUEST,
@@ -288,13 +285,11 @@ class JobViewSet(viewsets.ModelViewSet):
         sample_image = request.FILES.getlist('sample_image')
         remove_image_ids = request.data.getlist('remove_image', None)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        print('update')
-        print(image)
         if serializer.is_valid():
-            template_name = serializer.validated_data['template_name']
+            template_name = serializer.validated_data.get('template_name', None)
             if template_name:
                 if Job.objects.filter(
-                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exists():
+                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exclude(template_name=None).exists():
                     context = {
                         'message': 'Job Template Already Exist',
                         'status': status.HTTP_400_BAD_REQUEST,
