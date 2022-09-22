@@ -43,6 +43,9 @@ logger = logging.getLogger('django')
 class SignUpView(APIView):
     serializer_class = RegisterSerializer
 
+    def get(self, request):
+        return Response({'FRONTENDURL':FRONTEND_SITE_URL,'LOGO':LOGO_122_SERVER_PATH})
+
     def post(self, request):
         try:
             data = request.data
@@ -97,7 +100,7 @@ class SignUpView(APIView):
                                                f'below to verify your email address.<br /></div><div '
                                                f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
                                                f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
-                                               f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
+                                               f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href=https://{FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
                                                f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
                                                f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
                                                f'Address</button></a></div> <div style="padding: 50px 0px;" '
