@@ -89,7 +89,7 @@ class WorksFlow(BaseModel):
         verbose_name_plural = 'WorksFlow'
 
     def clean(self):
-        exist_WorksFlow = WorksFlow.objects.filter(name=self.name, is_trashed=False)
+        exist_WorksFlow = WorksFlow.objects.filter(name=self.name,agency=self.agency, is_trashed=False)
         if self.id:
             exist_WorksFlow = exist_WorksFlow.exclude(pk=self.id)
         if exist_WorksFlow:
