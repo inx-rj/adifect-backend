@@ -10,6 +10,7 @@ router.register(r'get-agency-unapplied-jobs', views.GetAgencyUnappliedJobs, base
 router.register(r'works-flow', views.WorksFlowViewSet, basename='works_flow')
 router.register(r'works-flow-stages', views.StageViewSet, basename='works_flow_stages')
 router.register(r'dam', views.DAMViewSet, basename='dam')
+router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 
 urlpatterns = [
     path('invite-member/', views.InviteMemberApi.as_view(), name='invite_member'),

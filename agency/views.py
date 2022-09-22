@@ -19,11 +19,13 @@ from rest_framework import generics
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia
 from .serializers import InviteMemberSerializer, \
-    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer
+    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
+    DAMSerializer, DamMediaSerializer, DamWithMediaSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
-from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
+    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
+from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 
 import base64
 
@@ -158,6 +160,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         workflow_data = self.queryset.filter(agency=user)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
     # def list(self, request, *args, **kwargs):
     #     workflow_data = self.queryset.filter(agency=request.user.id).order_by("-modified")
     #     serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
@@ -175,8 +178,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         name = i['stage_name']
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
-                                                    is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest,order=i['order'])
+                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest, order=i['order'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -223,7 +226,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                 if i['stage_id'] == '':
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
-                                                                workflow=instance,order=i['order'],is_all_approval=i['is_all_approval'])
+                                                                workflow=instance, order=i['order'],
+                                                                is_all_approval=i['is_all_approval'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -235,7 +239,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
-                                                              is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],order=i['order'])
+                                                              is_observer=i['is_observer'],
+                                                              is_all_approval=i['is_all_approval'], order=i['order'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -573,7 +578,7 @@ class StageViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False, url_path='set_order/(?P<userId>[^/.]+)', url_name='set_order')
     def set_order(self, request, *args, **kwargs):
         try:
-            order_list = request.data.get('order_list',None)
+            order_list = request.data.get('order_list', None)
             if order_list:
                 order_list = order_list.split(",")
                 updated = False
@@ -598,7 +603,8 @@ class DAMViewSet(viewsets.ModelViewSet):
         id = pk
 
         if id is not None:
-            serializer = DamWithMediaSerializer(self.queryset.get(pk=id,is_trashed=False), context={'request': request})
+            serializer = DamWithMediaSerializer(self.queryset.get(pk=id, is_trashed=False),
+                                                context={'request': request})
             return Response(serializer.data)
 
     def list(self, request, *args, **kwargs):
@@ -636,3 +642,14 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+
+@permission_classes([IsAuthenticated])
+class DraftJobViewSet(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsSerializer
+    queryset = Job.objects.filter(status=0)
+
+    def list(self, request, *args, **kwargs):
+        data = self.queryset.filter(user=request.user).exclude(user__role=1)
+        serializer = self.serializer_class(data, many=True, context={'request': request})
+        return Response(data=serializer.data)
