@@ -162,8 +162,8 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 
-FRONTEND_SITE_URL = os.environ.get('FRONTEND_SITE_URL')
-BACKEND_SITE_URL = os.environ.get('BACKEND_SITE_URL')
+FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
+BACKEND_SITE_URL = f"https://{os.environ.get('BACKEND_SITE_URL')}"
 
 CORS_ORIGIN_ALLOW_ALL = True
 
