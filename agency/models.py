@@ -169,11 +169,7 @@ class DamMedia(BaseModel):
         verbose_name_plural = 'DAM Media'
 
 
-class TestModel(models.Model):
-    name_test = models.CharField(max_length=50, default=None)
-    # name_test2 = models.CharField(max_length=50, default=None)
-    # name_test3 = models.CharField(max_length=50, default=None)
-    name_test4 = models.CharField(max_length=50, default=None)
 
-    class Meta:
-        verbose_name_plural = 'Test Model'
+class NewModel(BaseModel):
+    name = models.CharField(max_length=50, default=None)
+    is_active = models.BooleanField(default=True)
