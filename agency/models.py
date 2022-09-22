@@ -67,7 +67,7 @@ class Company(BaseModel):
         verbose_name_plural = 'Company'
 
     def clean(self):
-        exist_company = Company.objects.filter(name=self.name, agency=self.agency, is_trashed=False)
+        exist_company = Company.objects.filter(name__iexact=self.name, agency=self.agency, is_trashed=False)
         if self.id:
             exist_company = exist_company.exclude(pk=self.id)
         if exist_company:

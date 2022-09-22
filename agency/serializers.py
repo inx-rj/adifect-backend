@@ -38,10 +38,10 @@ class CompanySerializer(serializers.ModelSerializer):
     def validate(self, data):
         exist_company = None
         if self.instance:
-            exist_company = Company.objects.exclude(id=self.instance.id).filter(name=data['name'], agency=self.instance.agency,
+            exist_company = Company.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'], agency=self.instance.agency,
                                                                                 is_trashed=False)
         else:
-            exist_company = Company.objects.filter(name=data['name'],agency=data['agency'], is_trashed=False)
+            exist_company = Company.objects.filter(name__iexact=data['name'],agency=data['agency'], is_trashed=False)
         if exist_company:
             raise ValidationError("Company Already Exist")
         return data
