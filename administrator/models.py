@@ -190,7 +190,7 @@ class JobApplied(BaseModel):
         IN_REVIEW = 1
         HIRE = 2
 
-    # cover_letter = models.TextField()
+    cover_letter = models.TextField(default=None, null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True)
     job_bid_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
