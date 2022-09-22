@@ -549,7 +549,7 @@ class RelatedJobsAPI(APIView):
 
     def get(self, request, *args, **kwargs):
         if kwargs['company_id']:
-            queryset = Job.objects.filter(user=request.user, company_id=kwargs['company_id'])
+            queryset = Job.objects.filter(user=request.user,status=2,company_id=kwargs['company_id'])
             if queryset:
                 serializer = RelatedJobsSerializer(queryset, many=True)
                 context = {
