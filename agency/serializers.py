@@ -55,16 +55,18 @@ class WorksFlowSerializer(serializers.ModelSerializer):
         model = WorksFlow
         fields = '__all__'
 
-    def validate_name(self, value):
+    def validate(self, data):
         exist_WorksFlow = None
         if self.instance:
-            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name=value,agency=self.instance.agency,is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
+                                                                                    agency=self.instance.agency,
+                                                                                    is_trashed=False)
         else:
-            exist_WorksFlow = WorksFlow.objects.filter(name=value,agency=data['agency'],is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.filter(name__iexact=data['name'], agency=data['agency'],
+                                                       is_trashed=False)
         if exist_WorksFlow:
             raise ValidationError("Works Flow With This Name Already Exist")
-        return value
-
+        return data
 
     def get_assigned_job(self, obj):
         try:

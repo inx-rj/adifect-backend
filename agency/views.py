@@ -162,7 +162,6 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-
     def create(self, request, *args, **kwargs):
         data = request.data
         try:
@@ -193,7 +192,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                 return Response(context)
             context = {
                 'message': "Error!",
-                'status': status.HTTP_201_CREATED,
+                'status': status.HTTP_400_BAD_REQUEST,
                 'errors': serializer.errors,
                 'data': [],
             }
@@ -204,7 +203,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                 'message': "Something Went Wrong",
                 'status': status.HTTP_400_BAD_REQUEST,
                 'errors': "Error",
-                "erorr_exceptio":str(e),
+                "erorr_exceptio": str(e),
                 'data': [],
             }
             return Response(context)
