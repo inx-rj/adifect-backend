@@ -15,8 +15,6 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 
 RUN python manage.py collectstatic
 
-RUN python manage.py migrate
-
 RUN chmod +x gunicorn.sh
 EXPOSE 8000
 ENTRYPOINT ["./gunicorn.sh"]
