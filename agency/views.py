@@ -157,14 +157,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
-        workflow_data = self.queryset.filter(agency=user)
+        queryset = self.filter_queryset(self.get_queryset())
+        workflow_data = queryset.filter(agency=user)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    # def list(self, request, *args, **kwargs):
-    #     workflow_data = self.queryset.filter(agency=request.user.id).order_by("-modified")
-    #     serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
-    #     return Response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -207,6 +204,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                 'message': "Something Went Wrong",
                 'status': status.HTTP_400_BAD_REQUEST,
                 'errors': "Error",
+                "erorr_exceptio":str(e),
                 'data': [],
             }
             return Response(context)
