@@ -1,4 +1,5 @@
 #!/bin/sh
+python manage.py makemigrations  --noinput
 python manage.py makemigrations authentication  --noinput
 python manage.py makemigrations administrator  --noinput
 python manage.py makemigrations agency  --noinput
