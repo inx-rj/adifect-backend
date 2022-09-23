@@ -175,3 +175,9 @@ class NewModel(BaseModel):
     is_active = models.BooleanField(default=True)
     is_active2 = models.BooleanField(default=True)
 
+
+class NewModel_latest(BaseModel):
+    name = models.CharField(max_length=50, default=None)
+    is_active = models.BooleanField(default=True)
+    is_active2 = models.BooleanField(default=True)
+
