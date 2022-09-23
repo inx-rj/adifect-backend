@@ -37,6 +37,7 @@ from rest_framework import viewsets
 import requests
 import json
 from helper.helper import StringEncoder, send_email
+from agency.models import InviteMember
 
 # Get an instance of a logger
 logger = logging.getLogger('django')
@@ -116,6 +117,7 @@ class SignUpView(APIView):
                 data = send_email(from_email, to_email, subject, content)
                 user.forget_password_token = token
                 user.save()
+                invite_member = InviteMember.objects.create(agency=user,user=user,status=1)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -229,6 +231,7 @@ class ForgetPassword(APIView):
     serializer_class = SendForgotEmailSerializer
 
     def post(self, request):
+        data = None
         urlObject = request._current_scheme_host
         email = request.data
         serializer = SendForgotEmailSerializer(data=email)

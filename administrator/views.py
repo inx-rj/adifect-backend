@@ -656,13 +656,14 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = JobTemplate.objects.all()
-    pagination_class = FiveRecordsPagination
+
+    # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_data = self.queryset.order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = JobTemplateWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        job_data = self.queryset.filter(user=request.user).order_by('-modified')
+        # paginated_data = self.paginate_queryset(job_data)
+        serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
     def retrieve(self, request, pk=None):
         id = pk
@@ -670,6 +671,75 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
             job_data = JobTemplate.objects.get(id=id)
             serializer = JobTemplateWithAttachmentsSerializer(job_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        image = request.FILES.getlist('image')
+        sample_image = request.FILES.getlist('sample_image')
+        remove_image_ids = request.data.getlist('remove_image', None)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            template_name = serializer.validated_data.get('template_name', None)
+            if template_name:
+                if JobTemplate.objects.filter(
+                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exclude(
+                    template_name=None).exists():
+                    context = {
+                        'message': 'Job Template Already Exist',
+                        'status': status.HTTP_400_BAD_REQUEST,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_update(serializer)
+            update_job_template = Job.objects.filter(pk=instance.job.id).update(template_name=template_name)
+            if remove_image_ids:
+                for id in remove_image_ids:
+                    JobTemplateAttachments.objects.filter(id=id).delete()
+            if image:
+                image_error = validate_job_attachments(image)
+                if image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
+                for i in image:
+                    JobTemplateAttachments.objects.create(job_template=instance, job_template_images=i)
+            if sample_image:
+                sample_image_error = validate_job_attachments(sample_image)
+                if sample_image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                for i in sample_image:
+                    JobTemplateAttachments.objects.create(job_template=instance, work_sample_images=i)
+            context = {
+                'message': 'Updated Succesfully',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+
+        context = {
+            'message': 'Something Went Wrong',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+            'data': serializer.data,
+        }
+        return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in JobTemplateAttachments.objects.filter(job_template=instance):
+            i.delete()
+        update_job_template = Job.objects.filter(template_name=instance.template_name).update(template_name=None,status=2)
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
 
 
 @permission_classes([IsAuthenticated])
