@@ -182,4 +182,5 @@ class NewModel_latest(BaseModel):
     is_active = models.BooleanField(default=True)
     is_active3 = models.BooleanField(default=True)
     is_active4 = models.BooleanField(default=True)
+    is_active5 = models.BooleanField(default=True)
 
