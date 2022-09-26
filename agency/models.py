@@ -189,5 +189,5 @@ class NewModel_latest_testing(BaseModel):
     name = models.CharField(max_length=50, default=None)
     is_active = models.BooleanField(default=True)
     is_active3 = models.BooleanField(default=True)
-    is_active4 = models.BooleanField(default=True)
-    is_active5 = models.BooleanField(default=True)
+#     is_active4 = models.BooleanField(default=True)
+#     is_active5 = models.BooleanField(default=True)
