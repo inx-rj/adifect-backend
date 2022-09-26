@@ -1,8 +1,5 @@
 #!/bin/sh
-python manage.py makemigrations authentication
-python manage.py makemigrations administrator
-python manage.py makemigrations agency
-python manage.py makemigrations creator
+python manage.py makemigrations --noinput
 sleep 5
 
 echo "Migrate the Database at startup of project"
