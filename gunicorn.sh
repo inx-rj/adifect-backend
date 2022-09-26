@@ -13,8 +13,6 @@ while ! python manage.py migrate  2>&1; do
    sleep 5
 done
 
-exec "$@"
-
 #python manage.py migrate
 
 gunicorn adifect.wsgi:application --bind 0.0.0.0:8000  --timeout 600
