@@ -1,9 +1,9 @@
 #!/bin/sh
-
-while ! python manage.py flush --no-input 2>&1; do
-  echo "Flusing django manage command"
-  sleep 3
-done
+python manage.py makemigrations authentication
+python manage.py makemigrations administrator
+python manage.py makemigrations agency
+python manage.py makemigrations creator
+sleep 5
 
 echo "Migrate the Database at startup of project"
 
