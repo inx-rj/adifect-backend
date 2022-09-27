@@ -204,8 +204,8 @@ class Migration(migrations.Migration):
                 ('created', models.DateTimeField(auto_now_add=True)),
                 ('modified', models.DateTimeField(auto_now=True)),
                 ('is_trashed', models.BooleanField(default=False)),
-                ('job_template_images', models.FileField(blank=True, null=True, upload_to=administrator.models.file_generate_upload_path)),
-                ('work_sample_images', models.FileField(blank=True, null=True, upload_to=administrator.models.file_generate_upload_path)),
+                ('job_template_images', models.FileField(blank=True, null=True, upload_to='job_template_image')),
+                ('work_sample_images', models.FileField(blank=True, null=True, upload_to='job_template_sample_image')),
             ],
             options={
                 'verbose_name_plural': 'Job Template Attachments',

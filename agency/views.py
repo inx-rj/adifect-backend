@@ -381,8 +381,9 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            email = serializer.validated_data['email']
-            exclusive = serializer.validated_data['exclusive']
+            email = serializer.validated_data.get('email',None)
+            exclusive = serializer.validated_data.get('exclusive',None)
+            company = serializer.validated_data.get('company',None)
             user = CustomUser.objects.filter(email=email, is_trashed=False).first()
             agency = CustomUser.objects.filter(pk=serializer.validated_data['agency'].id, is_trashed=False).first()
             if not agency:
@@ -400,10 +401,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             to_email = To(email)
 
 
-            invite = InviteMember.objects.filter(user__email=email, agency=agency, is_trashed=False).first()
+            invite = InviteMember.objects.filter(user__email=email, agency=agency, is_trashed=False, company=company).first()
             if not user:
                 if not invite:
-                    invite = InviteMember.objects.create(agency=agency, status=0)
+                    invite = InviteMember.objects.create(agency=agency, status=0, company=company)
                     invite_id = InviteMember.objects.latest('id').pk
                     decodeId = StringEncoder.encode(self, invite_id)
                 try:
@@ -421,7 +422,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
             if user:
                 if not invite:
-                    invite = InviteMember.objects.create(user=user, agency=agency, status=0)
+                    invite = InviteMember.objects.create(user=user, agency=agency, status=0, company=company)
                     invite = InviteMember.objects.latest('id')
                 decodeId = StringEncoder.encode(self, invite.id)
                 accept_invite_status = 1
@@ -668,11 +669,12 @@ class InviteMemberUserList(APIView):
     serializer_class = InviteMemberSerializer
 
     def get(self, request, *args, **kwargs):
+        company_id = kwargs.get('company_id', None)
         agency = request.user
         if agency.is_authenticated:
-            print("hit")
             invited_user = InviteMember.objects.filter(agency=agency, is_trashed=False, status=1, user__isnull=False)
-            print(invited_user)
+            if company_id:
+                invited_user = invited_user.filter(company_id=company_id)
             serializer = self.serializer_class(invited_user, many=True, context={'request': request})
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response(data={'error': 'You Are Not Authorized'}, status=status.HTTP_400_BAD_REQUEST)

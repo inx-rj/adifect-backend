@@ -6,7 +6,8 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
     JobFilterSerializer, JobHiredSerializer, ActivitiesSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
-    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, QASerializer,QuestionSerializer,AnswerSerializer
+    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, QASerializer, \
+    QuestionSerializer, AnswerSerializer,SearchFilterSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,7 +16,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
-    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, QA,Question,Answer
+    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, QA, \
+    Question, Answer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -740,7 +742,8 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         for i in JobTemplateAttachments.objects.filter(job_template=instance):
             i.delete()
-        update_job_template = Job.objects.filter(template_name=instance.template_name).update(template_name=None,status=2)
+        update_job_template = Job.objects.filter(template_name=instance.template_name).update(template_name=None,
+                                                                                              status=2)
         self.perform_destroy(instance)
         context = {
             'message': 'Deleted Succesfully',
@@ -748,8 +751,6 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
-
-
 
 
 @permission_classes([IsAuthenticated])
@@ -945,7 +946,8 @@ class JobProposal(APIView):
         initial_status = request.data.get('status', None)
         job_applied_id = request.data.get('id', None)
         if job_applied_id and initial_status:
-            job_proposal = JobApplied.objects.filter(pk=job_applied_id).update(status=initial_status, Accepted_proposal_date=datetime.datetime.now())
+            job_proposal = JobApplied.objects.filter(pk=job_applied_id).update(status=initial_status,
+                                                                               Accepted_proposal_date=datetime.datetime.now())
             if job_proposal:
                 return Response({'message': 'Your proposal is updated successfully.', 'status': status.HTTP_200_OK},
                                 status=status.HTTP_200_OK)
@@ -964,11 +966,15 @@ class StagesViewSet(viewsets.ModelViewSet):
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
     queryset = Question.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['question']
+    search_fields = ['=question']
 
     def list(self, request, *args, **kwargs):
         user = request.user
         data = request.data
-        messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset())
+        messages = queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
         serializer = QuestionSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -990,6 +996,23 @@ class QuestionViewSet(viewsets.ModelViewSet):
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OldestFirstQuestionViewSet(viewsets.ModelViewSet):
+    serializer_class = QuestionSerializer
+    queryset = Question.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['question']
+    search_fields = ['=question']
+
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        data = request.data
+        queryset = self.filter_queryset(self.get_queryset())
+        messages = queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('modified')
+        serializer = QuestionSerializer(messages, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 class AnswerViewSet(viewsets.ModelViewSet):
@@ -1021,6 +1044,92 @@ class AnswerViewSet(viewsets.ModelViewSet):
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ---------------------------------- job update  ------------------------------------------#
+
+class JobStatusUpdate(APIView):
+    def get(self, request, *args, **kwargs):
+        job_id = kwargs.get('Job_id')
+        is_active = kwargs.get('status')
+        if job_id and (is_active or is_active == 0):
+            job_update = Job.objects.filter(pk=job_id).update(is_active=is_active)
+            if job_update:
+                context = {
+                    'message': "Job Updated Successfully",
+                    'status': status.HTTP_200_OK,
+                    'error': False
+                }
+            else:
+                context = {
+                    'message': "Something Went Wrong",
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'error': True
+                }
+            return Response(context)
+        context = {
+            'message': "Job_id Or Status Is Missing",
+            'status': status.HTTP_400_BAD_REQUEST,
+            'error': True
+        }
+        return Response(context)
+
+
+class QuestionFilterAPI(APIView):
+
+    def get(self, request, *args, **kwargs):
+        question = kwargs.get('question', None)
+        if question:
+            question_filter_data = Question.objects.filter(question__icontains=question)
+            second_serializer= QuestionSerializer(question_filter_data,many=True)
+            return Response(second_serializer.data, status=status.HTTP_200_OK)
+        else:     
+            return Response("not found", status=status.HTTP_404_NOT_FOUND)
+    def post(self, request, *args, **kwargs):
+        order_by = request.data.get('order_by', None)
+        question_list = request.data.get('question_list', None)
+        status = request.data.get('status',None)
+        user = request.user
+        data = request.data
+        if order_by == "oldest":
+            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            return Response(data=serializer.data)
+        if order_by == 'newest':
+            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            return Response(data=serializer.data)
+
+        if status == "0":
+            user = request.user
+            data = request.data
+            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user) & Q(status=0)).order_by('-modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            return Response(data=serializer.data)
+
+        if status == "1":
+            print("hiiiiiiiiiiiiiiiiiiiiii")
+            user = request.user
+            data = request.data
+            print(user)
+            messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1)).order_by(
+                '-modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            return Response(data=serializer.data)
+
+        if status == "2":
+            user = request.user
+            data = request.data
+            messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0)).order_by(
+                '-modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            return Response(data=serializer.data)
+
+        return Response({'message': "Data get successful"})
+
+
+
+# ----------------------------------- end update ------------------------------------------#
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
 

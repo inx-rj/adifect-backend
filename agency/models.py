@@ -110,6 +110,8 @@ class InviteMember(BaseModel):
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_user', null=True,
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
+                                blank=True)
 
     class Meta:
         verbose_name_plural = 'Invite Members'
@@ -181,4 +183,3 @@ class TestModal(models.Model):
     is_active = models.BooleanField(default=False)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     media = models.FileField(upload_to='test_media', blank=True, null=True)
-

@@ -20,6 +20,7 @@ urlpatterns = [
          name='update_invite_member'),
     path('register-view-invite/<str:invite_id>/<str:exculsive>', views.SignUpViewInvite.as_view(),
          name='register_view_invite'),
+    # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
 ]
 urlpatterns += router.urls

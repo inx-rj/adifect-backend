@@ -570,3 +570,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Answer
 #         fields = '__all__'
+
+
+class SearchFilterSerializer(serializers.Serializer):
+    question = serializers.CharField(max_length=200, required=False)

@@ -29,6 +29,7 @@ router.register(r'stages', views.StagesViewSet, basename='stages')
 
 # router.register(r'QA', views.QAViewSet, basename='QA')
 router.register(r'question', views.QuestionViewSet, basename='question')
+router.register(r'question-oldest-first', views.OldestFirstQuestionViewSet, basename='oldest_first_question')
 
 router.register(r'answer', views.AnswerViewSet, basename='answer')
 
@@ -38,8 +39,10 @@ urlpatterns = [
     path('job-filter/', views.JobFilterApi.as_view(), name='job_filter'),
     path('latest-job/', views.LatestJobAPI.as_view(), name='latest_job'),
     path('related-jobs/<int:company_id>/', views.RelatedJobsAPI.as_view(), name='related_jobs'),
+    path('job-status-update/<int:Job_id>/<int:status>/', views.JobStatusUpdate.as_view(), name='job_status_update'),
     # ----------------------------- test api url -----------------------------#
     path('test-api/', views.TestApi.as_view(), name='test_api'),
     path('job-proposal/<int:Job_id>/', views.JobProposal.as_view(), name='jobs_proposal'),
+    path('question-filter/<str:question>/', views.QuestionFilterAPI.as_view(), name='question_filter'),
 ]
 urlpatterns += router.urls

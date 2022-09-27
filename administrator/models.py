@@ -325,19 +325,16 @@ class JobTemplate(BaseModel):
         return f'{self.template_name}'
 
 
-def file_generate_upload_path(instance, filename):
-    # Both filename and instance.file_name should have the same values
-    return f"files/{instance.job_template.template_name}"
 
 
 class JobTemplateAttachments(BaseModel):
     job_template = models.ForeignKey(JobTemplate, related_name="job_template_images", on_delete=models.SET_NULL,
                                      null=True, blank=True)
-    job_template_images = models.FileField(upload_to=file_generate_upload_path, blank=True, null=True)
-    work_sample_images = models.FileField(upload_to=file_generate_upload_path, blank=True, null=True)
+    job_template_images = models.FileField(upload_to='job_template_image', blank=True, null=True)
+    work_sample_images = models.FileField(upload_to='job_template_sample_image', blank=True, null=True)
 
     class Meta:
-        verbose_name_plural = 'Job Template Attachments'
+        verbose_name_plural = 'Job Template_Attachments'
 
 class QA(BaseModel):
     job_applied = models.ForeignKey(JobApplied,on_delete=models.DO_NOTHING,related_name="QA_job_applied")
@@ -370,3 +367,5 @@ class Answer(BaseModel):
     
     def __str__(self) -> str:
         return f'{self.answer}'
+
+
