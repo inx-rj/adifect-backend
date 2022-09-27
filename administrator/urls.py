@@ -27,6 +27,12 @@ router.register(r'company', views.CompanyViewSet, basename='company')
 router.register(r'workflows', views.WorkflowViewSet, basename='workflows')
 router.register(r'stages', views.StagesViewSet, basename='stages')
 
+# router.register(r'QA', views.QAViewSet, basename='QA')
+router.register(r'question', views.QuestionViewSet, basename='question')
+
+router.register(r'answer', views.AnswerViewSet, basename='answer')
+
+
 urlpatterns = [
     path('edit-profile/', views.ProfileEdit.as_view(), name='edit_profile'),
     path('job-filter/', views.JobFilterApi.as_view(), name='job_filter'),
@@ -34,6 +40,6 @@ urlpatterns = [
     path('related-jobs/<int:company_id>/', views.RelatedJobsAPI.as_view(), name='related_jobs'),
     # ----------------------------- test api url -----------------------------#
     path('test-api/', views.TestApi.as_view(), name='test_api'),
-
+    path('job-proposal/<int:Job_id>/', views.JobProposal.as_view(), name='jobs_proposal'),
 ]
 urlpatterns += router.urls

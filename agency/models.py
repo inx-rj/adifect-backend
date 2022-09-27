@@ -169,25 +169,15 @@ class DamMedia(BaseModel):
         verbose_name_plural = 'DAM Media'
 
 
+# -------------------------------------- testing -----------------------------------------#
+class TestModal(models.Model):
+    class Status(models.IntegerChoices):
+        SEND = 0
+        ACCEPT = 1
+        REJECT = 2
 
-class NewModel(BaseModel):
     name = models.CharField(max_length=50, default=None)
-    is_active4 = models.BooleanField(default=True)
-    is_active = models.BooleanField(default=True)
-    is_active2 = models.BooleanField(default=True)
-
-
-class NewModel_latest(BaseModel):
-    name = models.CharField(max_length=50, default=None)
-    is_active = models.BooleanField(default=True)
-    is_active3 = models.BooleanField(default=True)
-    is_active4 = models.BooleanField(default=True)
-    is_active5 = models.BooleanField(default=True)
-    
-    
-class NewModel_latest_testing(BaseModel):
-    name = models.CharField(max_length=50, default=None)
-    is_active = models.BooleanField(default=True)
-    is_active3 = models.BooleanField(default=True)
-#     is_active4 = models.BooleanField(default=True)
-#     is_active5 = models.BooleanField(default=True)
+    description = models.CharField(max_length=200, null=True, blank=True)
+    is_active = models.BooleanField(default=False)
+    status = models.IntegerField(choices=Status.choices, default=Status.SEND)
+    media = models.FileField(upload_to='test_media', blank=True, null=True)

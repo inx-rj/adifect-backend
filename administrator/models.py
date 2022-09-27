@@ -143,11 +143,11 @@ class Job(BaseModel):
     workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
                                  null=True)
     job_due_date = models.DateField(auto_now_add=True)
-    due_date_index = models.IntegerField(null=True,blank=True)
+    due_date_index = models.IntegerField(null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
-
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name_plural = 'Job'
@@ -161,7 +161,6 @@ class Job(BaseModel):
 
     def __str__(self) -> str:
         return f'{self.title}'
-
 
 
 class JobAttachments(BaseModel):
@@ -187,10 +186,10 @@ class JobAttachments(BaseModel):
 class JobApplied(BaseModel):
     class Status(models.IntegerChoices):
         APPLIED = 0
-        IN_REVIEW = 1
+        REJECT = 1
         HIRE = 2
 
-    cover_letter = models.TextField(default=None, null=True, blank=True)
+    cover_letter = models.TextField(default=None,null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True)
     job_bid_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -200,8 +199,10 @@ class JobApplied(BaseModel):
     due_date = models.DateField(default=None, blank=True, null=True)
     proposed_price = models.DecimalField(default=None, max_digits=10, decimal_places=2, blank=True, null=True)
     proposed_due_date = models.DateField(default=None, blank=True, null=True)
+    question = models.TextField(default=None,null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.APPLIED)
     job_applied_date = models.DateField(auto_now_add=True)
+    Accepted_proposal_date = models.DateTimeField(editable=False, default=None, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Jobs Applied'
@@ -244,6 +245,7 @@ class ActivityAttachments(BaseModel):
     activities = models.ForeignKey(Activities, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
     activity_attachments = models.FileField(upload_to='activity_attachments', blank=True, null=True,
                                             validators=[validate_attachment])
+
     class Meta:
         verbose_name_plural = 'Activity Attachments'
 
@@ -309,7 +311,6 @@ class JobTemplate(BaseModel):
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
-
     class Meta:
         verbose_name_plural = 'Job Template'
 
@@ -323,10 +324,10 @@ class JobTemplate(BaseModel):
     def __str__(self) -> str:
         return f'{self.template_name}'
 
-def file_generate_upload_path(instance, filename):
-	# Both filename and instance.file_name should have the same values
-    return f"files/{instance.job_template.template_name}"
 
+def file_generate_upload_path(instance, filename):
+    # Both filename and instance.file_name should have the same values
+    return f"files/{instance.job_template.template_name}"
 
 
 class JobTemplateAttachments(BaseModel):
@@ -337,3 +338,35 @@ class JobTemplateAttachments(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Template Attachments'
+
+class QA(BaseModel):
+    job_applied = models.ForeignKey(JobApplied,on_delete=models.DO_NOTHING,related_name="QA_job_applied")
+    message = models.CharField(max_length=200)
+    job_owner = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_job_owner")
+    user = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_user")
+    sender = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_sender", default=None)
+    message_id = models.IntegerField(default=None,null=True,blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.message}'
+
+class Question(BaseModel):
+    question =  models.CharField(max_length=200)
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.DO_NOTHING, related_name="question_job_applied")
+    user = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, related_name="question_user")
+    # oldest_first = models.BooleanField(default=False)
+
+    
+    def __str__(self) -> str:
+        return f'{self.question}'
+
+class Answer(BaseModel):
+    question = models.ForeignKey(Question, on_delete=models.DO_NOTHING, related_name="answer_question", default=None)
+    answer = models.CharField(max_length=200)
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.DO_NOTHING, related_name="answer_job_applied")
+    agency = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, related_name="answer_agency")
+    # oldest_first = models.BooleanField(default=False)
+    
+    
+    def __str__(self) -> str:
+        return f'{self.answer}'

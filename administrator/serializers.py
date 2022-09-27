@@ -6,7 +6,7 @@ from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
     Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments
+    JobTemplateAttachments, QA, Question, Answer
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -319,17 +319,43 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             response['activity_attachments'] = activities_attachments
         return response
 
+class JobAppliedAttachmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobAppliedAttachments
+        fields = '__all__'
 
 class JobAppliedSerializer(serializers.ModelSerializer):
     attachments = serializers.FileField(allow_empty_file=True, required=False)
+    images = JobAppliedAttachmentsSerializer(many=True,required=False)
+    full_name = SerializerMethodField("get_fullname")
+    profile_img = serializers.SerializerMethodField("get_profile_img")
 
     class Meta:
         model = JobApplied
         fields = '__all__'
+    def get_fullname(self, obj):
+        try:
+            if obj.user:
+                return obj.user.get_full_name()
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_profile_img(self, obj):
+        try:
+            if obj.user:
+                profile = obj.user.profile_img.url
+                return profile
+            else:
+                return ''
+        except Exception as err:
+            return ''        
 
     def create(self, validated_data):
         if validated_data.get('attachments'):
             validated_data.pop('attachments')
+
         job_applied = JobApplied.objects.create(**validated_data)
         job_applied.save()
         return job_applied
@@ -344,10 +370,6 @@ class JobAppliedSerializer(serializers.ModelSerializer):
         return response
 
 
-class JobAppliedAttachmentsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = JobAppliedAttachments
-        fields = '__all__'
 
 
 class JobFilterSerializer(serializers.Serializer):
@@ -518,3 +540,33 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
+class QASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QA
+        fields = '__all__'
+
+class QuestionSerializer(serializers.ModelSerializer):
+
+    def getUsername(self, obj):
+        return obj.user.username
+
+    username = serializers.SerializerMethodField("getUsername")
+    class Meta:
+        model = Question
+        fields = '__all__'
+
+class AnswerSerializer(serializers.ModelSerializer):
+
+    def getUsername(self, obj):
+        return obj.agency.username
+
+    username = serializers.SerializerMethodField("getUsername")
+
+    class Meta:
+        model = Answer
+        fields = '__all__'
+
+# class AnswerSerializer1(serializers.ModelSerializer):
+#     class Meta:
+#         model = Answer
+#         fields = '__all__'

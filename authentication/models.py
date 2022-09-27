@@ -89,6 +89,10 @@ class CustomUserPortfolio(models.Model):
         verbose_name_plural = 'CustomUser Portfolio'
 
 
+
+
+
+
 class BaseModel(models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     modified = models.DateTimeField(auto_now=True, editable=False)
@@ -106,6 +110,36 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class UserProfile(BaseModel):
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name='user_profile', blank=True, null=True)
+    profile_title = models.CharField(max_length=200, null=True, blank=True)
+    profile_description = models.TextField(null=True, blank=True)
+    profile_img = models.ImageField(upload_to='user_profile_images/', null=True, blank=True,
+                                    validators=[validate_image])
+    video = models.FileField(upload_to='user_video/', null=True, blank=True, validators=[validate_video_extension])
+    profile_status = models.CharField(choices=(('0', 'away'), ('1', 'online'), ('2', 'offline')), max_length=30,
+                                      default='1', blank=True, null=True)
+    preferred_communication_mode = models.CharField(
+        choices=(('0', 'Email'), ('1', 'Whatsapp'), ('2', 'Skype'), ('3', 'Direct message')), max_length=30,
+        default='0', blank=True, null=True)
+    preferred_communication_id = models.CharField(max_length=200, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        try:
+            this = UserProfile.objects.get(id=self.id)
+            if this.video != self.video:
+                this.video.delete()
+            if this.profile_img != self.profile_img:
+                this.profile_img.delete()
+
+        except:
+            pass
+        super(UserProfile, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return self.user.email
 
 
 class PaymentMethod(BaseModel):

@@ -3,7 +3,7 @@ import os
 from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal
 from rest_framework.fields import SerializerMethodField
 
 from authentication.serializers import UserSerializer
@@ -15,7 +15,7 @@ from django.core.exceptions import ValidationError
 class IndustrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Industry
-        fields = '__all__'
+        fields = '__all__' 
 
     def validate_industry_name(self, value):
         exist_industry = None
@@ -33,6 +33,7 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
+        extra_kwargs = {'agency': {'required': True}}
 
 
     def validate(self, data):
@@ -55,18 +56,18 @@ class WorksFlowSerializer(serializers.ModelSerializer):
         model = WorksFlow
         fields = '__all__'
 
+
     def validate(self, data):
         exist_WorksFlow = None
         if self.instance:
-            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
-                                                                                    agency=self.instance.agency,
-                                                                                    is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'], agency=self.instance.agency,
+                                                                                is_trashed=False)
         else:
-            exist_WorksFlow = WorksFlow.objects.filter(name__iexact=data['name'], agency=data['agency'],
-                                                       is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.filter(name__iexact=data['name'],agency=data['agency'], is_trashed=False)
         if exist_WorksFlow:
             raise ValidationError("Works Flow With This Name Already Exist")
         return data
+
 
     def get_assigned_job(self, obj):
         try:
@@ -106,8 +107,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InviteMember
-        fields = ['id', 'agency', 'email', 'user_id', 'exclusive', 'user_name', 'user_email',
-                  'user_image','user_first_name','user_last_name']
+        fields = '__all__'
 
     def get_user_id(self, obj):
         try:
@@ -251,4 +251,11 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
     class Meta:
         model = DAM
+        fields = '__all__'
+
+
+
+class TestModalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TestModal
         fields = '__all__'

@@ -11,9 +11,11 @@ router.register(r'works-flow', views.WorksFlowViewSet, basename='works_flow')
 router.register(r'works-flow-stages', views.StageViewSet, basename='works_flow_stages')
 router.register(r'dam', views.DAMViewSet, basename='dam')
 router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
+router.register(r'test-api', views.TestModalViewSet, basename='test_api')
+router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
+
 
 urlpatterns = [
-    path('invite-member/', views.InviteMemberApi.as_view(), name='invite_member'),
     path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
          name='update_invite_member'),
     path('register-view-invite/<str:invite_id>/<str:exculsive>', views.SignUpViewInvite.as_view(),
