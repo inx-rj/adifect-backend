@@ -181,4 +181,4 @@ class TestModal(models.Model):
     is_active = models.BooleanField(default=False)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     media = models.FileField(upload_to='test_media', blank=True, null=True)
-    demo  = models.CharField(max_length=50, default='')
+
