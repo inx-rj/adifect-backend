@@ -44,10 +44,6 @@ logger = logging.getLogger('django')
 class SignUpView(APIView):
     serializer_class = RegisterSerializer
 
-    def get(self, request):
-
-        return Response({"logopath":LOGO_122_SERVER_PATH,"serverpath":FRONTEND_SITE_URL})
-
     def post(self, request):
         try:
             data = request.data
