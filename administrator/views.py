@@ -536,11 +536,11 @@ class LatestJobAPI(APIView):
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
-            latest_job = latest_job.exclude(status=0)
-            user_role = request.user.role
-            if not user_role == 0:
-                latest_job = latest_job.exclude(is_active=0)
-            latest_job = latest_job.latest('id')
+            latest_job = latest_job.exclude(status=0).latest('id')
+            # user_role = request.user.role
+            # if not user_role == 0:
+            #     latest_job = latest_job.exclude(is_active=0)
+            # latest_job = latest_job.latest('id')
             data = JobsWithAttachmentsSerializer(latest_job, context={'request': request})
             context = {
                 'message': 'Latest Job get Successfully',
