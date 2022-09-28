@@ -195,7 +195,8 @@ class JobViewSet(viewsets.ModelViewSet):
         if user_role == 0:
             job_data = self.queryset.exclude(status=0).order_by('-modified')
         else:
-            job_data = self.queryset.exclude(is_active=0).exclude(is_active=0).order_by('-modified')
+            job_data = self.queryset.exclude(status=0).order_by('-modified')
+            # job_data = self.queryset.exclude(is_active=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
