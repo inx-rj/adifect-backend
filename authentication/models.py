@@ -112,6 +112,8 @@ class BaseModel(models.Model):
         abstract = True
 
 
+#---------------------------------------- Userprofile -------------------------------------------------------#
+'''
 class UserProfile(BaseModel):
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name='user_profile', blank=True, null=True)
     profile_title = models.CharField(max_length=200, null=True, blank=True)
@@ -140,7 +142,8 @@ class UserProfile(BaseModel):
 
     def __str__(self):
         return self.user.email
-
+'''
+#--------------------------------------- end -----------------------------------------------------------#
 
 class PaymentMethod(BaseModel):
     name = models.CharField(max_length=200)

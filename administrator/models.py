@@ -203,7 +203,8 @@ class JobApplied(BaseModel):
     status = models.IntegerField(choices=Status.choices, default=Status.APPLIED)
     job_applied_date = models.DateField(auto_now_add=True)
     Accepted_proposal_date = models.DateTimeField(editable=False, default=None, null=True, blank=True)
-
+    is_seen = models.BooleanField(default=False)
+    
     class Meta:
         verbose_name_plural = 'Jobs Applied'
 
@@ -335,17 +336,6 @@ class JobTemplateAttachments(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Template_Attachments'
-
-class QA(BaseModel):
-    job_applied = models.ForeignKey(JobApplied,on_delete=models.DO_NOTHING,related_name="QA_job_applied")
-    message = models.CharField(max_length=200)
-    job_owner = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_job_owner")
-    user = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_user")
-    sender = models.ForeignKey(CustomUser,on_delete=models.DO_NOTHING,related_name="QA_sender", default=None)
-    message_id = models.IntegerField(default=None,null=True,blank=True)
-
-    def __str__(self) -> str:
-        return f'{self.message}'
 
 class Question(BaseModel):
     question =  models.CharField(max_length=200)

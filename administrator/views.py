@@ -6,8 +6,8 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
     JobFilterSerializer, JobHiredSerializer, ActivitiesSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
-    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, QASerializer, \
-    QuestionSerializer, AnswerSerializer,SearchFilterSerializer
+    JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
+    QuestionSerializer, AnswerSerializer, SearchFilterSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -16,7 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
-    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, QA, \
+    JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -34,6 +34,10 @@ from rest_framework.filters import SearchFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer
+from rest_framework.decorators import action
+from sendgrid.helpers.mail import Mail, Email, To, Content
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
+from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
 
 
 # Create your views here.
@@ -182,12 +186,16 @@ class UserListViewSet(viewsets.ModelViewSet):
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter()
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_data = self.queryset.exclude(status=0).order_by('-modified')
+        user_role = request.user.role
+        if user_role == 0:
+            job_data = self.queryset.exclude(status=0).order_by('-modified')
+        else:
+            job_data = self.queryset.exclude(is_active=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -203,6 +211,8 @@ class JobViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
+        template_image = request.FILES.getlist('template_image')
+        templte_sample_image = request.FILES.getlist('template_sample_image')
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
             if template_name:
@@ -263,14 +273,16 @@ class JobViewSet(viewsets.ModelViewSet):
                         if image_error != 0:
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
-                        for i in image:
+                        for i in template_image:
+                            print('hit templ')
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
                     if sample_image:
                         sample_image_error = validate_job_attachments(sample_image)
                         if sample_image_error != 0:
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
-                        for i in sample_image:
+                        for i in templte_sample_image:
+                            print('test')
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
 
             context = {
@@ -289,6 +301,8 @@ class JobViewSet(viewsets.ModelViewSet):
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
         remove_image_ids = request.data.getlist('remove_image', None)
+        template_image = request.FILES.getlist('template_image')
+        templte_sample_image = request.FILES.getlist('template_sample_image')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
@@ -345,14 +359,14 @@ class JobViewSet(viewsets.ModelViewSet):
                         if image_error != 0:
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
-                        for i in image:
+                        for i in template_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
                     if sample_image:
                         sample_image_error = validate_job_attachments(sample_image)
                         if sample_image_error != 0:
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
-                        for i in sample_image:
+                        for i in templte_sample_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
             # --------------------------------------- end -----------------------------------------------#
 
@@ -406,9 +420,9 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
         attachments = request.FILES.getlist('job_applied_attachments')
         data = request.data
         if serializer.is_valid():
-            if self.queryset.filter(Q(job=data['job']) & Q(user=data['user'])).exists():
+            if self.queryset.filter(Q(job=data['job']) & Q(user=data['user']) & Q(job__is_active=False)).exists():
                 context = {
-                    'message': 'Job already applied',
+                    'message': 'Job already applied Or Closed',
                 }
                 return Response(context, status=status.HTTP_400_BAD_REQUEST)
             else:
@@ -521,7 +535,11 @@ class LatestJobAPI(APIView):
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
-            latest_job = latest_job.exclude(status=0).latest('id')
+            latest_job = latest_job.exclude(status=0)
+            user_role = request.user.role
+            if not user_role == 0:
+                latest_job = latest_job.exclude(is_active=0)
+            latest_job = latest_job.latest('id')
             data = JobsWithAttachmentsSerializer(latest_job, context={'request': request})
             context = {
                 'message': 'Latest Job get Successfully',
@@ -932,12 +950,13 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 class JobProposal(APIView):
     serializer_class = JobAppliedSerializer
 
-    def get(self, request, *args, **kwargs):
-        job_id = kwargs.get('Job_id', None)
+    def get(self, request, pk, format=None):
+        job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id)
+            query_set = JobApplied.objects.filter(job_id=job_id, status=JobApplied.Status.APPLIED)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
-            data = serializer.data
+            data_query = serializer.data
+            data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
         else:
             data = {'message': 'job_id not found', 'status': status.HTTP_404_NOT_FOUND, 'error': True}
         return Response(data=data, status=status.HTTP_200_OK)
@@ -945,6 +964,7 @@ class JobProposal(APIView):
     def post(self, request, *args, **kwargs):
         initial_status = request.data.get('status', None)
         job_applied_id = request.data.get('id', None)
+
         if job_applied_id and initial_status:
             job_proposal = JobApplied.objects.filter(pk=job_applied_id).update(status=initial_status,
                                                                                Accepted_proposal_date=datetime.datetime.now())
@@ -956,6 +976,37 @@ class JobProposal(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
         return Response({'message': 'Status Or Id Missing', 'error': True, 'status': status.HTTP_404_NOT_FOUND},
                         status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk, format=None):
+        if pk:
+            update = JobApplied.objects.filter(job_id=pk).update(is_seen=True)
+            if update:
+                context = {
+                    'message': 'Updated successfully',
+                    'status': status.HTTP_200_OK,
+                    'errors': False,
+                }
+                return Response(context, status=status.HTTP_200_OK)
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+
+        return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class ProposalUnseenCount(APIView):
+    def get(self, request, pk, format=None):
+        job_id = pk
+        if job_id:
+            query_set = JobApplied.objects.filter(job_id=job_id, is_seen=False).count()
+            data = {'message': 'success', 'not_seen_count': query_set,
+                    'status': status.HTTP_200_OK, 'error': False}
+        else:
+            data = {'message': 'job_id not found', 'status': status.HTTP_404_NOT_FOUND, 'error': True}
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 class StagesViewSet(viewsets.ModelViewSet):
@@ -1004,7 +1055,6 @@ class OldestFirstQuestionViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['question']
     search_fields = ['=question']
-
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -1081,14 +1131,15 @@ class QuestionFilterAPI(APIView):
         question = kwargs.get('question', None)
         if question:
             question_filter_data = Question.objects.filter(question__icontains=question)
-            second_serializer= QuestionSerializer(question_filter_data,many=True)
+            second_serializer = QuestionSerializer(question_filter_data, many=True)
             return Response(second_serializer.data, status=status.HTTP_200_OK)
-        else:     
+        else:
             return Response("not found", status=status.HTTP_404_NOT_FOUND)
+
     def post(self, request, *args, **kwargs):
         order_by = request.data.get('order_by', None)
         question_list = request.data.get('question_list', None)
-        status = request.data.get('status',None)
+        status = request.data.get('status', None)
         user = request.user
         data = request.data
         if order_by == "oldest":
@@ -1103,12 +1154,12 @@ class QuestionFilterAPI(APIView):
         if status == "0":
             user = request.user
             data = request.data
-            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user) & Q(status=0)).order_by('-modified')
+            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user) & Q(status=0)).order_by(
+                '-modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
             return Response(data=serializer.data)
 
         if status == "1":
-            print("hiiiiiiiiiiiiiiiiiiiiii")
             user = request.user
             data = request.data
             print(user)
@@ -1128,6 +1179,43 @@ class QuestionFilterAPI(APIView):
         return Response({'message': "Data get successful"})
 
 
+#--------------------------------------------- jobdetails muskesh ------------------------#
+
+class Job_share_details(APIView):
+    def post(self, request, *args, **kwargs):
+        job_id = request.data.get('id', None)
+        email = request.data.get('email', None)
+        if job_id and email:
+            job_details = Job.objects.filter(pk=job_id).first()
+            skills = ''
+            for i in job_details.skills.all():
+                skills += f'<div><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                          f'30px;font-style: normal;font-weight: 600;font-size: 15px;line-height: 18px;text-align: ' \
+                          f'center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">' \
+                          f'{i.skill_name}</button></div> '
+            print(skills)
+            if job_details:
+                from_email = Email(SEND_GRID_FROM_EMAIL)
+                to_email = To(email)
+
+                try:
+
+                    subject = "Invitation link to Join Team"
+                    content = Content("text/html",
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                    data = send_email(from_email, to_email, subject, content)
+                    if data:
+                        return Response({'message': 'mail Send successfully, Please check your mail'},
+                                        status=status.HTTP_200_OK)
+                    else:
+
+                        return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as e:
+                    print(e)
+        return Response({'message': 'Something went wrong'}, status=status.HTTP_200_OK)
+
+
+#-------------------------------------------- end -------------------------------#
 
 # ----------------------------------- end update ------------------------------------------#
 
