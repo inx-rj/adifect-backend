@@ -336,22 +336,21 @@ class JobTemplateAttachments(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Template_Attachments'
-
+#------ avneet ----#
 class Question(BaseModel):
     question =  models.CharField(max_length=200)
-    job_applied = models.ForeignKey(JobApplied, on_delete=models.DO_NOTHING, related_name="question_job_applied")
-    user = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, related_name="question_user")
-    # oldest_first = models.BooleanField(default=False)
-
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="question_job_applied",blank=True, null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="question_user",blank=True, null=True)
+    status = models.IntegerField(default=2)
     
     def __str__(self) -> str:
         return f'{self.question}'
 
 class Answer(BaseModel):
-    question = models.ForeignKey(Question, on_delete=models.DO_NOTHING, related_name="answer_question", default=None)
+    question = models.ForeignKey(Question, on_delete=models.SET_NULL, related_name="answer_question",blank=True, null=True)
     answer = models.CharField(max_length=200)
-    job_applied = models.ForeignKey(JobApplied, on_delete=models.DO_NOTHING, related_name="answer_job_applied")
-    agency = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, related_name="answer_agency")
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="answer_job_applied",blank=True, null=True)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_agency",blank=True, null=True)
     # oldest_first = models.BooleanField(default=False)
     
     

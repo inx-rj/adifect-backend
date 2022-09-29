@@ -1040,11 +1040,15 @@ class AnswerViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user=data['agency'])).exists():
                 self.perform_create(serializer)
+                ans_data = serializer.validated_data.get('question')
+                Question.objects.filter(id=ans_data.id).update(status=1)
+                print(ans_data)
                 context = {
                     'message': 'Message sent successfully',
                     'data': serializer.data
                 }
                 return Response(context, status=status.HTTP_200_OK)
+
             else:
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -1098,16 +1102,18 @@ class QuestionFilterAPI(APIView):
             return Response(context)
         if order_by == "oldest":
             #------ for oldest ----#
+            messages = self.queryset
             user = request.user
-            if status1 == "0":
+            print(user)
+            if status1 == 0:
                 # ------ all questions ----#
                 messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
-            if status1 == "1":
+            if status1 == 1:
                 # ------ answered questions ------#
                 messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
-            if status1 == "2":
+            if status1 == 2:
                 # ---- unaswered questions -------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0))
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=2))
             messages = messages.order_by('modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
             context = {
@@ -1119,16 +1125,18 @@ class QuestionFilterAPI(APIView):
             return Response(context)
         if order_by == 'newest':
             #------- for newest -----#
+            messages = self.queryset
             user = request.user
-            if status1 == "0":
+            if status1 == 0:
                 # ------ all questions ----#
                 messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
-            if status1 == "1":
+            if status1 == 1:
                 # ------ answered questions ------#
                 messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
-            if status1 == "2":
+            if status1 == 2:
+                print('hit-api')
                 # ---- unaswered questions -------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0))
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=2))
             messages = messages.order_by('-modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
             context = {
