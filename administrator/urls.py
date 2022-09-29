@@ -44,7 +44,7 @@ urlpatterns = [
     path('test-api/', views.TestApi.as_view(), name='test_api'),
     path('job-proposal/<int:pk>/', views.JobProposal.as_view(), name='jobs_proposal'),
     path('proposal-unseen-count/<int:pk>/', views.ProposalUnseenCount.as_view(), name='proposal_unseen_count'),
-    path('question-filter/<str:question>/', views.QuestionFilterAPI.as_view(), name='question_filter'),
+    path('question-filter/', views.QuestionFilterAPI.as_view(), name='question_filter'),
     path('job-share-details/', views.Job_share_details.as_view(), name='job_share_details'),
 ]
 urlpatterns += router.urls

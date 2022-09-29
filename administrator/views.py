@@ -195,8 +195,7 @@ class JobViewSet(viewsets.ModelViewSet):
         if user_role == 0:
             job_data = self.queryset.exclude(status=0).order_by('-modified')
         else:
-            job_data = self.queryset.exclude(status=0).order_by('-modified')
-            # job_data = self.queryset.exclude(is_active=0).exclude(is_active=0).order_by('-modified')
+            job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -536,11 +535,11 @@ class LatestJobAPI(APIView):
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
-            latest_job = latest_job.exclude(status=0).latest('id')
-            # user_role = request.user.role
-            # if not user_role == 0:
-            #     latest_job = latest_job.exclude(is_active=0)
-            # latest_job = latest_job.latest('id')
+            latest_job = latest_job.exclude(status=0)
+            user_role = request.user.role
+            if not user_role == 0:
+                latest_job = latest_job.exclude(is_active=0)
+            latest_job = latest_job.latest('id')
             data = JobsWithAttachmentsSerializer(latest_job, context={'request': request})
             context = {
                 'message': 'Latest Job get Successfully',
@@ -557,10 +556,6 @@ class LatestJobAPI(APIView):
             }
             return Response(context)
 
-
-# class CompanyViewSet(viewsets.ModelViewSet):
-#     serializer_class = CompanySerializer
-#     queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
 
 
 @permission_classes([IsAuthenticated])
@@ -594,37 +589,6 @@ class RelatedJobsAPI(APIView):
             'data': [],
         }
         return Response(context)
-
-    '''
-    multiple search code
-    def get(self, request, *args, **kwargs):
-        if kwargs['title']:
-            titles = kwargs['title'].split(' ')
-            title_qs = reduce(operator.or_, (Q(title__icontains=x, is_trashed=False) for x in titles))
-            queryset = Job.objects.filter(title_qs)
-            if queryset:
-                serializer = RelatedJobsSerializer(queryset, many=True)
-                context = {
-                    'message': 'Related Jobs',
-                    'status': status.HTTP_200_OK,
-                    'data': serializer.data,
-                }
-            else:
-                context = {
-                    'message': 'No data found',
-                    'status': status.HTTP_200_OK,
-                    'data': "",
-                }
-            return Response(context)
-        else:
-            context = {
-                'message': 'No data found',
-                'status': status.HTTP_200_OK,
-                'data': "",
-            }
-        return Response(context)
-        '''
-
 
 @permission_classes([IsAuthenticated])
 class PrefferedLanguageViewSet(viewsets.ModelViewSet):
@@ -685,12 +649,15 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = JobTemplate.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company', ]
 
     # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_data = self.queryset.filter(user=request.user).order_by('-modified')
-        # paginated_data = self.paginate_queryset(job_data)
+        queryset = self.filter_queryset(self.get_queryset())
+        job_data = queryset.filter(user=request.user).order_by('-modified')
         serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -702,7 +669,6 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        print("job template")
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         image = request.FILES.getlist('image')
@@ -789,10 +755,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
 
 
-# class WorkflowViewSet(viewsets.ModelViewSet):
-#     serializer_class = WorksFlowSerializer
-#     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
-
 
 @permission_classes([IsAuthenticated])
 class WorkflowViewSet(viewsets.ModelViewSet):
@@ -808,10 +770,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    # def list(self, request, *args, **kwargs):
-    #     workflow_data = self.queryset.filter(agency=request.user.id).order_by("-modified")
-    #     serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
-    #     return Response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -1079,21 +1037,16 @@ class AnswerViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = AnswerSerializer(data=request.data)
         data = request.data
-
         if serializer.is_valid():
-            print(data)
             if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user=data['agency'])).exists():
                 self.perform_create(serializer)
-                print(data)
                 context = {
                     'message': 'Message sent successfully',
                     'data': serializer.data
                 }
                 return Response(context, status=status.HTTP_200_OK)
-
             else:
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
-
         return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1127,57 +1080,65 @@ class JobStatusUpdate(APIView):
 
 
 class QuestionFilterAPI(APIView):
-
-    def get(self, request, *args, **kwargs):
-        question = kwargs.get('question', None)
-        if question:
-            question_filter_data = Question.objects.filter(question__icontains=question)
-            second_serializer = QuestionSerializer(question_filter_data, many=True)
-            return Response(second_serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response("not found", status=status.HTTP_404_NOT_FOUND)
+    queryset = Question.objects.all()
 
     def post(self, request, *args, **kwargs):
         order_by = request.data.get('order_by', None)
-        question_list = request.data.get('question_list', None)
-        status = request.data.get('status', None)
-        user = request.user
-        data = request.data
+        status1 = request.data.get('status', None)
+        question_search = request.data.get('question', None)
+        if question_search:
+            question_filter_data = self.queryset.filter(question__icontains=question_search)
+            second_serializer = QuestionSerializer(question_filter_data, many=True)
+            context = {
+                'data':second_serializer.data,
+                'message':'success',
+                'error':False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
         if order_by == "oldest":
-            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('modified')
+            #------ for oldest ----#
+            user = request.user
+            if status1 == "0":
+                # ------ all questions ----#
+                messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
+            if status1 == "1":
+                # ------ answered questions ------#
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
+            if status1 == "2":
+                # ---- unaswered questions -------#
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0))
+            messages = messages.order_by('modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
-            return Response(data=serializer.data)
+            context = {
+                'data':serializer.data,
+                'message':'success',
+                'error':False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
         if order_by == 'newest':
-            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
-            serializer = QuestionSerializer(messages, many=True, context={'request': request})
-            return Response(data=serializer.data)
-
-        if status == "0":
+            #------- for newest -----#
             user = request.user
-            data = request.data
-            messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user) & Q(status=0)).order_by(
-                '-modified')
+            if status1 == "0":
+                # ------ all questions ----#
+                messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
+            if status1 == "1":
+                # ------ answered questions ------#
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
+            if status1 == "2":
+                # ---- unaswered questions -------#
+                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0))
+            messages = messages.order_by('-modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
-            return Response(data=serializer.data)
-
-        if status == "1":
-            user = request.user
-            data = request.data
-            print(user)
-            messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1)).order_by(
-                '-modified')
-            serializer = QuestionSerializer(messages, many=True, context={'request': request})
-            return Response(data=serializer.data)
-
-        if status == "2":
-            user = request.user
-            data = request.data
-            messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=0)).order_by(
-                '-modified')
-            serializer = QuestionSerializer(messages, many=True, context={'request': request})
-            return Response(data=serializer.data)
-
-        return Response({'message': "Data get successful"})
+            context = {
+                'data': serializer.data,
+                'message': 'success',
+                'error':False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
+        return Response({'message': "Something Went Wrong",'status':status.HTTP_200_OK,'error':True},status=status.HTTP_400_BAD_REQUEST)
 
 
 #--------------------------------------------- jobdetails muskesh ------------------------#
@@ -1188,19 +1149,16 @@ class Job_share_details(APIView):
         email = request.data.get('email', None)
         if job_id and email:
             job_details = Job.objects.filter(pk=job_id).first()
-            skills = ''
-            for i in job_details.skills.all():
-                skills += f'<div><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                          f'30px;font-style: normal;font-weight: 600;font-size: 15px;line-height: 18px;text-align: ' \
-                          f'center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">' \
-                          f'{i.skill_name}</button></div> '
-            print(skills)
             if job_details:
+                skills = ''
+                for i in job_details.skills.all():
+                    skills += f'<div><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                              f'30px;font-style: normal;font-weight: 600;font-size: 15px;line-height: 18px;text-align: ' \
+                              f'center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">' \
+                              f'{i.skill_name}</button></div> '
                 from_email = Email(SEND_GRID_FROM_EMAIL)
                 to_email = To(email)
-
                 try:
-
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
                                       f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
