@@ -325,8 +325,6 @@ class JobAppliedAttachmentsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class JobAppliedSerializer(serializers.ModelSerializer):
-    attachments = serializers.FileField(allow_empty_file=True, required=False)
-    images = JobAppliedAttachmentsSerializer(many=True,required=False)
     full_name = SerializerMethodField("get_fullname")
     profile_img = serializers.SerializerMethodField("get_profile_img")
 
@@ -353,9 +351,6 @@ class JobAppliedSerializer(serializers.ModelSerializer):
             return ''        
 
     def create(self, validated_data):
-        if validated_data.get('attachments'):
-            validated_data.pop('attachments')
-
         job_applied = JobApplied.objects.create(**validated_data)
         job_applied.save()
         return job_applied
@@ -363,10 +358,14 @@ class JobAppliedSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         response = super().to_representation(instance)
         job_attachments = []
+        job_attachments_name = []
         for i in JobAppliedAttachments.objects.filter(job_applied=instance):
             job_attachments.append(i.job_applied_attachments.url)
+            job_attachments_name.append(str(i.job_applied_attachments.name).split('/')[-1])
+
         if job_attachments:
             response['job_applied_attachments'] = job_attachments
+            response['job_applied_attachments_name'] = job_attachments_name
         return response
 
 

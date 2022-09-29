@@ -274,7 +274,6 @@ class JobViewSet(viewsets.ModelViewSet):
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
                         for i in template_image:
-                            print('hit templ')
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
                     if sample_image:
                         sample_image_error = validate_job_attachments(sample_image)
@@ -282,7 +281,6 @@ class JobViewSet(viewsets.ModelViewSet):
                             return Response({'message': "Invalid Job Attachments images"},
                                             status=status.HTTP_400_BAD_REQUEST)
                         for i in templte_sample_image:
-                            print('test')
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
 
             context = {
@@ -403,7 +401,7 @@ def validate_job_attachments(images):
             error += 1
     return error
 
-
+@permission_classes([IsAuthenticated])  
 class JobAppliedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
@@ -417,7 +415,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        attachments = request.FILES.getlist('job_applied_attachments')
+        attachments = request.FILES.getlist('image')
         data = request.data
         if serializer.is_valid():
             if self.queryset.filter(Q(job=data['job']) & Q(user=data['user']) & Q(job__is_active=False)).exists():
@@ -426,7 +424,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 }
                 return Response(context, status=status.HTTP_400_BAD_REQUEST)
             else:
-                serializer.fields.pop('attachments')
                 attachment_error = validate_attachment(attachments)
                 if attachment_error != 0:
                     return Response({'message': "Invalid Attachment"}, status=status.HTTP_400_BAD_REQUEST)
@@ -446,7 +443,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
-
                 return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -1042,7 +1038,6 @@ class AnswerViewSet(viewsets.ModelViewSet):
                 self.perform_create(serializer)
                 ans_data = serializer.validated_data.get('question')
                 Question.objects.filter(id=ans_data.id).update(status=1)
-                print(ans_data)
                 context = {
                     'message': 'Message sent successfully',
                     'data': serializer.data
@@ -1052,6 +1047,18 @@ class AnswerViewSet(viewsets.ModelViewSet):
             else:
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance:
+            update_status = Question.objects.filter(id=instance.question.id).update(status=2)
+            delete_answer = Answer.objects.filter(id=instance.id).delete()
+        context = {
+            'message': 'Answer Deleted successfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
 
 
 # ---------------------------------- job update  ------------------------------------------#
@@ -1104,7 +1111,6 @@ class QuestionFilterAPI(APIView):
             #------ for oldest ----#
             messages = self.queryset
             user = request.user
-            print(user)
             if status1 == 0:
                 # ------ all questions ----#
                 messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
@@ -1134,7 +1140,6 @@ class QuestionFilterAPI(APIView):
                 # ------ answered questions ------#
                 messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
             if status1 == 2:
-                print('hit-api')
                 # ---- unaswered questions -------#
                 messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=2))
             messages = messages.order_by('-modified')
@@ -1151,11 +1156,12 @@ class QuestionFilterAPI(APIView):
 
 #--------------------------------------------- jobdetails muskesh ------------------------#
 
-class Job_share_details(APIView):
+class JobShareDetails(APIView):
     def post(self, request, *args, **kwargs):
         job_id = request.data.get('id', None)
         email = request.data.get('email', None)
         if job_id and email:
+            user = CustomUser.objects.filter(email=email).first()
             job_details = Job.objects.filter(pk=job_id).first()
             if job_details:
                 skills = ''
@@ -1166,19 +1172,35 @@ class Job_share_details(APIView):
                               f'{i.skill_name}</button></div> '
                 from_email = Email(SEND_GRID_FROM_EMAIL)
                 to_email = To(email)
-                try:
-                    subject = "Invitation link to Join Team"
-                    content = Content("text/html",
-                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                    data = send_email(from_email, to_email, subject, content)
-                    if data:
-                        return Response({'message': 'mail Send successfully, Please check your mail'},
-                                        status=status.HTTP_200_OK)
-                    else:
+                if user:
+                    try:
+                        subject = "Shared Job details"
+                        content = Content("text/html",
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                        if data:
+                            return Response({'message': 'mail Send successfully, Please check your mail'},
+                                            status=status.HTTP_200_OK)
+                        else:
 
-                        return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
-                except Exception as e:
-                    print(e)
+                            return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                    except Exception as e:
+                        print(e)
+                if not user:
+                    try:
+                        subject = "Shared Job details"
+                        content = Content("text/html",
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/agency/register-view-invite/{job_details.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                        if data:
+                            return Response({'message': 'mail Send successfully, Please check your mail'},
+                                            status=status.HTTP_200_OK)
+                        else:
+
+                            return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                    except Exception as e:
+                        print(e)
+
         return Response({'message': 'Something went wrong'}, status=status.HTTP_200_OK)
 
 
