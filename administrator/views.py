@@ -193,7 +193,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user_role = request.user.role
         if user_role == 0:
-            job_data = self.queryset.exclude(status=0).order_by('-modified')
+            job_data = self.queryset.filter(user=request.user).exclude(status=0).order_by('-modified')
         else:
             job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
@@ -908,7 +908,7 @@ class JobProposal(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id, status=JobApplied.Status.APPLIED)
+            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
@@ -1097,8 +1097,10 @@ class QuestionFilterAPI(APIView):
         order_by = request.data.get('order_by', None)
         status1 = request.data.get('status', None)
         question_search = request.data.get('question', None)
+        user = request.user
         if question_search:
-            question_filter_data = self.queryset.filter(question__icontains=question_search)
+            question_filter_data = self.queryset.filter(
+                (Q(user=user) | Q(job_applied__job__user=user)) & Q(question__icontains=question_search))
             second_serializer = QuestionSerializer(question_filter_data, many=True)
             context = {
                 'data':second_serializer.data,
@@ -1110,7 +1112,6 @@ class QuestionFilterAPI(APIView):
         if order_by == "oldest":
             #------ for oldest ----#
             messages = self.queryset
-            user = request.user
             if status1 == 0:
                 # ------ all questions ----#
                 messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
@@ -1132,7 +1133,6 @@ class QuestionFilterAPI(APIView):
         if order_by == 'newest':
             #------- for newest -----#
             messages = self.queryset
-            user = request.user
             if status1 == 0:
                 # ------ all questions ----#
                 messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
@@ -1176,7 +1176,7 @@ class JobShareDetails(APIView):
                     try:
                         subject = "Shared Job details"
                         content = Content("text/html",
-                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,{user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                         data = send_email(from_email, to_email, subject, content)
                         if data:
                             return Response({'message': 'mail Send successfully, Please check your mail'},
@@ -1190,7 +1190,7 @@ class JobShareDetails(APIView):
                     try:
                         subject = "Shared Job details"
                         content = Content("text/html",
-                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/agency/register-view-invite/{job_details.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000"> Hello ,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                         data = send_email(from_email, to_email, subject, content)
                         if data:
                             return Response({'message': 'mail Send successfully, Please check your mail'},
@@ -1205,6 +1205,34 @@ class JobShareDetails(APIView):
 
 
 #-------------------------------------------- end -------------------------------#
+@permission_classes([IsAuthenticated])
+class AgencyJoblistViewSet(viewsets.ModelViewSet):
+    serializer_class = EditProfileSerializer
+    queryset = CustomUser.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = CustomUser.objects.filter(role=2, is_trashed=False)
+        serializer = EditProfileSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+
+@permission_classes([IsAuthenticated])
+class AdminJobListViewSet(viewsets.ModelViewSet):
+    serializer_class = JobSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    queryset = Job.objects.all()
+    job_template_attach = JobTemplateAttachmentsSerializer
+    pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['user']
+    search_fields = ['=user', ]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        job_data = queryset.exclude(status=0).order_by('-modified')
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
 
 # ----------------------------------- end update ------------------------------------------#
 
