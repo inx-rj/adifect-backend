@@ -117,7 +117,7 @@ class InviteMember(BaseModel):
         verbose_name_plural = 'Invite Members'
 
     def __str__(self):
-        return self.agency.first_name
+        return self.get_status_display()
 
 
 class Workflow_Stages(BaseModel):
@@ -147,9 +147,16 @@ class DAM(BaseModel):
     name = models.CharField(max_length=50, default=None)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
-
+    parent = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
     class Meta:
         verbose_name_plural = 'DAM'
+
+    def __str__(self):
+        if self.parent is not None:
+            return self.parent.name + "/" + self.name
+        else:
+            return self.name
+
 
 
 def fileLocation(instance, dam_media):

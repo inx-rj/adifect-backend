@@ -968,13 +968,13 @@ class StagesViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
 
-
+@permission_classes([IsAuthenticated])
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
     queryset = Question.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['question']
-    search_fields = ['=question']
+    filterset_fields = ['question','job_applied__job']
+    search_fields = ['=question',]
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -989,7 +989,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
         data = request.data
 
         if serializer.is_valid():
-            print(data['job_applied'])
             if JobApplied.objects.filter(id=data['job_applied']).exists():
                 self.perform_create(serializer)
                 context = {
@@ -1034,7 +1033,9 @@ class AnswerViewSet(viewsets.ModelViewSet):
         serializer = AnswerSerializer(data=request.data)
         data = request.data
         if serializer.is_valid():
-            if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user=data['agency'])).exists():
+            print(data['job_applied'])
+            print(data['agency'])
+            if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user_id=data['agency'])).exists():
                 self.perform_create(serializer)
                 ans_data = serializer.validated_data.get('question')
                 Question.objects.filter(id=ans_data.id).update(status=1)

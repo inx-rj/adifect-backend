@@ -12,15 +12,16 @@ from administrator.models import Job
 from administrator.serializers import JobSerializer, UserListSerializer
 from django.core.exceptions import ValidationError
 
+
 class IndustrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Industry
-        fields = '__all__' 
+        fields = '__all__'
 
     def validate_industry_name(self, value):
         exist_industry = None
         if self.instance:
-            exist_industry = Industry.objects.exclude(id=self.instance.id).filter(industry_name=value,is_trashed=False)
+            exist_industry = Industry.objects.exclude(id=self.instance.id).filter(industry_name=value, is_trashed=False)
         else:
             exist_industry = Industry.objects.filter(industry_name=value, is_trashed=False)
         if exist_industry:
@@ -28,24 +29,38 @@ class IndustrySerializer(serializers.ModelSerializer):
         return value
 
 
-
 class CompanySerializer(serializers.ModelSerializer):
+    is_assigned_workflow = SerializerMethodField("get_assigned_workflow")
+
     class Meta:
         model = Company
         fields = '__all__'
         extra_kwargs = {'agency': {'required': True}}
 
-
     def validate(self, data):
         exist_company = None
         if self.instance:
-            exist_company = Company.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'], agency=self.instance.agency,
+            exist_company = Company.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
+                                                                                agency=self.instance.agency,
                                                                                 is_trashed=False)
         else:
-            exist_company = Company.objects.filter(name__iexact=data['name'],agency=data['agency'], is_trashed=False)
+            exist_company = Company.objects.filter(name__iexact=data['name'], agency=data['agency'], is_trashed=False)
         if exist_company:
             raise ValidationError("Company Already Exist")
         return data
+
+    def get_assigned_workflow(self, obj):
+        try:
+            if obj:
+                # reverse relation
+                if obj.workflow_company.all():
+                    return True
+                else:
+                    return False
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 class WorksFlowSerializer(serializers.ModelSerializer):
@@ -55,19 +70,20 @@ class WorksFlowSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorksFlow
         fields = '__all__'
-
+        extra_kwargs = {'company': {'required': True}}
 
     def validate(self, data):
         exist_WorksFlow = None
         if self.instance:
-            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'], agency=self.instance.agency,
-                                                                                is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
+                                                                                    agency=self.instance.agency,
+                                                                                    is_trashed=False)
         else:
-            exist_WorksFlow = WorksFlow.objects.filter(name__iexact=data['name'],agency=data['agency'], is_trashed=False)
+            exist_WorksFlow = WorksFlow.objects.filter(name__iexact=data['name'], agency=data['agency'],
+                                                       is_trashed=False)
         if exist_WorksFlow:
             raise ValidationError("Works Flow With This Name Already Exist")
         return data
-
 
     def get_assigned_job(self, obj):
         try:
@@ -228,8 +244,10 @@ class StageSerializer(serializers.ModelSerializer):
             return user_serializer.data
         return ''
 
+
 class DAMSerializer(serializers.ModelSerializer):
     dam_files = serializers.FileField(allow_empty_file=True, required=False)
+
     class Meta:
         model = DAM
         fields = '__all__'
@@ -242,18 +260,51 @@ class DAMSerializer(serializers.ModelSerializer):
         dam.save()
         return dam
 
+
 class DamMediaSerializer(serializers.ModelSerializer):
     class Meta:
         model = DamMedia
         fields = '__all__'
 
+#-------------------------------------------- dam ---------------------------------------------#
+location_storage = ''
+
+
+def recursor(obj, count):
+    global location_storage
+    if count == 0:
+        location_storage = ''
+    if obj.type == 1:
+        if obj.parent is None:
+            location_storage += f'/{obj.name}'
+            return location_storage
+        else:
+            location_storage += '/' + str(obj.name)
+            recursor(obj.parent, 1)
+    return location_storage
+
+
+def re_order(sentence):
+    words = sentence.split('/')
+    # then reverse the split string list and join using space
+    reverse_sentence = '/'.join(reversed(words))
+    return reverse_sentence
+
+
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
+    location = SerializerMethodField("get_location")
+
     class Meta:
         model = DAM
         fields = '__all__'
 
+    def get_location(self, obj):
+        if obj:
+            return re_order(recursor(obj, 0))
+        return ''
 
+#--------------------------------------------------- End --------------------------------------------------#
 
 class TestModalSerializer(serializers.ModelSerializer):
     class Meta:

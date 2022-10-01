@@ -48,6 +48,23 @@ class CompanyViewSet(viewsets.ModelViewSet):
         queryset = Company.objects.filter(agency=user).order_by('-modified')
         return queryset
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = self.serializer_class(instance)
+        if not data['is_assigned_workflow'].value:
+            self.perform_destroy(instance)
+            context = {
+                'message': 'Deleted Succesfully',
+                'status': status.HTTP_204_NO_CONTENT,
+                'errors': False,
+            }
+        else:
+            context = {
+                'message': 'This company is assigned to a workflow, so cannot be deleted!',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+        return Response(context)
 
 
     # def list(self, request, *args, **kwargs):
@@ -709,16 +726,13 @@ class StageViewSet(viewsets.ModelViewSet):
 class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
-
-    def retrieve(self, request, pk=None):
-        id = pk
-
-        if id is not None:
-            serializer = DamWithMediaSerializer(self.queryset.get(pk=id,is_trashed=False), context={'request': request})
-            return Response(serializer.data)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['id']
+    search_fields = ['=id', ]
 
     def list(self, request, *args, **kwargs):
-        serializer = DamWithMediaSerializer(self.queryset, many=True, context={'request': request})
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
@@ -752,6 +766,7 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
 
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):
