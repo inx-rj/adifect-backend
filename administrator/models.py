@@ -136,7 +136,7 @@ class Job(BaseModel):
     skills = models.ManyToManyField(Skills)
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
-    related_jobs = models.ManyToManyField('self', blank=True)
+    related_jobs = models.ForeignKey('self',on_delete=models.SET_NULL, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="job_company", null=True, blank=True)
     industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, related_name="job_industry", null=True,
                                  blank=True)

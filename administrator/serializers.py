@@ -105,17 +105,17 @@ class JobSerializer(serializers.ModelSerializer):
         if validated_data.get('skills'):
             skills_data = validated_data.get('skills')
             validated_data.pop('skills')
-        related_jobs_data = None
-        if validated_data.get('related_jobs', None):
-            related_jobs_data = validated_data.get('related_jobs')
-        validated_data.pop('related_jobs')
+        # related_jobs_data = None
+        # if validated_data.get('related_jobs', None):
+        #     related_jobs_data = validated_data.get('related_jobs')
+        # validated_data.pop('related_jobs')
 
         job = Job.objects.create(**validated_data)
         for i in skills_data:
             job.skills.add(i)
-        if related_jobs_data:
-            for i in related_jobs_data:
-                job.related_jobs.add(i)
+        # if related_jobs_data:
+        #     for i in related_jobs_data:
+        #         job.related_jobs.add(i)
 
         job.save()
         return job
@@ -167,7 +167,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     jobtasks_job = JobTasksSerializer(many=True)
     level = LevelSerializer()
     skills = SkillsSerializer(many=True)
-    related_jobs = RelatedJobsSerializer(many=True)
+    # related_jobs = RelatedJobsSerializer(many=True)
     # company = CompanySerializer()
     get_jobType_details = SerializerMethodField("get_jobType_info")
     job_applied_status = SerializerMethodField("get_job_applied_status")

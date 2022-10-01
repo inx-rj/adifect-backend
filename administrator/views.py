@@ -36,8 +36,9 @@ from agency.models import Industry, Company, WorksFlow, Workflow_Stages
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
-from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
+    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
+from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 
 
 # Create your views here.
@@ -401,7 +402,8 @@ def validate_job_attachments(images):
             error += 1
     return error
 
-@permission_classes([IsAuthenticated])  
+
+@permission_classes([IsAuthenticated])
 class JobAppliedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
@@ -553,7 +555,6 @@ class LatestJobAPI(APIView):
             return Response(context)
 
 
-
 @permission_classes([IsAuthenticated])
 class JobHiredViewSet(viewsets.ModelViewSet):
     serializer_class = JobHiredSerializer
@@ -585,6 +586,7 @@ class RelatedJobsAPI(APIView):
             'data': [],
         }
         return Response(context)
+
 
 @permission_classes([IsAuthenticated])
 class PrefferedLanguageViewSet(viewsets.ModelViewSet):
@@ -751,7 +753,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
 
 
-
 @permission_classes([IsAuthenticated])
 class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
@@ -765,7 +766,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         workflow_data = self.queryset
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
-
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -968,13 +968,14 @@ class StagesViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
 
+
 @permission_classes([IsAuthenticated])
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
     queryset = Question.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['question','job_applied__job']
-    search_fields = ['=question',]
+    filterset_fields = ['question', 'job_applied__job']
+    search_fields = ['=question', ]
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -1033,8 +1034,6 @@ class AnswerViewSet(viewsets.ModelViewSet):
         serializer = AnswerSerializer(data=request.data)
         data = request.data
         if serializer.is_valid():
-            print(data['job_applied'])
-            print(data['agency'])
             if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user_id=data['agency'])).exists():
                 self.perform_create(serializer)
                 ans_data = serializer.validated_data.get('question')
@@ -1095,44 +1094,49 @@ class QuestionFilterAPI(APIView):
     queryset = Question.objects.all()
 
     def post(self, request, *args, **kwargs):
+        job_id = request.data.get('job_id', None)
         order_by = request.data.get('order_by', None)
         status1 = request.data.get('status', None)
         question_search = request.data.get('question', None)
         user = request.user
         if question_search:
             question_filter_data = self.queryset.filter(
-                (Q(user=user) | Q(job_applied__job__user=user)) & Q(question__icontains=question_search))
+                (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(
+                    question__icontains=question_search))
             second_serializer = QuestionSerializer(question_filter_data, many=True)
             context = {
-                'data':second_serializer.data,
-                'message':'success',
-                'error':False,
+                'data': second_serializer.data,
+                'message': 'success',
+                'error': False,
                 'status': status.HTTP_200_OK
             }
             return Response(context)
         if order_by == "oldest":
-            #------ for oldest ----#
+            # ------ for oldest ----#
             messages = self.queryset
             if status1 == 0:
                 # ------ all questions ----#
-                messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id))
             if status1 == 1:
                 # ------ answered questions ------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=1))
             if status1 == 2:
                 # ---- unaswered questions -------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=2))
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=2))
             messages = messages.order_by('modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
             context = {
-                'data':serializer.data,
-                'message':'success',
-                'error':False,
+                'data': serializer.data,
+                'message': 'success',
+                'error': False,
                 'status': status.HTTP_200_OK
             }
             return Response(context)
         if order_by == 'newest':
-            #------- for newest -----#
+            # ------- for newest -----#
             messages = self.queryset
             if status1 == 0:
                 # ------ all questions ----#
@@ -1148,14 +1152,15 @@ class QuestionFilterAPI(APIView):
             context = {
                 'data': serializer.data,
                 'message': 'success',
-                'error':False,
+                'error': False,
                 'status': status.HTTP_200_OK
             }
             return Response(context)
-        return Response({'message': "Something Went Wrong",'status':status.HTTP_200_OK,'error':True},status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': "Something Went Wrong", 'status': status.HTTP_200_OK, 'error': True},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
-#--------------------------------------------- jobdetails muskesh ------------------------#
+# --------------------------------------------- jobdetails muskesh ------------------------#
 
 class JobShareDetails(APIView):
     def post(self, request, *args, **kwargs):
@@ -1205,7 +1210,7 @@ class JobShareDetails(APIView):
         return Response({'message': 'Something went wrong'}, status=status.HTTP_200_OK)
 
 
-#-------------------------------------------- end -------------------------------#
+# -------------------------------------------- end -------------------------------#
 @permission_classes([IsAuthenticated])
 class AgencyJoblistViewSet(viewsets.ModelViewSet):
     serializer_class = EditProfileSerializer
@@ -1234,6 +1239,7 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
+
 
 # ----------------------------------- end update ------------------------------------------#
 
