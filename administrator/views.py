@@ -1098,6 +1098,8 @@ class QuestionFilterAPI(APIView):
         order_by = request.data.get('order_by', None)
         status1 = request.data.get('status', None)
         question_search = request.data.get('question', None)
+        if status1 or status1 == 0:
+            status1 =  str(status1)
         user = request.user
         if question_search:
             question_filter_data = self.queryset.filter(
@@ -1114,15 +1116,15 @@ class QuestionFilterAPI(APIView):
         if order_by == "oldest":
             # ------ for oldest ----#
             messages = self.queryset
-            if status1 == 0:
+            if status1 == '0':
                 # ------ all questions ----#
                 messages = self.queryset.filter(
                     (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id))
-            if status1 == 1:
+            if status1 == '1':
                 # ------ answered questions ------#
                 messages = self.queryset.filter(
                     (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=1))
-            if status1 == 2:
+            if status1 == '2':
                 # ---- unaswered questions -------#
                 messages = self.queryset.filter(
                     (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=2))
@@ -1138,15 +1140,18 @@ class QuestionFilterAPI(APIView):
         if order_by == 'newest':
             # ------- for newest -----#
             messages = self.queryset
-            if status1 == 0:
+            if status1 == '0':
                 # ------ all questions ----#
-                messages = self.queryset.filter(Q(user=user) | Q(job_applied__job__user=user))
-            if status1 == 1:
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id))
+            if status1 == '1':
                 # ------ answered questions ------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=1))
-            if status1 == 2:
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=1))
+            if status1 == '2':
                 # ---- unaswered questions -------#
-                messages = self.queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(status=2))
+                messages = self.queryset.filter(
+                    (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(status=2))
             messages = messages.order_by('-modified')
             serializer = QuestionSerializer(messages, many=True, context={'request': request})
             context = {
