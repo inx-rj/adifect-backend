@@ -338,7 +338,7 @@ class JobTemplateAttachments(BaseModel):
         verbose_name_plural = 'Job Template_Attachments'
 #------ avneet ----#
 class Question(BaseModel):
-    question =  models.CharField(max_length=200)
+    question = models.TextField(default=None, null=True, blank=True)
     job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="question_job_applied",blank=True, null=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="question_user",blank=True, null=True)
     status = models.IntegerField(default=2)
