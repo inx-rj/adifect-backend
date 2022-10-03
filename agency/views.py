@@ -667,18 +667,19 @@ class SignUpViewInvite(APIView):
                     email=data['email'],
                     first_name=data['first_name'],
                     last_name=data['last_name'],
-                    is_exclusive=exculsive
+                    is_exclusive=exculsive,
+                    email_verified = True
                 )
                 user.set_password(data['password'])
                 user.save()
-                user_status = serializer.validated_data['invite_user']
+                # user_status = serializer.validated_data['invite_user']
                 # To get user id and update the invite table
                 id = kwargs.get('invite_id', None)
                 encoded_id = int(StringEncoder.decode(self, id))
                 user_id = CustomUser.objects.latest('id')
 
                 invite_id = InviteMember.objects.filter(pk=encoded_id, is_trashed=False).update(user=user,
-                                                                                                status=user_status)
+                                                                                                status=1)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
