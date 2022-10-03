@@ -106,7 +106,7 @@ class SignUpView(APIView):
                                                f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
                                                f'rather not receive this kind of email, Don’t want any more emails '
                                                f'from Adifect? <a href="#"><span style="text-decoration: '
-                                               f'underline;">Unsubscribe.</span></a></div><div style="font-size: 16px; '
+                                               f'underline;"> Unsubscribe.</span></a></div><div style="font-size: 16px; '
                                                f'color: #384860;"> © 2022 '
                                                f'Adifect</div></div></div></td></tr></tbody></table></div>')
                 data = send_email(from_email, to_email, subject, content)
@@ -242,7 +242,7 @@ class ForgetPassword(APIView):
                 }
                 return Response(context, status=status.HTTP_400_BAD_REQUEST)
             token = str(uuid.uuid4())
-            token_expire_time = datetime.datetime.utcnow() + timedelta(minutes=15)
+            token_expire_time = datetime.datetime.utcnow() + timedelta(minutes=3)
             user.forget_password_token = token
             user.token_expire_time = token_expire_time
             user.save()
@@ -267,7 +267,7 @@ class ForgetPassword(APIView):
                 subject = "Forget Password"
 
                 content = Content("text/html",
-                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Oops,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">looks like you have forgotten your password.<br />Please click the link below to reset your<br />password!</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/reset-password/{token}/{decodeId}/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Reset Password</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Oops,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">looks like you have forgotten your password.<br />Please click the link below to reset your<br />password!</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/reset-password/{token}/{decodeId}/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Reset Password</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                 data = send_email(from_email, to_email, subject, content)
             except Exception as e:
                 pass

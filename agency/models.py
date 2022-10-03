@@ -112,7 +112,6 @@ class InviteMember(BaseModel):
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
                                 blank=True)
-
     class Meta:
         verbose_name_plural = 'Invite Members'
 
