@@ -8,7 +8,9 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-
+from rest_framework.views import APIView
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
 
 @permission_classes([IsAuthenticated])
 class LatestsJobsViewSet(viewsets.ModelViewSet):
@@ -105,3 +107,21 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+@permission_classes([IsAuthenticated])
+class MyJobsViewSet(viewsets.ModelViewSet):
+    # serializer_class = JobAppliedSerializer
+    queryset = JobApplied.objects.filter(is_trashed=False)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['status']
+    search_fields = ['=status', ]
+    http_method_names = ['get']
+
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset())
+        job_applied_data = queryset.filter(user=user).values_list('job_id',flat=True)
+        latest_job = Job.objects.filter(id__in=list(job_applied_data))
+        serializer = JobsWithAttachmentsSerializer(latest_job, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)

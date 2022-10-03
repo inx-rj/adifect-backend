@@ -7,6 +7,7 @@ router = routers.DefaultRouter()
 router.register(r'latest-jobs', views.LatestsJobsViewSet, basename='latest_jobs')
 router.register(r'job-applied', views.JobAppliedViewSet, basename='job_applied')
 router.register(r'creator-jobs', views.CreatorJobsViewSet, basename='creator_jobs')
+router.register(r'my-jobs', views.MyJobsViewSet, basename='my_jobs')
 
 urlpatterns = []
 urlpatterns += router.urls

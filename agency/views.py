@@ -388,10 +388,10 @@ class InviteMemberApi(APIView):
 '''
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
-    queryset = InviteMember.objects.all()
+    queryset = InviteMember.objects.all().order_by('-modified')
 
     def list(self, request, *args, **kwargs):
-        queryset = InviteMember.objects.filter(agency=request.user, is_trashed=False, user__isnull=False)
+        queryset = InviteMember.objects.filter(agency=request.user, is_trashed=False, user__isnull=False).order_by('-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -407,6 +407,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 return Response({'message': 'Agency does not exists', 'error': True},
                                 status=status.HTTP_400_BAD_REQUEST)
             if user:
+                if user.role == 2:
+                    return Response({'message': "You Can't Invite Agency Directly", 'error': True,'status':status.HTTP_400_BAD_REQUEST},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
                 if user.is_exclusive:
                     return Response({'message': 'User Is Exculsive', 'error': True},
                                     status=status.HTTP_400_BAD_REQUEST)
