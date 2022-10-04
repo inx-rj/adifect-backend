@@ -730,13 +730,14 @@ class StageViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
 
-
+# @permission_classes([IsAuthenticated])
 class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['id','parent']
     search_fields = ['=name']
+
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -774,6 +775,19 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+class DamRootViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.filter(parent=None)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['id', 'parent']
+    search_fields = ['=name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 
 @permission_classes([IsAuthenticated])

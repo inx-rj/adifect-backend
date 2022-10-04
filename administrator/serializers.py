@@ -25,7 +25,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id']
+                  'preferred_communication_id','availability']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -562,6 +562,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserSkillsSerializer(serializers.ModelSerializer):
+    skills = SkillsSerializer(required=False)
     class Meta:
         model = UserSkills
         fields = '__all__'

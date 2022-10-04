@@ -49,6 +49,7 @@ class CustomUser(AbstractUser):
     preferred_communication_id = models.CharField(max_length=200, null=True, blank=True)
     is_exclusive = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
+    availability = models.CharField(max_length=1000,null=True,blank=True)
     is_trashed = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):

@@ -359,8 +359,8 @@ class Answer(BaseModel):
 
 
 class UserSkills(BaseModel):
-    user = models.ForeignKey(CustomUser,on_delete=models.SET_NULL,null=True)
-    skills = models.ForeignKey(Skills,on_delete=models.SET_NULL,null=True)
+    user = models.ForeignKey(CustomUser,related_name="skills_user",on_delete=models.SET_NULL,null=True)
+    skills = models.ForeignKey(Skills,related_name="user_skill",on_delete=models.SET_NULL,null=True)
     skill_rating = models.IntegerField(
         validators=[
             MaxValueValidator(5),

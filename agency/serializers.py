@@ -301,6 +301,7 @@ def re_order(sentence):
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
     location = SerializerMethodField("get_location")
+    is_parent = SerializerMethodField("get_is_parent")
 
     class Meta:
         model = DAM
@@ -310,6 +311,16 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
         if obj:
             return re_order(recursor(obj, 0))
         return ''
+
+    def get_is_parent(self, obj):
+        if obj.parent is not None:
+            if obj.parent.parent is None:
+                return False
+            else:
+                return True
+        else:
+            return  False
+
 
 #--------------------------------------------------- End --------------------------------------------------#
 
