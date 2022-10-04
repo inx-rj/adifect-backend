@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import WorksFlow, Workflow_Stages, InviteMember, Industry, Company, TestModal
+from .models import WorksFlow, Workflow_Stages, InviteMember, Industry, Company, TestModal, DAM, DamMedia
 
 admin.site.register(Industry)
 admin.site.register(Company)
@@ -10,6 +10,8 @@ admin.site.register(Workflow_Stages)
 admin.site.register(InviteMember)
 
 admin.site.register(TestModal)
+admin.site.register(DAM)
+admin.site.register(DamMedia)
 
 
 @admin.register(WorksFlow)

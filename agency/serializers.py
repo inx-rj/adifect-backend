@@ -274,12 +274,19 @@ def recursor(obj, count):
     global location_storage
     if count == 0:
         location_storage = ''
-    if obj.type == 1:
+    if obj.type == 1 or obj.type == 2:
         if obj.parent is None:
             location_storage += f'/{obj.name}'
             return location_storage
         else:
             location_storage += '/' + str(obj.name)
+            recursor(obj.parent, 1)
+    if obj.type == 3:
+        if obj.parent is None:
+            location_storage += ''
+            return location_storage
+        else:
+            location_storage += ''
             recursor(obj.parent, 1)
     return location_storage
 

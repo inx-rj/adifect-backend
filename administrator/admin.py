@@ -1,6 +1,6 @@
 # from logging import _Level
 from django.contrib import admin
-from .models import Category, Job, JobAttachments, JobApplied, Skills, Level, JobHired, Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage,JobTasks, JobTemplate,JobTemplateAttachments, Question, Answer
+from .models import Category, Job, JobAttachments, JobApplied, Skills, Level, JobHired, Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage,JobTasks, JobTemplate,JobTemplateAttachments, Question, Answer,UserSkills
 
 # Register your models here.
 
@@ -36,5 +36,7 @@ admin.site.register(JobTemplateAttachments)
 admin.site.register(Question)
 
 admin.site.register(Answer)
+
+admin.site.register(UserSkills)
 
 

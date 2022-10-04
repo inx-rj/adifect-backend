@@ -672,7 +672,6 @@ class SignUpViewInvite(APIView):
                 )
                 user.set_password(data['password'])
                 user.save()
-                # user_status = serializer.validated_data['invite_user']
                 # To get user id and update the invite table
                 id = kwargs.get('invite_id', None)
                 encoded_id = int(StringEncoder.decode(self, id))
@@ -736,8 +735,8 @@ class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['id']
-    search_fields = ['=id', ]
+    filterset_fields = ['id','parent']
+    search_fields = ['=name']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

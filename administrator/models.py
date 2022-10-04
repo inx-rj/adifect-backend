@@ -11,7 +11,7 @@ from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
 from agency.models import WorksFlow, Company, Industry
-
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 def validate_attachment(value):
     ext = os.path.splitext(value.name)[1]  # [0] returns path+filename
@@ -358,3 +358,15 @@ class Answer(BaseModel):
         return f'{self.answer}'
 
 
+class UserSkills(BaseModel):
+    user = models.ForeignKey(CustomUser,on_delete=models.SET_NULL,null=True)
+    skills = models.ForeignKey(Skills,on_delete=models.SET_NULL,null=True)
+    skill_rating = models.IntegerField(
+        validators=[
+            MaxValueValidator(5),
+            MinValueValidator(1)
+        ]
+    )
+
+    def __str__(self) -> str:
+        return f'{self.skills.skill_name}'

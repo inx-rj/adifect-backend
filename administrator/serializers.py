@@ -6,7 +6,7 @@ from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
     Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer
+    JobTemplateAttachments, Question, Answer,UserSkills
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -561,11 +561,16 @@ class AnswerSerializer(serializers.ModelSerializer):
         model = Answer
         fields = '__all__'
 
-# class AnswerSerializer1(serializers.ModelSerializer):
-#     class Meta:
-#         model = Answer
-#         fields = '__all__'
+class UserSkillsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSkills
+        fields = '__all__'
+
+
+
+
 
 
 class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
+
