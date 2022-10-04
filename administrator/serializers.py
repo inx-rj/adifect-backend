@@ -562,10 +562,17 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserSkillsSerializer(serializers.ModelSerializer):
-    skills = SkillsSerializer(required=False)
+    # skills = SkillsSerializer(required=False)
+    skill_name = serializers.SerializerMethodField("get_skill_name")
     class Meta:
         model = UserSkills
         fields = '__all__'
+
+    def get_skill_name(self,obj):
+        if obj.skills is not None:
+            return obj.skills.skill_name
+        return ''
+
 
 
 
