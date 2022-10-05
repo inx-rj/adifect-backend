@@ -128,12 +128,12 @@ class Job(BaseModel):
 
     title = models.CharField(max_length=250)
     description = models.TextField(default=None, blank=True, null=True)
-    job_type = models.CharField(choices=jobType, max_length=30, default='0')
+    job_type = models.CharField(choices=jobType, max_length=30, default='0', null=True, blank=True)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, null=True, blank=True)
-    expected_delivery_date = models.DateField(default=None)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    tags = models.CharField(max_length=10000)
-    skills = models.ManyToManyField(Skills)
+    expected_delivery_date = models.DateField(default=None,null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2,null=True, blank=True)
+    tags = models.CharField(max_length=10000,null=True, blank=True)
+    skills = models.ManyToManyField(Skills,null=True, blank=True)
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     related_jobs = models.ForeignKey('self',on_delete=models.SET_NULL, blank=True, null=True)
@@ -361,12 +361,11 @@ class Answer(BaseModel):
 class UserSkills(BaseModel):
     user = models.ForeignKey(CustomUser,related_name="skills_user",on_delete=models.SET_NULL,null=True)
     skills = models.ForeignKey(Skills,related_name="user_skill",on_delete=models.SET_NULL,null=True)
-    skill_rating = models.IntegerField(
-        validators=[
-            MaxValueValidator(5),
-            MinValueValidator(1)
-        ]
-    )
+    skill_rating =models.FloatField(default=None,null=True, validators=[
+                MaxValueValidator(5.0),
+                MinValueValidator(0.1)
+            ]
+        )
 
     def __str__(self) -> str:
         return f'{self.skills.skill_name}'

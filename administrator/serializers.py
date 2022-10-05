@@ -86,6 +86,7 @@ class JobSerializer(serializers.ModelSerializer):
         fields = '__all__'
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
+            'skills': {'required': False},
         }
 
     def get_worksflow_name(self, obj):
@@ -572,7 +573,6 @@ class UserSkillsSerializer(serializers.ModelSerializer):
         if obj.skills is not None:
             return obj.skills.skill_name
         return ''
-
 
 
 
