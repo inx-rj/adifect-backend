@@ -1024,14 +1024,13 @@ class StagesViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
 
-
-@permission_classes([IsAuthenticated])
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
     queryset = Question.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['question', 'job_applied__job']
-    search_fields = ['=question', ]
+    filterset_fields = ['question']
+    search_fields = ['=question']
+
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -1041,11 +1040,20 @@ class QuestionViewSet(viewsets.ModelViewSet):
         serializer = QuestionSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            questions = self.queryset.filter(Q(id=id) & (Q(user=request.user) | Q(job_applied__job__user=request.user)))
+            serializer = QuestionSerializer(questions,many=True, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         data = request.data
 
         if serializer.is_valid():
+            print(data['job_applied'])
             if JobApplied.objects.filter(id=data['job_applied']).exists():
                 self.perform_create(serializer)
                 context = {
@@ -1075,9 +1083,9 @@ class OldestFirstQuestionViewSet(viewsets.ModelViewSet):
         serializer = QuestionSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-
 class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
 
     def list(self, request, *args, **kwargs):
 
@@ -1089,32 +1097,42 @@ class AnswerViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = AnswerSerializer(data=request.data)
         data = request.data
+
         if serializer.is_valid():
-            if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user_id=data['agency'])).exists():
-                self.perform_create(serializer)
-                ans_data = serializer.validated_data.get('question')
-                Question.objects.filter(id=ans_data.id).update(status=1)
-                context = {
-                    'message': 'Message sent successfully',
-                    'data': serializer.data
-                }
-                return Response(context, status=status.HTTP_200_OK)
+            if data['type'] == "question":
+                if data['user']:
+                    if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(user=data['user'])).exists():
+                        self.perform_create(serializer)
+                        context = {
+                            'message': 'Message sent successfully',
+                            'data': serializer.data
+                        }
+                        return Response(context, status=status.HTTP_200_OK)
+                    else:
+                        return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if data['type'] == "answer":
+                if data['agency']:
+                    if JobApplied.objects.filter(Q(id=data['job_applied']) & Q(job__user=data['agency'])).exists():
+                        self.perform_create(serializer)
+                        ans_data =  serializer.validated_data.get('question')
+                        Question.objects.filter(id=ans_data.id).update(status=1)
+                        context = {
+                            'message': 'Message sent successfully',
+                            'data': serializer.data
+                        }
+                        return Response(context, status=status.HTTP_200_OK)
+                    else:
+                        return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
 
             else:
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance:
-            update_status = Question.objects.filter(id=instance.question.id).update(status=2)
-            delete_answer = Answer.objects.filter(id=instance.id).delete()
-        context = {
-            'message': 'Answer Deleted successfully',
-            'status': status.HTTP_204_NO_CONTENT,
-            'errors': False,
-        }
-        return Response(context)
+        return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ---------------------------------- job update  ------------------------------------------#

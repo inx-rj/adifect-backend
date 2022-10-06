@@ -552,8 +552,10 @@ class QuestionSerializer(serializers.ModelSerializer):
 class AnswerSerializer(serializers.ModelSerializer):
 
     def getUsername(self, obj):
-        return obj.agency.username
-
+        if obj.agency:
+            return obj.agency.username
+        if not obj.agency:
+            return obj.job_applied.user.username
     username = serializers.SerializerMethodField("getUsername")
 
     class Meta:
