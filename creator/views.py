@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter,OrderingFilter
 from .serializers import PublicJobViewSerializer
 
 
@@ -113,7 +113,9 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
 class MyJobsViewSet(viewsets.ModelViewSet):
     # serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
+    ordering_fields = ['created', 'modified']
+    ordering = ['created','modified']
     filterset_fields = ['status']
     search_fields = ['=status', ]
     http_method_names = ['get']
@@ -131,9 +133,11 @@ class MyJobsViewSet(viewsets.ModelViewSet):
 class PublicJobViewApi(viewsets.ModelViewSet):
     serializer_class = PublicJobViewSerializer
     queryset = Job.objects.filter(is_trashed=False)
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     filterset_fields = ['id']
+    ordering_fields = ['created', 'modified']
     http_method_names = ['get']
+    
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True)
