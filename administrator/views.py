@@ -454,12 +454,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 
                 agency = serializer.validated_data.get('job')
                 from_email = Email(SEND_GRID_FROM_EMAIL)
-                # to_email = To(agency.user.email)                
-                              
-                             
-                # agency = serializer.validated_data.get('job')
-                # from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To('vipin.studio45creations@gmail.com')
+                to_email = To(agency.user.email)                
                 skills = ''
                 for i in agency.skills.all():
                     skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
