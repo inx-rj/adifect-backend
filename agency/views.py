@@ -747,8 +747,6 @@ class DAMViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files')
-        print(dam_files)
-
         if serializer.is_valid():
             self.perform_create(serializer)
             dam_id = DAM.objects.latest('id')
@@ -764,12 +762,12 @@ class DAMViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
             i.delete()
         self.perform_destroy(instance)
-
         context = {
             'message': 'Deleted Succesfully',
             'status': status.HTTP_204_NO_CONTENT,
@@ -781,7 +779,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.filter(parent=None)
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['id', 'parent']
+    filterset_fields = ['id', 'parent','type']
     search_fields = ['=name']
     http_method_names = ['get']
 
@@ -794,12 +792,13 @@ class DamRootViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
-    queryset = Job.objects.filter(status=0)
+    queryset = Job.objects.filter(status=0).order_by('-modified')
 
     def list(self, request, *args, **kwargs):
         data = self.queryset.filter(user=request.user).exclude(user__role=1)
         serializer = self.serializer_class(data, many=True,context={'request': request})
         return Response(data=serializer.data)
+
 
 @permission_classes([IsAuthenticated])
 class TestModalViewSet(viewsets.ModelViewSet):
