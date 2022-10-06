@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied
+from administrator.models import Job, JobAttachments, JobApplied, JobHired
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, \
     JobsWithAttachmentsSerializer
 from rest_framework import status
@@ -11,6 +11,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from .serializers import PublicJobViewSerializer
+
 
 @permission_classes([IsAuthenticated])
 class LatestsJobsViewSet(viewsets.ModelViewSet):
@@ -34,7 +36,6 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = Job.objects.filter(is_trashed=False)
-
 
     def retrieve(self, request, pk=None):
         id = pk
@@ -125,3 +126,16 @@ class MyJobsViewSet(viewsets.ModelViewSet):
         latest_job = Job.objects.filter(id__in=list(job_applied_data))
         serializer = JobsWithAttachmentsSerializer(latest_job, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+class PublicJobViewApi(viewsets.ModelViewSet):
+    serializer_class = PublicJobViewSerializer
+    queryset = Job.objects.filter(is_trashed=False)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['id']
+    http_method_names = ['get']
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+

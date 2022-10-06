@@ -735,7 +735,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['id','parent']
+    filterset_fields = ['id','parent','type']
     search_fields = ['=name']
 
 
@@ -747,6 +747,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files')
+        print(dam_files)
 
         if serializer.is_valid():
             self.perform_create(serializer)

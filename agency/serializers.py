@@ -317,7 +317,7 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
             if obj.parent.parent is None:
                 return False
             else:
-                return True
+                return obj.parent.parent.id
         else:
             return  False
 

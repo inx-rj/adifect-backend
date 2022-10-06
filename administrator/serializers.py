@@ -106,17 +106,15 @@ class JobSerializer(serializers.ModelSerializer):
         if validated_data.get('skills'):
             skills_data = validated_data.get('skills')
             validated_data.pop('skills')
-        # related_jobs_data = None
-        # if validated_data.get('related_jobs', None):
-        #     related_jobs_data = validated_data.get('related_jobs')
-        # validated_data.pop('related_jobs')
+        else:
+            validated_data.pop('skills')
+            skills_data = None
 
         job = Job.objects.create(**validated_data)
-        for i in skills_data:
-            job.skills.add(i)
-        # if related_jobs_data:
-        #     for i in related_jobs_data:
-        #         job.related_jobs.add(i)
+        if skills_data:
+            for i in skills_data:
+                job.skills.add(i)
+
 
         job.save()
         return job

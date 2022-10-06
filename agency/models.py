@@ -155,11 +155,11 @@ class DAM(BaseModel):
             self.name = str(self.agency.username)+f'-{dt.datetime.now()}'
         super(DAM, self).save(*args, **kwargs)
 
-    def __str__(self):
-        if self.parent is not None:
-            return self.parent.name + "/" + self.name
-        else:
-            return self.name
+    # def __str__(self):
+    #     if self.parent is not None:
+    #         return self.parent.name + "/" + self.name
+    #     else:
+    #         return self.name
 
 
 def fileLocation(instance, dam_media):
