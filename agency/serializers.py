@@ -8,7 +8,7 @@ from rest_framework.fields import SerializerMethodField
 
 from authentication.serializers import UserSerializer
 from authentication.models import CustomUser
-from administrator.models import Job
+from administrator.models import Job,JobApplied
 from administrator.serializers import JobSerializer, UserListSerializer
 from django.core.exceptions import ValidationError
 
@@ -323,6 +323,14 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
 
 
 #--------------------------------------------------- End --------------------------------------------------#
+
+class MyProjectSerializer(serializers.ModelSerializer):
+    job = JobSerializer(required=False)
+    class Meta:
+        model = JobApplied
+        fields = '__all__'
+
+
 
 class TestModalSerializer(serializers.ModelSerializer):
     class Meta:

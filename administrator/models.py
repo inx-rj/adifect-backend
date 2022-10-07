@@ -188,6 +188,8 @@ class JobApplied(BaseModel):
         APPLIED = 0
         REJECT = 1
         HIRE = 2
+        IN_REVIEW = 3
+        Completed = 4
 
     cover_letter = models.TextField(default=None,null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)

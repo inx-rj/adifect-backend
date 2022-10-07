@@ -14,6 +14,7 @@ router.register(r'dam-root', views.DamRootViewSet, basename='dam_root')
 router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 router.register(r'test-api', views.TestModalViewSet, basename='test_api')
 router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
+router.register(r'my-project',views.MyProjectViewSet, basename='my_project')
 
 
 urlpatterns = [
