@@ -349,7 +349,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
-                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
                     data = send_email(from_email, to_email, subject, content)
                     if data:
                         return Response({'message': 'mail Send successfully, Please check your mail'},
@@ -635,16 +635,18 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     ordering = ['created','modified']
     filterset_fields = ['status']
     search_fields = ['=status', ]
+    pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
 
     def list(self, request, *args, **kwargs):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
-        queryset = queryset.filter(job__user=user)
-        # latest_job = Job.objects.filter(id__in=list(job_applied_data))
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        paginated_data = self.paginate_queryset(queryset.filter(job__user=user))
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+        # return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])

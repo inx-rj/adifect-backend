@@ -353,8 +353,8 @@ class Answer(BaseModel):
     answer = models.CharField(max_length=200)
     job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="answer_job_applied",blank=True, null=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_agency",blank=True, null=True)
-    # oldest_first = models.BooleanField(default=False)
-    
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_user",blank=True, null=True)
+
     
     def __str__(self) -> str:
         return f'{self.answer}'

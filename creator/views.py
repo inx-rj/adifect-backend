@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter,OrderingFilter
 from .serializers import PublicJobViewSerializer
+from administrator.pagination import FiveRecordsPagination
 
 
 @permission_classes([IsAuthenticated])
@@ -118,6 +119,7 @@ class MyJobsViewSet(viewsets.ModelViewSet):
     ordering = ['created','modified']
     filterset_fields = ['status']
     search_fields = ['=status', ]
+    pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
 
@@ -126,8 +128,9 @@ class MyJobsViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         job_applied_data = queryset.filter(user=user).values_list('job_id',flat=True)
         latest_job = Job.objects.filter(id__in=list(job_applied_data))
-        serializer = JobsWithAttachmentsSerializer(latest_job, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        paginated_data = self.paginate_queryset(latest_job)
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
 
 
 class PublicJobViewApi(viewsets.ModelViewSet):
@@ -142,4 +145,20 @@ class PublicJobViewApi(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+@permission_classes([IsAuthenticated])
+class MyProjectAllJob(APIView):
+
+    def get(self, request, pk, format=None):
+        job_id = pk
+        if job_id:
+            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
+            serializer = self.serializer_class(query_set, many=True, context={'request': request})
+            data_query = serializer.data
+            data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
+        else:
+            data = {'message': 'job_id not found', 'status': status.HTTP_404_NOT_FOUND, 'error': True}
+        return Response(data=data, status=status.HTTP_200_OK)
+
+
 

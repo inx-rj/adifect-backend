@@ -550,17 +550,19 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AnswerSerializer(serializers.ModelSerializer):
-
-    def getUsername(self, obj):
-        if obj.agency:
-            return obj.agency.username
-        if not obj.agency:
-            return obj.job_applied.user.username
     username = serializers.SerializerMethodField("getUsername")
 
     class Meta:
         model = Answer
         fields = '__all__'
+
+
+    def getUsername(self, obj):
+        if obj.agency is not None:
+            return obj.agency.username
+        if  obj.job_applied is not None:
+            return obj.job_applied.user.username
+        return ''
 
 class UserSkillsSerializer(serializers.ModelSerializer):
     # skills = SkillsSerializer(required=False)
