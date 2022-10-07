@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter,OrderingFilter
 from .serializers import PublicJobViewSerializer
+from agency.serializers import MyProjectSerializer
 from administrator.pagination import FiveRecordsPagination
 
 
@@ -113,7 +114,7 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MyJobsViewSet(viewsets.ModelViewSet):
     # serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.filter(is_trashed=False).exclude(status=1)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created','modified']
@@ -148,17 +149,33 @@ class PublicJobViewApi(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class MyProjectAllJob(APIView):
+    def get(self, request, *args, **kwargs):
+        queryset = JobApplied.objects.filter(is_trashed=False,user=request.user).exclude(status=1)
+        job_list = []
+        applied = queryset.filter(status=0).first()
+        if applied is not None:
+              job_list.append(applied.id)
+        hired = queryset.filter(status=2).first()
+        if hired is not None:
+                job_list.append(hired.id)
+        in_review = queryset.filter(status=3).first()
+        if in_review is not None:
+                job_list.append(in_review.id)
+        complete = queryset.filter(status=4).first()
+        if complete is not None:
+                job_list.append(complete.id)
+        if job_list:
+            latest_job = JobApplied.objects.filter(id__in=list(job_list))
+            serializer = MyProjectSerializer(latest_job, many=True, context={'request': request})
+            return Response(data=serializer.data)
+        return Response(data={'message':'no data found'},status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, pk, format=None):
-        job_id = pk
-        if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
-            serializer = self.serializer_class(query_set, many=True, context={'request': request})
-            data_query = serializer.data
-            data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
-        else:
-            data = {'message': 'job_id not found', 'status': status.HTTP_404_NOT_FOUND, 'error': True}
-        return Response(data=data, status=status.HTTP_200_OK)
+
+
+
+
+
+
 
 
 

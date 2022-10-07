@@ -1068,7 +1068,7 @@ class OldestFirstQuestionViewSet(viewsets.ModelViewSet):
         user = request.user
         data = request.data
         queryset = self.filter_queryset(self.get_queryset())
-        messages = queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('modified')
+        messages = queryset.filter((Q(user=user) | Q(job_applied__job__user=user)) & Q(is_trashed=False)).order_by('modified')
         serializer = QuestionSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -1078,8 +1078,8 @@ class AnswerViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
 
-        messages = self.queryset.filter(
-            Q(question__user=request.user) | Q(job_applied__job__user=request.user)).order_by('-modified')
+        messages = self.queryset.filter((
+            Q(question__user=request.user) | Q(job_applied__job__user=request.user)) & Q(is_trashed=False)).order_by('modified')
         serializer = AnswerSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 

@@ -11,5 +11,7 @@ router.register(r'my-jobs', views.MyJobsViewSet, basename='my_jobs')
 router.register(r'public-job-api', views.PublicJobViewApi, basename='public_job_api')
 
 
-urlpatterns = []
+urlpatterns = [
+    path('my-project-all/', views.MyProjectAllJob.as_view(), name='my_project_all'),
+]
 urlpatterns += router.urls

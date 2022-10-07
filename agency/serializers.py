@@ -9,7 +9,7 @@ from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from authentication.models import CustomUser
 from administrator.models import Job,JobApplied
-from administrator.serializers import JobSerializer, UserListSerializer,SkillsSerializer
+from administrator.serializers import JobSerializer, UserListSerializer,SkillsSerializer,JobsWithAttachmentsSerializer
 from django.core.exceptions import ValidationError
 
 
@@ -332,18 +332,11 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
 #--------------------------------------------------- End --------------------------------------------------#
 
 class MyProjectSerializer(serializers.ModelSerializer):
-    job = JobSerializer(required=False)
-    skills_details = SerializerMethodField("get_skills")
+    job = JobsWithAttachmentsSerializer(required=False)
     class Meta:
         model = JobApplied
         fields = '__all__'
 
-    def get_skills(self, obj):
-        if obj.job is not None:
-            if obj.job.skills is not None:
-               skills_data = SkillsSerializer(obj.job.skills,many=True)
-               return skills_data.data
-        return ''
 
 
 
