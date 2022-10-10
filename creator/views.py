@@ -15,7 +15,7 @@ from .serializers import PublicJobViewSerializer
 from agency.serializers import MyProjectSerializer
 from administrator.pagination import FiveRecordsPagination
 from authentication.manager import IsAdmin,IsAgency,IsCreator
-
+from django.db.models import Count
 @permission_classes([IsAuthenticated])
 class LatestsJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
@@ -203,11 +203,10 @@ class AvailableJobs(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class CreatorCompanyList(APIView):
     def get(self, request, *args, **kwargs):
-            from django.db.models import Count
             job_applied = JobApplied.objects.filter(user=request.user).exclude(status=1).values_list('job_id',
                                                                                                   flat=True)
             # jobs = Job.objects.filter(id__in=list(set(job_applied))).values('company','company__name')
-            jobs = Job.objects.filter(id__in=list(job_applied)).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gt=1)
+            jobs = Job.objects.filter(id__in=list(job_applied),job__company__is_trashed=False).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gt=1)
 
             context = {
                 'message': 'company list',

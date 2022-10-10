@@ -39,7 +39,7 @@ from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
-
+from authentication.manager import IsAdmin
 
 # Create your views here.
 
@@ -178,7 +178,7 @@ class SkillsViewSet(viewsets.ModelViewSet):
     serializer_class = SkillsSerializer
     queryset = Skills.objects.filter(is_trashed=False).order_by('-modified')
 
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdmin])
 class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
     queryset = CustomUser.objects.all()
@@ -186,6 +186,39 @@ class UserListViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         serializer = self.serializer_class(self.queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        user_id = request.data.get('user', None)
+        user = CustomUser.objects.filter(id=user_id).first()
+        if user:
+            if request.user.role == 0:
+                serializer = self.get_serializer(
+                    user, data=request.data, partial=partial)
+                if serializer.is_valid():
+                    self.perform_update(serializer)
+                context = {
+                    'message': 'Updated Succesfully',
+                    'status': status.HTTP_200_OK,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+            else:
+                context = {
+                    'message': 'you are not Authorize',
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': True,
+                    'data': '',
+                }
+        else:
+            context = {
+                'message': 'User Does Not Exist',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+                'data': '',
+            }
+        return Response(context)
+
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
