@@ -31,7 +31,7 @@ def validate_video_extension(value):
 
 
 class CustomUser(AbstractUser):
-    ROLES = ((1, 'Creator'), (2, 'Agency'))
+    ROLES = ((0, 'Admin'), (1, 'Creator'), (2, 'Agency'))
 
     role = models.IntegerField(choices=ROLES, default=1)
     forget_password_token = models.TextField(null=True, blank=True)
@@ -51,6 +51,8 @@ class CustomUser(AbstractUser):
     email_verified = models.BooleanField(default=False)
     availability = models.CharField(max_length=1000,null=True,blank=True)
     is_trashed = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False)
+
 
     def save(self, *args, **kwargs):
         try:

@@ -47,7 +47,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_active","profile_img", "profile_status"]
+        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img", "profile_status"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -174,6 +174,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     company_name = SerializerMethodField("get_company_name")
     industry_name = SerializerMethodField("get_industry_name")
     username = SerializerMethodField("get_username")
+    job_applied_id = SerializerMethodField("get_job_applied_id")
 
     class Meta:
         model = Job
@@ -237,20 +238,6 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-    # def get_industry_info(self, obj):
-    #     try:
-    #         if obj.industry_id is not None:
-    #             industryObj = Industry.objects.get(id=obj.industry.id)
-    #             if industryObj is not None:
-    #                 industry_serializer = IndustrySerializer(industryObj, many=False)
-    #                 return industry_serializer.data
-    #             else:
-    #                 return ''
-    #         else:
-    #             return ''
-    #     except Exception as err:
-    #         return ''
-
     def get_level_info(self, obj):
         try:
             if obj.level_id is not None:
@@ -287,6 +274,14 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return ''
         except:
             return ''
+    
+    def get_job_applied_id(self, obj):
+        request = self.context.get('request')
+        jobAppliedObj = JobApplied.objects.filter(job=obj.id, user=request.user).first()
+        if jobAppliedObj:
+           return jobAppliedObj.id
+        else:
+            return "False"
 
 
 class ActivityAttachmentsSerializer(serializers.ModelSerializer):
