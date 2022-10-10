@@ -47,7 +47,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name", 'profile_img', "profile_status"]
+        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_active","profile_img", "profile_status"]
 
 
 class CategorySerializer(serializers.ModelSerializer):

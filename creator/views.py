@@ -127,7 +127,7 @@ class MyJobsViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
-        job_applied_data = queryset.filter(user=user).values_list('job_id',flat=True)
+        job_applied_data = queryset.filter(user=user).order_by('-modified').values_list('job_id',flat=True)
         latest_job = Job.objects.filter(id__in=list(job_applied_data))
         paginated_data = self.paginate_queryset(latest_job)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -173,9 +173,44 @@ class MyProjectAllJob(APIView):
 
 
 
+@permission_classes([IsAuthenticated])
+class AvailableJobs(viewsets.ModelViewSet):
+    queryset = Job.objects.exclude(status=0).exclude(is_active=0)
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
+    ordering_fields = ['created', 'modified']
+    ordering = ['created','modified']
+    filterset_fields = ['status']
+    search_fields = ['=status', ]
+    pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
+                                                                                                  flat=True)
+        jobs = queryset.exclude(id__in=list(applied_data)).order_by('-modified')
+        paginated_data = self.paginate_queryset(jobs)
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
 
 
 
 
 
+@permission_classes([IsAuthenticated])
+class CreatorCompanyList(APIView):
+    def get(self, request, *args, **kwargs):
+            from django.db.models import Count
+            job_applied = JobApplied.objects.filter(user=request.user).exclude(status=1).values_list('job_id',
+                                                                                                  flat=True)
+            # jobs = Job.objects.filter(id__in=list(set(job_applied))).values('company','company__name')
+            jobs = Job.objects.filter(id__in=list(job_applied)).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gt=1)
 
+            context = {
+                'message': 'company list',
+                'status': status.HTTP_200_OK,
+                'error': False,
+                'data':jobs
+            }
+            return Response(context)

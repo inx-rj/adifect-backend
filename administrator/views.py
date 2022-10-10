@@ -178,11 +178,14 @@ class SkillsViewSet(viewsets.ModelViewSet):
     serializer_class = SkillsSerializer
     queryset = Skills.objects.filter(is_trashed=False).order_by('-modified')
 
-
+@permission_classes([IsAuthenticated])
 class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
     queryset = CustomUser.objects.all()
 
+    def list(self, request, *args, **kwargs):
+        serializer = self.serializer_class(self.queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
@@ -713,7 +716,6 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
                     }
                     return Response(context, status=status.HTTP_400_BAD_REQUEST)
             self.perform_update(serializer)
-            print("here update")
             update_job_template = Job.objects.filter(template_name=template_name).update(template_name=template_name)
             if remove_image_ids:
                 for id in remove_image_ids:
