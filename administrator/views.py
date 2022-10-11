@@ -183,8 +183,10 @@ class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
     queryset = CustomUser.objects.all().order_by('date_joined')
 
+
     def list(self, request, *args, **kwargs):
-        serializer = self.serializer_class(self.queryset, many=True, context={'request': request})
+        queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id).order_by('date_joined')
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
     def update(self, request, *args, **kwargs):
@@ -198,7 +200,7 @@ class UserListViewSet(viewsets.ModelViewSet):
                 if serializer.is_valid():
                     self.perform_update(serializer)
                 context = {
-                    'message': 'Updated Succesfully',
+                    'message': 'Updated Successfully',
                     'status': status.HTTP_200_OK,
                     'errors': serializer.errors,
                     'data': serializer.data,
@@ -1372,7 +1374,7 @@ class JobInviteViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAdmin])
 class AgencyListViewSet(viewsets.ModelViewSet):
-    serializer_class = EditProfileSerializer
+    serializer_class = UserListSerializer
     queryset = CustomUser.objects.all().order_by('date_joined')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['id', 'username', 'first_name']
@@ -1381,7 +1383,7 @@ class AgencyListViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(role=2, is_trashed=False)
-        serializer = EditProfileSerializer(queryset, many=True, context={'request': request})
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
 
