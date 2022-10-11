@@ -36,6 +36,14 @@ router.register(r'agency-list', views.AgencyJoblistViewSet, basename='agency_lis
 router.register(r'admin-job-list', views.AdminJobListViewSet, basename='admin_job_list')
 router.register(r'user-skills', views.UserSkillsViewSet, basename='user_skills')
 
+#----------------------------------- ADMIN SECTION ---------------------------------#
+router.register(r'agency-list', views.AgencyListViewSet, basename='agency_list')
+router.register(r'agency-job-list', views.AgencyJobListViewSet, basename='agency_job_list')
+router.register(r'agency-workflow-list', views.AgencyWorkflowViewSet, basename='agency_workflow_list')
+router.register(r'agency-company-list', views.AgencyCompanyListViewSet, basename='agency_company_list')
+router.register(r'agency-invited-list', views.AgencyInviteListViewSet, basename='agency_invite_list')
+#-------------------------------------  END  ---------------------------------------------#
+
 urlpatterns = [
     path('edit-profile/', views.ProfileEdit.as_view(), name='edit_profile'),
     path('job-filter/', views.JobFilterApi.as_view(), name='job_filter'),

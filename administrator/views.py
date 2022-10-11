@@ -32,8 +32,8 @@ from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 import json
-from agency.models import Industry, Company, WorksFlow, Workflow_Stages
-from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer
+from agency.models import Industry, Company, WorksFlow, Workflow_Stages,InviteMember
+from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer,InviteMemberSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -181,14 +181,14 @@ class SkillsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAdmin])
 class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
-    queryset = CustomUser.objects.all()
+    queryset = CustomUser.objects.all().order_by('date_joined')
 
     def list(self, request, *args, **kwargs):
         serializer = self.serializer_class(self.queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         user_id = request.data.get('user', None)
         user = CustomUser.objects.filter(id=user_id).first()
         if user:
@@ -486,11 +486,12 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 
                 proposed_price = request.data.get('proposed_price', None)
                 proposed_due_date = request.data.get('proposed_due_date', None)
-
+                if proposed_price:
+                    proposed_price = f'${proposed_price}'
 
                 agency = serializer.validated_data.get('job')
                 from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To(agency.user.email)               
+                to_email = To(agency.user.email)
                 skills = ''
                 for i in agency.skills.all():
                     skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
@@ -500,7 +501,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 try:
                     subject = "Job proposal"
                     content = Content("text/html",
-                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;">${proposed_price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;">${proposed_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;color:#ff3333;">{proposed_price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;color:#ff3333;">{proposed_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                     data = send_email(from_email, to_email, subject, content)
                 except Exception as e:
                     print("error")
@@ -1070,7 +1071,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, pk=None):
         if pk is not None:
-            questions = self.queryset.filter(Q(job_applied__job_id=pk) & (Q(user=request.user) | Q(job_applied__job__user=request.user)))
+            questions = self.queryset.filter(Q(job_applied__job_id=pk) & (Q(user=request.user) | Q(job_applied__job__user=request.user))).order_by('-modified')
             serializer = QuestionSerializer(questions,many=True, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1202,7 +1203,7 @@ class QuestionFilterAPI(APIView):
         if question_search:
             question_filter_data = self.queryset.filter(
                 (Q(user=user) | Q(job_applied__job__user=user)) & Q(job_applied__job_id=job_id) & Q(
-                    question__icontains=question_search))
+                    question__icontains=question_search)).order_by('-modified')
             second_serializer = QuestionSerializer(question_filter_data, many=True)
             context = {
                 'data': second_serializer.data,
@@ -1365,6 +1366,95 @@ class JobInviteViewSet(viewsets.ModelViewSet):
             job_data = Job.objects.get(id=pk)
             serializer = UmauthenticatedUserJobViewSerializer(job_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+
+@permission_classes([IsAdmin])
+class AgencyListViewSet(viewsets.ModelViewSet):
+    serializer_class = EditProfileSerializer
+    queryset = CustomUser.objects.all().order_by('date_joined')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['id', 'username', 'first_name']
+    search_fields = ['=username', '=first_name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(role=2, is_trashed=False)
+        serializer = EditProfileSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+
+@permission_classes([IsAdmin])
+class AgencyJobListViewSet(viewsets.ModelViewSet):
+    serializer_class = JobSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    queryset = Job.objects.all()
+    job_template_attach = JobTemplateAttachmentsSerializer
+    pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['user', 'title', 'company']
+    search_fields = ['=user', '=title', '=company']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        job_data = queryset.exclude(status=0).order_by('-modified')
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+
+@permission_classes([IsAdmin])
+class AgencyWorkflowViewSet(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = FiveRecordsPagination
+    filterset_fields = ['company', 'agency', 'name']
+    search_fields = ['=agency', '=name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        serializer = WorksFlowSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+
+@permission_classes([IsAdmin])
+class AgencyCompanyListViewSet(viewsets.ModelViewSet):
+    serializer_class = CompanySerializer
+    queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = FiveRecordsPagination
+    filterset_fields = ['agency']
+    search_fields = ['=agency', '=name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        serializer = CompanySerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+@permission_classes([IsAdmin])
+class AgencyInviteListViewSet(viewsets.ModelViewSet):
+    serializer_class = InviteMemberSerializer
+    queryset = InviteMember.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = FiveRecordsPagination
+    filterset_fields = ['agency', 'user']
+    search_fields = ['=agency', '=user']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
 

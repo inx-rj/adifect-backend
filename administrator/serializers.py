@@ -533,17 +533,6 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-
-class QuestionSerializer(serializers.ModelSerializer):
-
-    def getUsername(self, obj):
-        return obj.user.username
-
-    username = serializers.SerializerMethodField("getUsername")
-    class Meta:
-        model = Question
-        fields = '__all__'
-
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")
 
@@ -558,6 +547,18 @@ class AnswerSerializer(serializers.ModelSerializer):
         if  obj.job_applied is not None:
             return obj.job_applied.user.username
         return ''
+
+class QuestionSerializer(serializers.ModelSerializer):
+    answer_question = AnswerSerializer(many=True)
+    def getUsername(self, obj):
+        return obj.user.username
+
+    username = serializers.SerializerMethodField("getUsername")
+    class Meta:
+        model = Question
+        fields = '__all__'
+
+
 
 class UserSkillsSerializer(serializers.ModelSerializer):
     # skills = SkillsSerializer(required=False)

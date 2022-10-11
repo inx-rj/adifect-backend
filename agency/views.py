@@ -19,7 +19,7 @@ from rest_framework import generics
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia , TestModal
 from .serializers import InviteMemberSerializer, \
-    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer
+    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer, DamWithMediaRootSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
@@ -559,7 +559,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).order_by('-modified')
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -606,9 +606,9 @@ class DamRootViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).order_by('-modified')
         # queryset = queryset.filter(agency=user)
-        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
 
