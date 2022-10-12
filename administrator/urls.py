@@ -32,8 +32,6 @@ router.register(r'question', views.QuestionViewSet, basename='question')
 router.register(r'question-oldest-first', views.OldestFirstQuestionViewSet, basename='oldest_first_question')
 
 router.register(r'answer', views.AnswerViewSet, basename='answer')
-router.register(r'agency-list', views.AgencyJoblistViewSet, basename='agency_list')
-router.register(r'admin-job-list', views.AdminJobListViewSet, basename='admin_job_list')
 router.register(r'user-skills', views.UserSkillsViewSet, basename='user_skills')
 
 #----------------------------------- ADMIN SECTION ---------------------------------#

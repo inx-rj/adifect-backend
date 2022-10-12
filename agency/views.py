@@ -559,7 +559,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -606,7 +606,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)

@@ -177,7 +177,7 @@ class LoginView(GenericAPIView):
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
         if user.is_blocked:
             context = {
-                'message': 'Your Account Is Blocked',
+                'message': 'Your Account Is Blocked.Kindly! Contact To The Administrator',
                 'error':True
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)

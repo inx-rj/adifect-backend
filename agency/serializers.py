@@ -343,7 +343,6 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
             return obj.parent_id
         else:
             return False
-
     def get_location(self, obj):
         if obj:
             return re_order(recursor(obj, 0))

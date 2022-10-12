@@ -549,7 +549,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         return ''
 
 class QuestionSerializer(serializers.ModelSerializer):
-    answer_question = AnswerSerializer(many=True)
+    answer_question = AnswerSerializer(many=True,required=False)
     def getUsername(self, obj):
         return obj.user.username
 
