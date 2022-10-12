@@ -150,10 +150,10 @@ class DAM(BaseModel):
     class Meta:
         verbose_name_plural = 'DAM'
 
-    def save(self, *args, **kwargs):
-        if self.type == 2:
-            self.name = str(self.agency.username)+f'-{dt.datetime.now()}'
-        super(DAM, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if self.type == 2:
+    #         self.name = str(self.agency.username)+f'-{dt.datetime.now()}'
+    #     super(DAM, self).save(*args, **kwargs)
 
     # def __str__(self):
     #     if self.parent is not None:

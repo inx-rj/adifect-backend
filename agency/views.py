@@ -567,11 +567,18 @@ class DAMViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files')
+
         if serializer.is_valid():
-            self.perform_create(serializer)
-            dam_id = DAM.objects.latest('id')
-            for i in dam_files:
-                DamMedia.objects.create(dam=dam_id, media=i)
+            if serializer.validated_data['type']==3:
+                for i in dam_files:
+                    # self.perform_create(serializer)
+                    dam_id = DAM.objects.create(type=3,parent=serializer.validated_data.get('parent',None)  ,agency=serializer.validated_data['agency'])
+                    DamMedia.objects.create(dam=dam_id, media=i)
+            else:
+                self.perform_create(serializer)
+                dam_id = DAM.objects.latest('id')
+                for i in dam_files:
+                    DamMedia.objects.create(dam=dam_id, media=i)
             context = {
                 'message': 'Media Uploaded Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -631,12 +638,19 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
-    ordering_fields = ['created', 'modified']
-    ordering = ['created','modified']
-    filterset_fields = ['status']
-    search_fields = ['=status', ]
+    # filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
+    ordering_fields = ['modified','job__job_due_date','job__created','job__modified']
+    ordering = ['job__job_due_date','job__created','job__modified','modified']
+    filterset_fields = ['status','job__company']
+    search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
+    # ordering_fields = ['created', 'modified']
+    # ordering = ['created','modified']
+    # filterset_fields = ['status']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
 
 
     def list(self, request, *args, **kwargs):
