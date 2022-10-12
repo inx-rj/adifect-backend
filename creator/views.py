@@ -204,7 +204,7 @@ class CreatorCompanyList(APIView):
     def get(self, request, *args, **kwargs):
             job_applied = JobApplied.objects.filter(user=request.user).exclude(status=1).values_list('job_id',
                                                                                                   flat=True)
-            jobs = Job.objects.filter(id__in=list(job_applied),company__is_trashed=False).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gt=1)
+            jobs = Job.objects.filter(id__in=list(job_applied),company__is_trashed=False).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gte=1)
             context = {
                 'message': 'company list',
                 'status': status.HTTP_200_OK,
