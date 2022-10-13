@@ -286,10 +286,11 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.applied_job.all():
+            if obj.job_applied.all():
                 return False
             return True
-        except:
+        except Exception as e:
+            print(e)
             return ''
 
 

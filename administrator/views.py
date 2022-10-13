@@ -1398,7 +1398,7 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = Job.objects.all()
     job_template_attach = JobTemplateAttachmentsSerializer
-    pagination_class = FiveRecordsPagination
+    # pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['user', 'title', 'company']
     search_fields = ['=user', '=title', '=company']
@@ -1407,9 +1407,10 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         job_data = queryset.exclude(status=0).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        # paginated_data = self.paginate_queryset(job_data)
+        serializer = JobsWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+        # return self.get_paginated_response(data=serializer.data)
+        return Response(data=serializer.data)
 
 
 @permission_classes([IsAdmin])
@@ -1417,16 +1418,17 @@ class AgencyWorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    pagination_class = FiveRecordsPagination
+    # pagination_class = FiveRecordsPagination
     filterset_fields = ['company', 'agency', 'name']
     search_fields = ['=agency', '=name']
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        paginated_data = self.paginate_queryset(queryset)
-        serializer = WorksFlowSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        # paginated_data = self.paginate_queryset(queryset)
+        serializer = WorksFlowSerializer(queryset, many=True, context={'request': request})
+        # return self.get_paginated_response(data=serializer.data)
+        return Response(data=serializer.data)
 
 
 @permission_classes([IsAdmin])
@@ -1434,33 +1436,35 @@ class AgencyCompanyListViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    pagination_class = FiveRecordsPagination
+    # pagination_class = FiveRecordsPagination
     filterset_fields = ['agency']
     search_fields = ['=agency', '=name']
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        paginated_data = self.paginate_queryset(queryset)
-        serializer = CompanySerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        # paginated_data = self.paginate_queryset(queryset)
+        serializer = CompanySerializer(queryset, many=True, context={'request': request})
+        # return self.get_paginated_response(data=serializer.data)
+        return Response(data=serializer.data)
 
 @permission_classes([IsAdmin])
 class AgencyInviteListViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
-    queryset = InviteMember.objects.all().order_by('-modified')
+    queryset = InviteMember.objects.all().exclude(user=None).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    pagination_class = FiveRecordsPagination
+    # pagination_class = FiveRecordsPagination
     filterset_fields = ['agency', 'user']
     search_fields = ['=agency', '=user']
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        paginated_data = self.paginate_queryset(queryset)
-        serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-
+        # paginated_data = self.paginate_queryset(queryset)
+        # serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
+        # return self.get_paginated_response(data=serializer.data)
+        serializer = InviteMemberSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
