@@ -16,6 +16,7 @@ from agency.serializers import MyProjectSerializer
 from administrator.pagination import FiveRecordsPagination
 from authentication.manager import IsAdmin,IsAgency,IsCreator
 from django.db.models import Count
+import datetime as dt
 
 
 
@@ -180,7 +181,7 @@ class MyProjectAllJob(APIView):
 
 @permission_classes([IsAuthenticated])
 class AvailableJobs(viewsets.ModelViewSet):
-    queryset = Job.objects.exclude(status=0).exclude(is_active=0)
+    queryset = Job.objects.exclude(status=0).exclude(is_active=0).filter(job_due_date__gte=dt.datetime.today())
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created','modified']

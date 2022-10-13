@@ -175,6 +175,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     industry_name = SerializerMethodField("get_industry_name")
     username = SerializerMethodField("get_username")
     job_applied_id = SerializerMethodField("get_job_applied_id")
+    is_edit = SerializerMethodField("get_is_edit")
 
     class Meta:
         model = Job
@@ -282,6 +283,14 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
            return jobAppliedObj.id
         else:
             return "False"
+
+    def get_is_edit(self, obj):
+        try:
+            if obj.applied_job.all():
+                return False
+            return True
+        except:
+            return ''
 
 
 class ActivityAttachmentsSerializer(serializers.ModelSerializer):

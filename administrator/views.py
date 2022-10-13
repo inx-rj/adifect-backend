@@ -40,7 +40,7 @@ from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERV
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from authentication.manager import IsAdmin
-
+import datetime as dt
 # Create your views here.
 
 def get_tokens_for_user(user):
@@ -600,7 +600,7 @@ class LatestJobAPI(APIView):
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
-            latest_job = latest_job.exclude(status=0)
+            latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today())
             user_role = request.user.role
             if not user_role == 0:
                 latest_job = latest_job.exclude(is_active=0)
@@ -1069,14 +1069,16 @@ class QuestionViewSet(viewsets.ModelViewSet):
         user = request.user
         data = request.data
         queryset = self.filter_queryset(self.get_queryset())
-        messages = queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
+        # messages = queryset.filter(Q(user=user) | Q(job_applied__job__user=user)).order_by('-modified')
+        messages = queryset.order_by('-modified')
         serializer = QuestionSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
     def retrieve(self, request, pk=None):
         if pk is not None:
-            questions = self.queryset.filter(Q(job_applied__job_id=pk) & (Q(user=request.user) | Q(job_applied__job__user=request.user))).order_by('-modified')
+            # questions = self.queryset.filter(Q(job_applied__job_id=pk) & (Q(user=request.user) | Q(job_applied__job__user=request.user))).order_by('-modified')
+            questions = self.queryset.filter(job_applied__job_id=pk).order_by('-modified')
             serializer = QuestionSerializer(questions,many=True, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1119,8 +1121,9 @@ class AnswerViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
 
-        messages = self.queryset.filter((
-            Q(question__user=request.user) | Q(job_applied__job__user=request.user)) & Q(is_trashed=False)).order_by('modified')
+        # messages = self.queryset.filter((
+        #     Q(question__user=request.user) | Q(job_applied__job__user=request.user)) & Q(is_trashed=False)).order_by('modified')
+        messages = self.queryset.order_by('modified')
         serializer = AnswerSerializer(messages, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -1158,7 +1161,6 @@ class AnswerViewSet(viewsets.ModelViewSet):
                         return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
-
             else:
                 return Response({'message': "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
 

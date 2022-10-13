@@ -357,11 +357,11 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
         else:
             return False
 
-    def get_parent(self,obj):
-        if obj.name is not None:
-            return obj.name
-        else:
-            return False
+    # def get_parent(self,obj):
+    #     if obj.name is not None:
+    #         return obj.name
+    #     else:
+    #         return False
 
 
 #--------------------------------------------------- End --------------------------------------------------#
