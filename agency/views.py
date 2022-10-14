@@ -105,7 +105,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
             }
             return Response(context)
         else:
-            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST) 
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
