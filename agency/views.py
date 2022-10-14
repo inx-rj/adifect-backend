@@ -40,6 +40,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
+
     filterset_fields = ['is_active']
     search_fields = ['=is_active']
 
@@ -60,7 +61,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
             }
         else:
             context = {
-                'message': 'This company is assigned to a workflow, so cannot be deleted!',
+                'message': 'This company is assigned to a workflow, so cannot be deleted! ',
                 'status': status.HTTP_400_BAD_REQUEST,
                 'errors': True,
             }
