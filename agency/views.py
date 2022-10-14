@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.db.models import Count, Avg
 from rest_framework import generics
 
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia , TestModal
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer, DamWithMediaRootSerializer
 import sendgrid
@@ -304,7 +304,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
-
+@permission_classes([IsAuthenticated])
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
@@ -317,9 +317,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            email = serializer.validated_data.get('email',None)
-            exclusive = serializer.validated_data.get('exclusive',None)
-            company = serializer.validated_data.get('company',None)
+            email = serializer.validated_data.get('email', None)
+            exclusive = serializer.validated_data.get('exclusive', None)
+            company = serializer.validated_data.get('company', None)
+            levels = serializer.validated_data.get('levels', None)
             user = CustomUser.objects.filter(email=email, is_trashed=False).first()
             agency = CustomUser.objects.filter(pk=serializer.validated_data['agency'].id, is_trashed=False).first()
             if not agency:
@@ -327,7 +328,8 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST)
             if user:
                 if user.role == 2:
-                    return Response({'message': "You Can't Invite Agency Directly", 'error': True,'status':status.HTTP_400_BAD_REQUEST},
+                    return Response({'message': "You Can't Invite Agency Directly", 'error': True,
+                                     'status': status.HTTP_400_BAD_REQUEST},
                                     status=status.HTTP_400_BAD_REQUEST)
 
                 if user.is_exclusive:
@@ -339,13 +341,15 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 exclusive_decode = StringEncoder.encode(self, 0)
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__email=email, agency=agency, is_trashed=False, company=company).first()
+            invite = InviteMember.objects.filter(user__user__email=email, agency=agency, is_trashed=False,
+                                                 company=company).first()
             if not user:
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
-                    invite = InviteMember.objects.create(agency=agency, status=0, company=company)
-                    invite_id = InviteMember.objects.latest('id').pk
-                    decodeId = StringEncoder.encode(self, invite_id)
+                    agency_level = AgencyLevel.objects.create(levels=levels)
+                    invite = InviteMember.objects.create(agency=agency, user=agency_level, status=0, company=company)
+                    # invite_id = invite.pk
+                    decodeId = StringEncoder.encode(self, agency_level.id)
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
@@ -361,8 +365,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
             if user:
                 if not invite:
-                    invite = InviteMember.objects.create(user=user, agency=agency, status=0, company=company)
-                    invite = InviteMember.objects.latest('id')
+                    agency_level = AgencyLevel.objects.create(user=user, levels=levels)
+                    invite = InviteMember.objects.create(user=agency_level, agency=agency, status=0, company=company)
+                    # invite = InviteMember.objects.latest('id')
+
                 decodeId = StringEncoder.encode(self, invite.id)
                 accept_invite_status = 1
                 accept_invite_encode = StringEncoder.encode(self, accept_invite_status)
@@ -486,7 +492,7 @@ class SignUpViewInvite(APIView):
                     first_name=data['first_name'],
                     last_name=data['last_name'],
                     is_exclusive=exculsive,
-                    email_verified = True
+                    email_verified=True
                 )
                 user.set_password(data['password'])
                 user.save()
@@ -494,16 +500,15 @@ class SignUpViewInvite(APIView):
                 id = kwargs.get('invite_id', None)
                 encoded_id = int(StringEncoder.decode(self, id))
                 user_id = CustomUser.objects.latest('id')
+                agency_level = AgencyLevel.objects.filter(pk=encoded_id, is_trashed=False).update(user=user)
+                invite = InviteMember.objects.filter(user_id=encoded_id).update(status=1)
 
-                invite_id = InviteMember.objects.filter(pk=encoded_id, is_trashed=False).update(user=user,
-                                                                                                status=1)
+
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 @permission_classes([IsAuthenticated])
 class InviteMemberUserList(APIView):

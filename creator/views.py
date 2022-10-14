@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, JobHired
+from administrator.models import Job, JobAttachments, JobApplied
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, \
     JobsWithAttachmentsSerializer
 from rest_framework import status
@@ -193,7 +193,7 @@ class AvailableJobs(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
+        applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).exclude(is_modified=True).values_list('job_id',
                                                                                                   flat=True)
         jobs = queryset.exclude(id__in=list(applied_data)).order_by('-modified')
         paginated_data = self.paginate_queryset(jobs)

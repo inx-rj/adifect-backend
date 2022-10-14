@@ -2,7 +2,7 @@
 import json
 from rest_framework import serializers
 from authentication.models import CustomUser
-from administrator.models import Category, Job, JobAttachments, JobApplied, Industry, Level, Skills, Company, JobHired
+from administrator.models import Category, Job, JobAttachments, JobApplied, Industry, Level, Skills, Company
 from rest_framework.fields import SerializerMethodField
 from administrator.validators import validate_file_extension
 from administrator.serializers import SkillsSerializer

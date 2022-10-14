@@ -108,6 +108,7 @@ class WorksFlowSerializer(serializers.ModelSerializer):
             return ''
 
 
+
 class InviteMemberSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
     user_id = SerializerMethodField("get_user_id")
@@ -116,9 +117,8 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     user_image = SerializerMethodField("get_user_image")
     user_first_name = SerializerMethodField("get_first_name")
     user_last_name = SerializerMethodField("get_last_name")
-
-    # message = serializers.CharField(write_only=True, required=True)
-    # level = serializers.CharField(write_only=True, required=True)
+    levels = serializers.IntegerField(write_only=True, required=True)
+    level = SerializerMethodField("get_level")
     exclusive = serializers.BooleanField(write_only=True, default=False)
 
     class Meta:
@@ -128,7 +128,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_user_id(self, obj):
         try:
             if obj.user:
-                return obj.user.id
+                return obj.user.user.id
             else:
                 return ''
         except Exception as err:
@@ -137,7 +137,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_user_name(self, obj):
         try:
             if obj.user:
-                return obj.user.username
+                return obj.user.user.username
             else:
                 return ''
         except Exception as err:
@@ -146,7 +146,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_user_email(self, obj):
         try:
             if obj.user:
-                return obj.user.email
+                return obj.user.user.email
             else:
                 return ''
         except Exception as err:
@@ -155,7 +155,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_user_image(self, obj):
         try:
             if obj.user:
-                return self.get_image_url(obj.user.profile_img.url)
+                return self.get_image_url(obj.user.user.profile_img.url)
             else:
                 return ''
         except Exception as err:
@@ -164,7 +164,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_first_name(self, obj):
         try:
             if obj.user:
-                return obj.user.first_name
+                return obj.user.user.first_name
             else:
                 return ''
         except Exception as err:
@@ -173,7 +173,16 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_last_name(self, obj):
         try:
             if obj.user:
-                return obj.user.last_name
+                return obj.user.user.last_name
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_level(self, obj):
+        try:
+            if obj.user:
+                return obj.user.levels
             else:
                 return ''
         except Exception as err:
@@ -182,6 +191,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(obj)
+
 
 
 class InviteMemberRegisterSerializer(serializers.ModelSerializer):

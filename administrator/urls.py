@@ -10,10 +10,10 @@ router.register(r'job-applied', views.JobAppliedViewSet, basename='job_applied')
 # router.register(r'industries', views.IndustryViewSet, basename='industries')
 router.register(r'levels', views.LevelViewSet, basename='levels')
 router.register(r'skills', views.SkillsViewSet, basename='skills')
-router.register(r'job-hired', views.JobHiredViewSet, basename='job_hired')
+# router.register(r'job-hired', views.JobHiredViewSet, basename='job_hired')
 # router.register(r'company', views.CompanyViewSet, basename='company')
 router.register(r'users-list', views.UserListViewSet, basename='users_list')
-router.register(r'activities', views.ActivitiesViewSet, basename='activities')
+# router.register(r'activities', views.ActivitiesViewSet, basename='activities')
 # ---------------------------------  perferred lang ----------------------------------- #
 router.register(r'preferred-language', views.PrefferedLanguageViewSet, basename='preferred_language')
 # ---------------------------------  JOB TASK ----------------------------------- #
@@ -33,6 +33,7 @@ router.register(r'question-oldest-first', views.OldestFirstQuestionViewSet, base
 
 router.register(r'answer', views.AnswerViewSet, basename='answer')
 router.register(r'user-skills', views.UserSkillsViewSet, basename='user_skills')
+router.register(r'job-activity', views.JobActivityViewSet, basename='job_activity')
 
 #----------------------------------- ADMIN SECTION ---------------------------------#
 router.register(r'agency-list', views.AgencyListViewSet, basename='agency_list')

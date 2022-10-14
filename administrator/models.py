@@ -183,6 +183,25 @@ class JobAttachments(BaseModel):
         verbose_name_plural = 'Job Attachments'
 
 
+
+class JobActivity(BaseModel):
+    class Type(models.IntegerChoices):
+        Create = 0
+        Updated = 1
+        Proposal = 2
+        Accept = 3
+        Reject = 4
+    job  = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
+    activity_type = models.IntegerField(choices=Type.choices, default=Type.Create)
+
+    def __str__(self) -> str:
+        return f'{self.get_activity_display()}'
+
+    class Meta:
+        verbose_name_plural = 'Job Activities'
+
+
+
 class JobApplied(BaseModel):
     class Status(models.IntegerChoices):
         APPLIED = 0
@@ -206,6 +225,7 @@ class JobApplied(BaseModel):
     job_applied_date = models.DateField(auto_now_add=True)
     Accepted_proposal_date = models.DateTimeField(editable=False, default=None, null=True, blank=True)
     is_seen = models.BooleanField(default=False)
+    is_modified = models.BooleanField(default=False)
     
     class Meta:
         verbose_name_plural = 'Jobs Applied'
@@ -219,38 +239,38 @@ class JobAppliedAttachments(BaseModel):
         verbose_name_plural = 'Job Applied Attachments'
 
 
-class JobHired(BaseModel):
-    user = models.ManyToManyField(CustomUser)
-    job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True)
-    hire_date = models.DateField(auto_now_add=True)
-    status = models.CharField(choices=(('0', 'In progress'), ('1', 'In Review'), ('2', 'Completed'), ('3', 'Closed')),
-                              max_length=30, default='0')
-
-    class Meta:
-        verbose_name_plural = 'Jobs Hired'
-
-
-class Activities(BaseModel):
-    job_id = models.ForeignKey(Job, on_delete=models.SET_NULL, related_name="job_id", db_column='job_id', null=True,
-                               blank=True)
-    hired_user = models.ForeignKey(JobHired, on_delete=models.SET_NULL, null=True, blank=True)
-    message = models.CharField(max_length=100, default=None, blank=True, null=True)
-    date_time = models.DateTimeField(auto_now_add=True, editable=False)
-    activity_type = models.CharField(choices=(('0', 'Chat'), ('1', 'Follow Up Request'), ('2', 'Rating')),
-                                     max_length=30, default='0')
-    sender = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="sender_id")
-
-    class Meta:
-        verbose_name_plural = 'Activities'
+# class JobHired(BaseModel):
+#     user = models.ManyToManyField(CustomUser)
+#     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True)
+#     hire_date = models.DateField(auto_now_add=True)
+#     status = models.CharField(choices=(('0', 'In progress'), ('1', 'In Review'), ('2', 'Completed'), ('3', 'Closed')),
+#                               max_length=30, default='0')
+#
+#     class Meta:
+#         verbose_name_plural = 'Jobs Hired'
 
 
-class ActivityAttachments(BaseModel):
-    activities = models.ForeignKey(Activities, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
-    activity_attachments = models.FileField(upload_to='activity_attachments', blank=True, null=True,
-                                            validators=[validate_attachment])
-
-    class Meta:
-        verbose_name_plural = 'Activity Attachments'
+# class Activities(BaseModel):
+#     job_id = models.ForeignKey(Job, on_delete=models.SET_NULL, related_name="job_id", db_column='job_id', null=True,
+#                                blank=True)
+#     hired_user = models.ForeignKey(JobHired, on_delete=models.SET_NULL, null=True, blank=True)
+#     message = models.CharField(max_length=100, default=None, blank=True, null=True)
+#     date_time = models.DateTimeField(auto_now_add=True, editable=False)
+#     activity_type = models.CharField(choices=(('0', 'Chat'), ('1', 'Follow Up Request'), ('2', 'Rating')),
+#                                      max_length=30, default='0')
+#     sender = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="sender_id")
+#
+#     class Meta:
+#         verbose_name_plural = 'Activities'
+#
+#
+# class ActivityAttachments(BaseModel):
+#     activities = models.ForeignKey(Activities, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
+#     activity_attachments = models.FileField(upload_to='activity_attachments', blank=True, null=True,
+#                                             validators=[validate_attachment])
+#
+#     class Meta:
+#         verbose_name_plural = 'Activity Attachments'
 
 
 class PreferredLanguage(BaseModel):

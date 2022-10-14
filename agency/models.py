@@ -100,6 +100,20 @@ class WorksFlow(BaseModel):
         return self.name
 
 
+
+class AgencyLevel(BaseModel):
+    class Agency_Levels(models.IntegerChoices):
+        Agency_admin = 1
+        Marketer = 2
+        Approver = 3
+
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='agency_level')
+    levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
+    is_active = models.BooleanField(default=True)
+
+        
+
+
 class InviteMember(BaseModel):
     class Status(models.IntegerChoices):
         SEND = 0
@@ -108,7 +122,7 @@ class InviteMember(BaseModel):
 
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_agency', blank=True,
                                null=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='invite_member_user', null=True,
+    user = models.ForeignKey(AgencyLevel, on_delete=models.SET_NULL, related_name='invite_member_user', null=True,
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,

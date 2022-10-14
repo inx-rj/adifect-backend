@@ -36,7 +36,7 @@ from rest_framework import viewsets
 import requests
 import json
 from helper.helper import StringEncoder,send_email
-from agency.models import InviteMember
+from agency.models import InviteMember,AgencyLevel
 # Get an instance of a logger
 logger = logging.getLogger('django')
 
@@ -112,7 +112,9 @@ class SignUpView(APIView):
                 data = send_email(from_email, to_email, subject, content)
                 user.forget_password_token = token
                 user.save()
-                invite_member = InviteMember.objects.create(agency=user,user=user,status=1)
+                if user.role == 2:
+                     agency_level = AgencyLevel.objects.create(user=user,levels=0)
+                     invite_member = InviteMember.objects.create(agency=user, user=agency_level, status=1)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

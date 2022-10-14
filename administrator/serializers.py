@@ -4,9 +4,9 @@ from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
-from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, JobHired, Activities, \
-    Activities, JobAppliedAttachments, ActivityAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer,UserSkills
+from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
+     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
+    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -176,6 +176,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     username = SerializerMethodField("get_username")
     job_applied_id = SerializerMethodField("get_job_applied_id")
     is_edit = SerializerMethodField("get_is_edit")
+    hired_users = SerializerMethodField("hired_users_list")
 
     class Meta:
         model = Job
@@ -293,35 +294,43 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             print(e)
             return ''
 
+    def hired_users_list(self, obj):
+        request = self.context.get('request')
+        usersObj = JobApplied.objects.filter(job=obj.id, status=2)
+        if usersObj:
+            return usersObj.values('user__username')
+        else:
+            return ""
 
-class ActivityAttachmentsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Activities
-        fields = '__all__'
-
-
-class ActivitiesSerializer(serializers.ModelSerializer):
-    attachments = serializers.FileField(allow_empty_file=True, required=False)
-
-    class Meta:
-        model = Activities
-        fields = '__all__'
-
-    def create(self, validated_data):
-        if validated_data.get('attachments'):
-            validated_data.pop('attachments')
-        activities = Activities.objects.create(**validated_data)
-        activities.save()
-        return activities
-
-    def to_representation(self, instance):
-        response = super().to_representation(instance)
-        activities_attachments = []
-        for i in ActivityAttachments.objects.filter(activities=instance):
-            activities_attachments.append(i.activity_attachments.url)
-        if activities_attachments:
-            response['activity_attachments'] = activities_attachments
-        return response
+#
+# class ActivityAttachmentsSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Activities
+#         fields = '__all__'
+#
+#
+# class ActivitiesSerializer(serializers.ModelSerializer):
+#     attachments = serializers.FileField(allow_empty_file=True, required=False)
+#
+#     class Meta:
+#         model = Activities
+#         fields = '__all__'
+#
+#     def create(self, validated_data):
+#         if validated_data.get('attachments'):
+#             validated_data.pop('attachments')
+#         activities = Activities.objects.create(**validated_data)
+#         activities.save()
+#         return activities
+#
+#     def to_representation(self, instance):
+#         response = super().to_representation(instance)
+#         activities_attachments = []
+#         for i in ActivityAttachments.objects.filter(activities=instance):
+#             activities_attachments.append(i.activity_attachments.url)
+#         if activities_attachments:
+#             response['activity_attachments'] = activities_attachments
+#         return response
 
 class JobAppliedAttachmentsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -380,11 +389,11 @@ class JobFilterSerializer(serializers.Serializer):
     skills = serializers.CharField(max_length=200, required=False)
     tags = serializers.CharField(max_length=100, required=False)
 
-
-class JobHiredSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = JobHired
-        fields = '__all__'
+#
+# class JobHiredSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = JobHired
+#         fields = '__all__'
 
 
 class PreferredLanguageSerializer(serializers.ModelSerializer):
@@ -512,6 +521,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
                     return skill_serializer.data
                 else:
                     return ''
+
             else:
                 return ''
         except Exception as err:
@@ -583,7 +593,18 @@ class UserSkillsSerializer(serializers.ModelSerializer):
         return ''
 
 
+class JobActivitySerializer(serializers.ModelSerializer):
+    activity = serializers.SerializerMethodField("get_activity")
+    agency  = serializers.SerializerMethodField("get_agency")
+    user = serializers.SerializerMethodField("get_user")
+    class Meta:
+        model = JobActivity
+        fields = '__all__'
 
+    def get_activity(self, obj):
+        return obj.get_activity_type_display()
+    def get_agency(self,obj):
+        return obj.job.user.get_full_name()
 
 
 
