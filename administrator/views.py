@@ -1496,14 +1496,23 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
     search_fields = ['=user', '=title', '=company']
     http_method_names = ['get']
 
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         job_data = queryset.exclude(status=0).order_by('-modified')
+        job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data)
-
+        job_id = JobApplied.objects.filter(is_trashed=False).values_list('job_id', flat=True)
+        applied = JobApplied.objects.filter(job_id__in=list(job_id), status=2).count()
+        # return self.get_paginated_response(data=serializer.data)
+        Context = {
+            'Total_Job_count': job_count,
+            'In_progress_jobs': applied,
+            'data': serializer.data,
+        }
+        return self.get_paginated_response(Context)
+        # return Response(Context)
 
 @permission_classes([IsAdmin])
 class AgencyWorkflowViewSet(viewsets.ModelViewSet):
@@ -1557,6 +1566,24 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         # return self.get_paginated_response(data=serializer.data)
         serializer = InviteMemberSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+
+#########                           job block by admin(M.B)                      #########
+
+@permission_classes([IsAdmin])
+class JobBlock(APIView):
+    def post(self, request, *args, **kwargs):
+        job_id = request.data.get('job_id', None)
+        status1 = request.data.get('status', None)
+        if job_id and status1:
+            job = Job.objects.filter(id=job_id).update(is_blocked=status1)
+            if job:
+                data = {"message": "Job status updated successfully", "status": "success","error":False}
+                return  Response(data,status=status.HTTP_200_OK)
+            data = {"message": "Something Went Wrong", "status": "failed", "error": True}
+        else:
+            data = {"data": "Job id Or Status Is Missing", "status": "error","error":True}
+        return Response(data,status=status.HTTP_400_BAD_REQUEST)
 
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#

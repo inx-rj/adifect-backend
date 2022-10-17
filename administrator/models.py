@@ -148,6 +148,8 @@ class Job(BaseModel):
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
+    is_blocked = models.BooleanField(default=False)
+
 
     class Meta:
         verbose_name_plural = 'Job'

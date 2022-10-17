@@ -55,5 +55,6 @@ urlpatterns = [
     path('proposal-unseen-count/<int:pk>/', views.ProposalUnseenCount.as_view(), name='proposal_unseen_count'),
     path('question-filter/', views.QuestionFilterAPI.as_view(), name='question_filter'),
     path('job-share-details/', views.JobShareDetails.as_view(), name='job_share_details'),
+    path('job-block/', views.JobBlock.as_view(), name='job_block'),
 ]
 urlpatterns += router.urls
