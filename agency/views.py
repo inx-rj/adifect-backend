@@ -40,7 +40,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-
     filterset_fields = ['is_active']
     search_fields = ['=is_active']
 
@@ -61,7 +60,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
             }
         else:
             context = {
-                'message': 'This company is assigned to a workflow, so cannot be deleted! ',
+                'message': 'This company is assigned to a workflow, so cannot be deleted!',
                 'status': status.HTTP_400_BAD_REQUEST,
                 'errors': True,
             }
@@ -105,7 +104,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
             }
             return Response(context)
         else:
-            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST) 
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)

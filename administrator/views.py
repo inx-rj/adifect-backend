@@ -322,7 +322,7 @@ class JobViewSet(viewsets.ModelViewSet):
                                             status=status.HTTP_400_BAD_REQUEST)
                         for i in templte_sample_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
-            JobActivity.objects.create(Job=job_id,activity_type=JobActivity.Type.Create)
+            JobActivity.objects.create(job=job_id,activity_type=JobActivity.Type.Create)
             context = {
                 'message': 'Job Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -409,7 +409,7 @@ class JobViewSet(viewsets.ModelViewSet):
                             for i in templte_sample_image:
                                 JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
                 # --------------------------------------- end -----------------------------------------------#
-                JobActivity.objects.create(Job=job_id, activity_type=JobActivity.Type.Updated)
+                JobActivity.objects.create(job=instance, activity_type=JobActivity.Type.Updated)
                 context = {
                     'message': 'Updated Successfully',
                     'status': status.HTTP_200_OK,
@@ -485,7 +485,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 if status_job == 1:
                     test_status = JobActivity.Type.Reject
                 if status_job:
-                   JobActivity.objects.create(Job_id=data['job'], activity_type=test_status)
+                   JobActivity.objects.create(job_id=data['job'], activity_type=test_status)
                 job_applied_id = JobApplied.objects.latest('id')
                 if data.get('question', None):
                     Question.objects.create(
