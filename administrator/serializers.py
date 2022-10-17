@@ -617,8 +617,16 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
     def get_activity(self, obj):
         return obj.get_activity_type_display()
-    def get_agency(self,obj):
+
+    def get_agency(self, obj):
         return obj.job.user.get_full_name()
+
+    def get_user(self, obj):
+        if obj.user is not None:
+            return obj.user.get_full_name()
+        return ''
+
+
 
 
 

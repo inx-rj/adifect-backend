@@ -195,9 +195,10 @@ class JobActivity(BaseModel):
         Reject = 4
     job  = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
     activity_type = models.IntegerField(choices=Type.choices, default=Type.Create)
+    user = models.ForeignKey(CustomUser,related_name='job_activity_user', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.get_activity_display()}'
+        return f'{self.job.title}'
 
     class Meta:
         verbose_name_plural = 'Job Activities'

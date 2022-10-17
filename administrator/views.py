@@ -477,15 +477,18 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 if attachment_error != 0:
                     return Response({'message': "Invalid Attachment"}, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_create(serializer)
-                status_job = serializer.validated_data.get('status')
+                status_job = serializer.validated_data.get('status',None)
+                test_status = None
+                if not status_job:
+                    test_status = JobActivity.Type.Proposal
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
                 if status_job == 2:
                     test_status = JobActivity.Type.Accept
                 if status_job == 1:
                     test_status = JobActivity.Type.Reject
-                if status_job:
-                   JobActivity.objects.create(job_id=data['job'], activity_type=test_status)
+                if test_status:
+                   JobActivity.objects.create(job_id=data['job'], activity_type=test_status,user=request.user)
                 job_applied_id = JobApplied.objects.latest('id')
                 if data.get('question', None):
                     Question.objects.create(
@@ -545,15 +548,26 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 if attachment_error != 0:
                     return Response({'message': "Invalid Attachment"}, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_create(serializer)
-                job_applied_id = JobApplied.objects.latest('id')
+                status_job = serializer.validated_data.get('status', None)
+                test_status = None
+                if not status_job:
+                    test_status = JobActivity.Type.Proposal
+                if status_job == 0:
+                    test_status = JobActivity.Type.Proposal
+                if status_job == 2:
+                    test_status = JobActivity.Type.Accept
+                if status_job == 1:
+                    test_status = JobActivity.Type.Reject
+                if test_status:
+                    JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
                 if data.get('question', None):
                     Question.objects.create(
                         question=data['question'],
-                        job_applied=job_applied_id,
+                        job_applied=instance,
                         user_id=data['user'],
                     )
                 for i in attachments:
-                    JobAppliedAttachments.objects.create(job_applied=job_applied_id, job_applied_attachments=i)
+                    JobAppliedAttachments.objects.create(job_applied=instance, job_applied_attachments=i)
                 context = {
                     'message': 'Job Applied Successfully',
                     'status': status.HTTP_201_CREATED,
@@ -1082,10 +1096,18 @@ class JobProposal(APIView):
         if job_applied_id and initial_status:
             job_proposal = JobApplied.objects.filter(pk=job_applied_id)
             update_proposal = job_proposal.update(status=initial_status,Accepted_proposal_date=datetime.datetime.now())
-           #------------------ EMAIL Section ---------------------------------------#
+            test_status = None
+            job_details = job_proposal.first()
+            if initial_status == 2:
+                test_status = JobActivity.Type.Accept
+            if initial_status == 1:
+                test_status = JobActivity.Type.Reject
+            if test_status:
+                JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=request.user)
+
+            #------------------ EMAIL Section ---------------------------------------#
             if int(initial_status) == 2 and update_proposal :
                 from_email = Email(SEND_GRID_FROM_EMAIL)
-                job_details = job_proposal.first()
                 to_email = To(job_details.user.email)
                 skills = ''
                 for i in job_details.job.skills.all():
