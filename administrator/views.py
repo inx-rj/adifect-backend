@@ -357,14 +357,15 @@ class JobViewSet(viewsets.ModelViewSet):
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_update(serializer)
-                JobApplied.objects.filter(job=instance).update(is_modified=True)
+                JobApplied.objects.filter(job=instance).update(is_modified=1)
                 if remove_image_ids:
                     for id in remove_image_ids:
                         JobAttachments.objects.filter(id=id).delete()
                 if image:
                     image_error = validate_job_attachments(image)
                     if image_error != 0:
-                        return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({'message': "Invalid Job Attachments images"},
+                                        status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
                 if sample_image:
@@ -382,7 +383,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         if name:
                             if 'id' in i:
                                 JobTasks.objects.filter(id=i['id']).update(title=i['title'],
-                                                                        due_date=i['due_date'])
+                                                                           due_date=i['due_date'])
                             else:
                                 JobTasks.objects.create(job=instance, title=name, due_date=i['due_date'])
 
@@ -400,23 +401,40 @@ class JobViewSet(viewsets.ModelViewSet):
                                 return Response({'message': "Invalid Job Attachments images"},
                                                 status=status.HTTP_400_BAD_REQUEST)
                             for i in template_image:
-                                JobTemplateAttachments.objects.create(job_template=Job_template_id, job_template_images=i)
+                                JobTemplateAttachments.objects.create(job_template=Job_template_id,
+                                                                      job_template_images=i)
                         if sample_image:
                             sample_image_error = validate_job_attachments(sample_image)
                             if sample_image_error != 0:
                                 return Response({'message': "Invalid Job Attachments images"},
                                                 status=status.HTTP_400_BAD_REQUEST)
                             for i in templte_sample_image:
-                                JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
+                                JobTemplateAttachments.objects.create(job_template=Job_template_id,
+                                                                      work_sample_images=i)
+
+                user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
+                for users in user_list:
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(users.user.email)
+                    skills = ''
+                    for i in users.job.skills.all():
+                        skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
+                    try:
+                        subject = "Job Edited"
+                        content = Content("text/html",
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px; border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello {users.user.get_full_name()},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">There has been update to your job:</div><div style="border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;max-width: 5px;min-width: 5px;background-color: #2472fc;border-radius: 50px;"></div><div><div style="padding: 20px"><div><h1 style="font: 24px">{users.job.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{users.job.description}</div><div><button style="background-color: rgba(36,114,252,0.08);border-radius: 30px;font-style: normal;font-weight: 600;font-size: 15px;line-height: 18px;text-align: center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">{users.get_status_display()}</button></div><div style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{users.job.job_due_date}</span></div><div style="display: flex">{skills}</div></div></div></div><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please click the link below to view the new updates.</div><div style= "padding: 20px 0px;font-size: 16px; color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{users.job.id}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Job Update</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                    except Exception as e:
+                        print(e)
                 # --------------------------------------- end -----------------------------------------------#
-                JobActivity.objects.create(job=instance, activity_type=JobActivity.Type.Updated)
+
                 context = {
                     'message': 'Updated Successfully',
                     'status': status.HTTP_200_OK,
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
-            
+                return Response(context)
             else:
                 context = {
                     'message': 'You cannot update the job',
@@ -1506,7 +1524,7 @@ class AgencyListViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
-@permission_classes([IsAdmin])
+# @permission_classes([IsAdmin])
 class AgencyJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)

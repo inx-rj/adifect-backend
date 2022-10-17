@@ -417,6 +417,21 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             return Response({'message': 'success'},
                             status=status.HTTP_200_OK)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        level = request.data.get('levels',None)
+        if level:
+            is_update = AgencyLevel.objects.filter(id=instance.user.id).update(levels=int(level))
+            if is_update:
+                context = {
+                    'message': 'Updated Successfully...',
+                    'status': status.HTTP_200_OK,
+                }
+                return Response(context)
+        else:
+            return Response({'message': 'something went wrong','error':True}, status=status.HTTP_400_BAD_REQUEST)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
