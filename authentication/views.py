@@ -112,7 +112,7 @@ class SignUpView(APIView):
                 data = send_email(from_email, to_email, subject, content)
                 user.forget_password_token = token
                 user.save()
-                if user.role == 2:
+                if user.role == '2':
                      agency_level = AgencyLevel.objects.create(user=user,levels=0)
                      invite_member = InviteMember.objects.create(agency=user, user=agency_level, status=1)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
