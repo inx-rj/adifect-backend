@@ -272,9 +272,36 @@ class DAMSerializer(serializers.ModelSerializer):
 
 
 class DamMediaSerializer(serializers.ModelSerializer):
+    files_name = SerializerMethodField("get_files_name")
+    files_size = SerializerMethodField("get_files_size")
+    upload_by = SerializerMethodField("get_user_name")
     class Meta:
         model = DamMedia
         fields = '__all__'
+
+    def get_files_name(self, obj):
+        if obj:
+            if obj.media is not  None:
+                return str(obj.media.name).split('/')[-1]
+            else:
+                return ''
+        return ''
+
+    def get_files_size(self, obj):
+        if obj:
+            if obj.media is not  None:
+                return str(obj.media.size)
+            else:
+                return ''
+        return
+
+    def get_user_name(self, obj):
+        if obj.dam is not None:
+            if obj.dam.agency is not None:
+                return obj.dam.agency.get_full_name()
+        return ''
+
+
 
 #-------------------------------------------- dam ---------------------------------------------#
 location_storage = ''
@@ -313,10 +340,17 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
     location = SerializerMethodField("get_location")
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
+    upload_by = SerializerMethodField("get_user_name")
 
     class Meta:
         model = DAM
         fields = '__all__'
+
+    def get_user_name(self,obj):
+        if obj.agency is not None:
+            return obj.agency.get_full_name()
+        return ''
+
 
     def get_parent(self,obj):
         if obj.parent is not None:
@@ -343,6 +377,7 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     location = SerializerMethodField("get_location")
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
+    upload_by = SerializerMethodField("get_user_name")
 
     class Meta:
         model = DAM
@@ -366,6 +401,10 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
                 return obj.parent.parent.id
         else:
             return False
+    def get_user_name(self,obj):
+        if obj.agency is not None:
+            return obj.agency.get_full_name()
+        return ''
 
     # def get_parent(self,obj):
     #     if obj.name is not None:

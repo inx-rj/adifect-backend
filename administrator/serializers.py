@@ -177,6 +177,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     job_applied_id = SerializerMethodField("get_job_applied_id")
     is_edit = SerializerMethodField("get_is_edit")
     hired_users = SerializerMethodField("hired_users_list")
+    job_applied_modified =  SerializerMethodField("get_applied_modified")
 
     class Meta:
         model = Job
@@ -301,6 +302,15 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return usersObj.values('user__username')
         else:
             return ""
+
+    def get_applied_modified(self, obj):
+        if obj:
+           applied = JobApplied.objects.filter(job=obj,user=self.context['request'].user,is_modified=True).first()
+           if applied:
+               return True
+           return False
+        else:
+            return False
 
 #
 # class ActivityAttachmentsSerializer(serializers.ModelSerializer):
@@ -477,6 +487,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
 
+
     class Meta:
         model = JobTemplate
         fields = '__all__'
@@ -552,6 +563,9 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
+
+
+
 
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")

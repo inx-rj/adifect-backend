@@ -327,10 +327,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 return Response({'message': 'Agency does not exists', 'error': True},
                                 status=status.HTTP_400_BAD_REQUEST)
             if user:
-                if user.role == 2:
-                    return Response({'message': "You Can't Invite Agency Directly", 'error': True,
-                                     'status': status.HTTP_400_BAD_REQUEST},
-                                    status=status.HTTP_400_BAD_REQUEST)
+                # if user.role == 2:
+                #     return Response({'message': "You Can't Invite Agency Directly", 'error': True,
+                #                      'status': status.HTTP_400_BAD_REQUEST},
+                #                     status=status.HTTP_400_BAD_REQUEST)
 
                 if user.is_exclusive:
                     return Response({'message': 'User Is Exculsive', 'error': True},
