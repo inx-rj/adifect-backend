@@ -41,6 +41,8 @@ router.register(r'agency-job-list', views.AgencyJobListViewSet, basename='agency
 router.register(r'agency-workflow-list', views.AgencyWorkflowViewSet, basename='agency_workflow_list')
 router.register(r'agency-company-list', views.AgencyCompanyListViewSet, basename='agency_company_list')
 router.register(r'agency-invited-list', views.AgencyInviteListViewSet, basename='agency_invite_list')
+router.register(r'creator-list', views.CreatorListViewSet, basename='creator_list')
+router.register(r'creator-job-list', views.CreatorJobListViewSet, basename='creator_job_list')
 #-------------------------------------  END  ---------------------------------------------#
 
 urlpatterns = [

@@ -187,6 +187,10 @@ class JobAttachments(BaseModel):
 
 
 class JobActivity(BaseModel):
+    class Status(models.IntegerChoices):
+        Notification = 0
+        Chat = 1
+
     class Type(models.IntegerChoices):
         Create = 0
         Updated = 1
@@ -194,14 +198,29 @@ class JobActivity(BaseModel):
         Accept = 3
         Reject = 4
     job  = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
-    activity_type = models.IntegerField(choices=Type.choices, default=Type.Create)
+    activity_type = models.IntegerField(choices=Type.choices,null=True, blank=True)
+    # activity_type = models.IntegerField(choices=Type.choices, default=Type.Create)
     user = models.ForeignKey(CustomUser,related_name='job_activity_user', on_delete=models.SET_NULL, null=True, blank=True)
+    activity_status = models.IntegerField(choices=Status.choices, default=Status.Notification)
 
     def __str__(self) -> str:
         return f'{self.job.title}'
 
     class Meta:
         verbose_name_plural = 'Job Activities'
+
+class JobActivityChat(BaseModel):
+    job_activity = models.ForeignKey(JobActivity, related_name="activity_job_chat", on_delete=models.SET_NULL, null=True, blank=True)
+    sender = models.ForeignKey(CustomUser,related_name="job_activity_chat_sender", on_delete=models.SET_NULL, null=True, blank=True)
+    receiver = models.ForeignKey(CustomUser,related_name="job_activity_chat_receiver", on_delete=models.SET_NULL, null=True, blank=True)
+    messages = models.CharField(max_length=2000)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return f'{self.messages}'
+
+    class Meta:
+        verbose_name_plural = 'Job Activities Chat'
 
 
 

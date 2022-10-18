@@ -6,7 +6,7 @@ from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
      JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity
+    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -45,10 +45,13 @@ class EditProfileSerializer(serializers.ModelSerializer):
 
 
 class UserListSerializer(serializers.ModelSerializer):
+    user_rating = SerializerMethodField("get_user_rating")
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img", "profile_status"]
+        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating"]
 
+    def get_user_rating(self,obj):
+        return obj.skills_user.all().values('skill_rating')
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -288,7 +291,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.all():
+            if obj.job_applied.filter(status=2):
                 return False
             return True
         except Exception as e:
@@ -606,17 +609,39 @@ class UserSkillsSerializer(serializers.ModelSerializer):
             return obj.skills.skill_name
         return ''
 
+# --------------                           job activity                      -----------------#
+
+class JobActivityChatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobActivityChat
+        fields = '__all__'
+
+
+
 
 class JobActivitySerializer(serializers.ModelSerializer):
-    activity = serializers.SerializerMethodField("get_activity")
+    # activity = serializers.SerializerMethodField("get_activity")
     agency  = serializers.SerializerMethodField("get_agency")
-    user = serializers.SerializerMethodField("get_user")
+    user_details = serializers.SerializerMethodField("get_user")
+    activity_job_chat = JobActivityChatSerializer(many=True)
     class Meta:
         model = JobActivity
         fields = '__all__'
 
-    def get_activity(self, obj):
-        return obj.get_activity_type_display()
+    def create(self, validated_data):
+        chat = None
+        if 'activity_job_chat' in validated_data:
+            chat = validated_data.pop('activity_job_chat')
+        activity_create = JobActivity.objects.create(**validated_data)
+        if chat and activity_create:
+            JobActivityChat.objects.create(job_activity=activity_create,**chat[0])
+        return activity_create
+
+
+    # def get_activity(self, obj):
+    #     if obj.activity_type:
+    #         return obj.get_activity_type_display()
+    #     return ''
 
     def get_agency(self, obj):
         return obj.job.user.get_full_name()
@@ -626,7 +651,7 @@ class JobActivitySerializer(serializers.ModelSerializer):
             return obj.user.get_full_name()
         return ''
 
-
+#--------------------------------                        end             -------------------------------------------- #
 
 
 

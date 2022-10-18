@@ -83,9 +83,12 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):
         id = pk
         if id is not None:
-            job_data = Job.objects.get(id=id)
-            serializer = JobsWithAttachmentsSerializer(job_data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            job_data = Job.objects.filter(id=id,user=request.user).first()
+            if job_data:
+                serializer = JobsWithAttachmentsSerializer(job_data,context={'request': request})
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({'message':'No Data Found','error':True}, status=status.HTTP_204_NO_CONTENT)
+
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -637,6 +640,18 @@ class DamRootViewSet(viewsets.ModelViewSet):
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in DamMedia.objects.filter(dam_id=instance.id):
+            i.delete()
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
 
 
 @permission_classes([IsAuthenticated])

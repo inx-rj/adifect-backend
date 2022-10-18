@@ -7,7 +7,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobFilterSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
-    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer
+    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer,JobActivityChatSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
-    Question, Answer,UserSkills,JobActivity
+    Question, Answer,UserSkills,JobActivity,JobActivityChat
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -627,39 +627,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-#
-# class ActivitiesViewSet(viewsets.ModelViewSet):
-#     serializer_class = ActivitiesSerializer
-#     queryset = Activities.objects.filter(is_trashed=False)
-#     parser_classes = (MultiPartParser, FormParser, JSONParser)
-#
-#     def list(self, request, *args, **kwargs):
-#         activity_data = self.queryset.all()
-#         serializer = self.serializer_class(activity_data, many=True, context={'request': request})
-#         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-#
-#     def create(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         attachments = request.FILES.getlist('activity_attachments')
-#
-#         if serializer.is_valid():
-#             serializer.fields.pop('attachments')
-#             self.perform_create(serializer)
-#             activity_id = Activities.objects.latest('id')
-#             attachment_error = validate_attachment(attachments)
-#             if attachment_error != 0:
-#                 return Response({'message': "Invalid Attachment"}, status=status.HTTP_400_BAD_REQUEST)
-#             for i in attachments:
-#                 ActivityAttachments.objects.create(activities=activity_id, activity_attachments=i)
-#             context = {
-#                 'message': 'Message Sent Successfully',
-#                 'status': status.HTTP_201_CREATED,
-#                 'errors': serializer.errors,
-#                 'data': serializer.data,
-#             }
-#             return Response(context)
-#         else:
-#             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class JobFilterApi(APIView):
@@ -734,13 +702,14 @@ class LatestJobAPI(APIView):
             }
             return Response(context)
 
+@permission_classes([IsAuthenticated])
 class JobActivityViewSet(viewsets.ModelViewSet):
     serializer_class = JobActivitySerializer
     queryset = JobActivity.objects.all()
-    # serializer_class = PreferredLanguageSerializer
-    # queryset = PreferredLanguage.objects.all()
+
     def list(self, request, *args, **kwargs):
-        serializer = self.serializer_class(self.get_queryset(), many=True, context={'request': request})
+        queryset = self.filter_queryset(self.get_queryset()).filter(Q(job__user=request.user)|Q(user=request.user))
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
 
@@ -1615,7 +1584,7 @@ class JobBlock(APIView):
     def post(self, request, *args, **kwargs):
         job_id = request.data.get('job_id', None)
         status1 = request.data.get('status', None)
-        if job_id and status1:
+        if job_id and (status1 or status1==False):
             job = Job.objects.filter(id=job_id).update(is_blocked=status1)
             if job:
                 data = {"message": "Job status updated successfully", "status": "success","error":False}
@@ -1624,6 +1593,45 @@ class JobBlock(APIView):
         else:
             data = {"data": "Job id Or Status Is Missing", "status": "error","error":True}
         return Response(data,status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAdmin])
+class CreatorListViewSet(viewsets.ModelViewSet):
+    serializer_class = UserListSerializer
+    queryset = CustomUser.objects.filter(role=1).order_by('date_joined')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = FiveRecordsPagination
+    filterset_fields = ['id', 'username', 'first_name']
+    search_fields = ['=username', '=first_name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+@permission_classes([IsAdmin])
+class CreatorJobListViewSet(viewsets.ModelViewSet):
+    queryset = JobApplied.objects.all()
+    pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['user']
+    search_fields = ['=user']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        job_id = queryset.values_list('job_id', flat=True)
+        job_data = Job.objects.filter(id__in=list(job_id))
+        serializer = JobsWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+        Context = {
+            'status': status.HTTP_200_OK,
+            'data': serializer.data,
+            'error': False
+        }
+        return self.get_paginated_response(Context)
 
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
