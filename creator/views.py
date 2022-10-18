@@ -181,7 +181,7 @@ class MyProjectAllJob(APIView):
 
 @permission_classes([IsAuthenticated])
 class AvailableJobs(viewsets.ModelViewSet):
-    queryset = Job.objects.exclude(status=0).exclude(is_active=0).filter(job_due_date__gte=dt.datetime.today())
+    queryset = Job.objects.exclude(status=0).exclude(is_active=0)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created','modified']
@@ -196,7 +196,7 @@ class AvailableJobs(viewsets.ModelViewSet):
         applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).exclude(is_modified=True).values_list('job_id',
                                                                                                   flat=True)
         jobs = queryset.exclude(id__in=list(applied_data)).order_by('-modified')
-        paginated_data = self.paginate_queryset(jobs)
+        paginated_data = self.paginate_queryset(jobs.filter(job_due_date__gte=dt.datetime.today()))
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 
