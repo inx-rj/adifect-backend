@@ -484,8 +484,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         attachments = request.FILES.getlist('image')
         data = request.data
-        print("lll")
-        print(data)
         if serializer.is_valid():
             if self.queryset.filter(Q(job=data['job']) & Q(user=data['user']) & Q(job__is_active=False)).exists():
                 context = {
@@ -562,24 +560,13 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         attachments = request.FILES.getlist('image')
         data = request.data
+        print("request_data")
+        print(data)
         if serializer.is_valid():
-            if self.queryset.filter(is_modified=True):
                 attachment_error = validate_attachment(attachments)
                 if attachment_error != 0:
                     return Response({'message': "Invalid Attachment"}, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_create(serializer)
-                status_job = serializer.validated_data.get('status', None)
-                test_status = None
-                if not status_job:
-                    test_status = JobActivity.Type.Proposal
-                if status_job == 0:
-                    test_status = JobActivity.Type.Proposal
-                if status_job == 2:
-                    test_status = JobActivity.Type.Accept
-                if status_job == 1:
-                    test_status = JobActivity.Type.Reject
-                if test_status:
-                    JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
                 if data.get('question', None):
                     Question.objects.create(
                         question=data['question'],
@@ -594,6 +581,19 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
+
+                status_job = serializer.validated_data.get('status', None)
+                test_status = None
+                if not status_job:
+                    test_status = JobActivity.Type.Proposal
+                if status_job == 0:
+                    test_status = JobActivity.Type.Proposal
+                if status_job == 2:
+                    test_status = JobActivity.Type.Accept
+                if status_job == 1:
+                    test_status = JobActivity.Type.Reject
+                if test_status:
+                    JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
 
                 
                 proposed_price = request.data.get('proposed_price', None)
@@ -621,14 +621,12 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     print(e)
                 data = None
-            else:
-                context = {
-                    'message': 'You cannot update the proposal',
-                    'errors': serializer.errors,
-                }
-            return Response(context)
         else:
-            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            context = {
+                'message': 'You cannot update the proposal',
+                'errors': serializer.errors,
+            }
+        return Response(context)
 
 
 

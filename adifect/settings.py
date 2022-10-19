@@ -64,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware'
 ]
 
+
 # CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
 CSRF_TRUSTED_ORIGINS = [os.environ.get('BACKEND_SITE_URL')]
 
