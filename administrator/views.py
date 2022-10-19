@@ -484,6 +484,8 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         attachments = request.FILES.getlist('image')
         data = request.data
+        print("lll")
+        print(data)
         if serializer.is_valid():
             if self.queryset.filter(Q(job=data['job']) & Q(user=data['user']) & Q(job__is_active=False)).exists():
                 context = {

@@ -12,7 +12,7 @@ from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
 from langcodes import Language
-
+import datetime as dt
 
 class userPortfolioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -46,12 +46,17 @@ class EditProfileSerializer(serializers.ModelSerializer):
 
 class UserListSerializer(serializers.ModelSerializer):
     user_rating = SerializerMethodField("get_user_rating")
+    agency_company = SerializerMethodField("get_company_list")
+
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating"]
+        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating", "agency_company"]
 
     def get_user_rating(self,obj):
         return obj.skills_user.all().values('skill_rating')
+
+    def get_company_list(self, obj):
+        return obj.company_agency.all().values()
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -181,6 +186,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     is_edit = SerializerMethodField("get_is_edit")
     hired_users = SerializerMethodField("hired_users_list")
     job_applied_modified =  SerializerMethodField("get_applied_modified")
+    is_expire =  SerializerMethodField("get_is_expire")
 
     class Meta:
         model = Job
@@ -314,6 +320,14 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
            return False
         else:
             return False
+
+    def get_is_expire(self,obj):
+       if obj.job_due_date is not None:
+            if obj.job_due_date < dt.datetime.today().date():
+                return True
+            return False
+       return False
+
 
 #
 # class ActivityAttachmentsSerializer(serializers.ModelSerializer):
@@ -566,6 +580,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
+
 
 
 

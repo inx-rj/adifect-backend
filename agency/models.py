@@ -125,6 +125,7 @@ class InviteMember(BaseModel):
     user = models.ForeignKey(AgencyLevel, on_delete=models.SET_NULL, related_name='invite_member_user', null=True,
                              blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
+    email = models.EmailField(max_length=254,default=None,null=True,blank=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
                                 blank=True)
     class Meta:
@@ -161,6 +162,8 @@ class DAM(BaseModel):
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
     parent = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+    is_favourite = models.BooleanField(default=False)
+
     class Meta:
         verbose_name_plural = 'DAM'
 

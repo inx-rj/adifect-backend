@@ -24,7 +24,7 @@ import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
-
+from django.db.models import Count
 import base64
 
 
@@ -350,7 +350,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
                     agency_level = AgencyLevel.objects.create(levels=levels)
-                    invite = InviteMember.objects.create(agency=agency, user=agency_level, status=0, company=company)
+                    invite = InviteMember.objects.create(agency=agency,email=email,user=agency_level, status=0, company=company)
                     # invite_id = invite.pk
                     decodeId = StringEncoder.encode(self, agency_level.id)
                 try:
@@ -612,6 +612,23 @@ class DAMViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -641,6 +658,23 @@ class DamRootViewSet(viewsets.ModelViewSet):
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
@@ -652,6 +686,34 @@ class DamRootViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+    @action(methods=['post'], detail=False, url_path='selected_delete/(?P<userId>[^/.]+)', url_name='set_order')
+    def set_order(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id_list', None)
+            print(id_list)
+            print("_______")
+            print(type(id_list))
+            print(1+'1')
+            if id_list:
+
+               for i in DamMedia.objects.filter(dam_id__in=id_list):
+                    i.delete()
+               DAM.objects.filter(id__in=id_list).delete()
+               context = {
+                   'message': 'Deleted Succesfully',
+                   'status': status.HTTP_204_NO_CONTENT,
+                   'errors': False,
+               }
+               return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context,status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 @permission_classes([IsAuthenticated])
@@ -691,7 +753,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
-        paginated_data = self.paginate_queryset(queryset.filter(job__user=user))
+        paginated_data = self.paginate_queryset(queryset.filter(job__user=user).annotate(Avg('job__id', distinct=True)))
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 

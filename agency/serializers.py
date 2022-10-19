@@ -110,7 +110,7 @@ class WorksFlowSerializer(serializers.ModelSerializer):
 
 
 class InviteMemberSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(write_only=True)
+    # email = serializers.EmailField(write_only=True)
     user_id = SerializerMethodField("get_user_id")
     user_name = SerializerMethodField("get_user_name")
     user_email = SerializerMethodField("get_user_email")
@@ -275,6 +275,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     files_name = SerializerMethodField("get_files_name")
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
+    is_favourite =  SerializerMethodField("get_is_favourite")
     class Meta:
         model = DamMedia
         fields = '__all__'
@@ -300,6 +301,12 @@ class DamMediaSerializer(serializers.ModelSerializer):
             if obj.dam.agency is not None:
                 return obj.dam.agency.get_full_name()
         return ''
+
+    def get_is_favourite(self,obj):
+        if obj.dam is not None:
+                return obj.dam.is_favourite
+        return False
+
 
 
 
@@ -417,9 +424,17 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
 
 class MyProjectSerializer(serializers.ModelSerializer):
     job = JobsWithAttachmentsSerializer(required=False)
+    applied_count = SerializerMethodField("get_applied_count")
     class Meta:
         model = JobApplied
         fields = '__all__'
+
+    def get_applied_count(self,obj):
+        if obj.status is not None:
+            return JobApplied.objects.filter(job=obj.job,status=obj.status).count()
+        return None
+
+
 
 
 
