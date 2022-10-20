@@ -590,19 +590,19 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        dam_files = request.FILES.getlist('dam_files')
-
+        dam_files = request.FILES.getlist('dam_files',None)
+        dam_name = request.POST.getlist('dam_files_name',None)
         if serializer.is_valid():
             if serializer.validated_data['type']==3:
-                for i in dam_files:
+                for index,i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3,parent=serializer.validated_data.get('parent',None)  ,agency=serializer.validated_data['agency'])
-                    DamMedia.objects.create(dam=dam_id, media=i)
+                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
             else:
                 self.perform_create(serializer)
                 dam_id = DAM.objects.latest('id')
-                for i in dam_files:
-                    DamMedia.objects.create(dam=dam_id, media=i)
+                for index,i in enumerate(dam_files):
+                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
             context = {
                 'message': 'Media Uploaded Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -684,6 +684,36 @@ class DamRootViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
+@permission_classes([IsAuthenticated])
+class DamMediaViewSet(viewsets.ModelViewSet):
+    serializer_class = DamMediaSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['dam_id', 'title']
+    search_fields = ['=title']
+    http_method_names = ['put']
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
 
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):
@@ -702,7 +732,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.exclude(job=None)
     filter_backends = [DjangoFilterBackend,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']

@@ -97,7 +97,7 @@ class Skills(BaseModel):
         verbose_name_plural = 'Skills'
 
 
-# ---------------------- --------- old ---------------------------------------------#
+# -------------------------------- old ---------------------------------------------#
 '''
 class Company(BaseModel):
     name = models.CharField(max_length=50)
@@ -142,7 +142,7 @@ class Job(BaseModel):
                                  blank=True)
     workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
                                  null=True)
-    job_due_date = models.DateField(auto_now_add=True)
+    job_due_date = models.DateField(default=None,null=True, blank=True)
     due_date_index = models.IntegerField(null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
@@ -160,6 +160,10 @@ class Job(BaseModel):
             exist_job = exist_job.exclude(pk=self.id)
         if exist_job:
             raise ValidationError("Job Template With This Name Already Exist")
+
+    def save(self, *args, **kwargs):
+        self.job_due_date = self.expected_delivery_date
+        super(Job, self).save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f'{self.title}'

@@ -9,7 +9,6 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 import datetime as dt
 
-
 # Create your models here.
 
 class BaseModel(models.Model):
@@ -193,10 +192,16 @@ def fileLocation(instance, dam_media):
 class DamMedia(BaseModel):
     dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
+    title = models.CharField(max_length=300, default=None,null=True, blank=True)
+    description = models.CharField(max_length=2000, default=None,null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'DAM Media'
 
+    # def save(self, *args, **kwargs):
+    #     if self.media:
+    #         self.media = get_thumbnail(self.media, '500x600', quality=99)
+    #     super(DamMedia, self).save(*args, **kwargs)
 
 
 # -------------------------------------- testing -----------------------------------------#

@@ -30,7 +30,7 @@ import os
 from django.core.exceptions import ValidationError
 from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter,OrderingFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages,InviteMember
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer,InviteMemberSerializer
@@ -357,7 +357,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_update(serializer)
-                JobApplied.objects.filter(job=instance).update(is_modified=1)
+                JobApplied.objects.filter(job=instance).update(is_modified=True)
                 if remove_image_ids:
                     for id in remove_image_ids:
                         JobAttachments.objects.filter(id=id).delete()
@@ -908,6 +908,11 @@ class JobDraftViewSet(viewsets.ModelViewSet):
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
+    ordering_fields = ['modified','created']
+    ordering =['modified','created']
+    filterset_fields = ['is_active','agency']
+    search_fields = ['=is_active','=agency']
 
 
 @permission_classes([IsAuthenticated])

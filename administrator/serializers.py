@@ -314,7 +314,9 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_applied_modified(self, obj):
         if obj:
-           applied = JobApplied.objects.filter(job=obj,user=self.context['request'].user,is_modified=True).first()
+            # obj.job_applied.filter(user=self.context['request'].user,is_modified=True,status=1):
+           # applied = JobApplied.objects.filter(job=obj,user=self.context['request'].user,is_modified=True).first()
+           applied =  obj.job_applied.filter(user=self.context['request'].user,is_modified=True,status=0)
            if applied:
                return True
            return False
