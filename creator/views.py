@@ -120,8 +120,8 @@ class MyJobsViewSet(viewsets.ModelViewSet):
     # serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False).exclude(status=1)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
-    ordering_fields = ['modified','job__job_due_date','job__created','job__modified']
-    ordering = ['job__job_due_date','job__created','job__modified','modified']
+    ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
+    ordering = ['job__job_due_date','job__created','job__modified','modified','created']
     filterset_fields = ['status','job__company']
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination

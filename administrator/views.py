@@ -560,8 +560,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         attachments = request.FILES.getlist('image')
         data = request.data
-        print("request_data")
-        print(data)
         if serializer.is_valid():
                 attachment_error = validate_attachment(attachments)
                 if attachment_error != 0:

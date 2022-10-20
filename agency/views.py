@@ -25,6 +25,7 @@ from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
 from django.db.models import Count
+from django.db.models import Subquery
 import base64
 
 
@@ -703,8 +704,8 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
     filter_backends = [DjangoFilterBackend,SearchFilter]
-    # ordering_fields = ['modified','job__job_due_date','job__created','job__modified']
-    # ordering = ['job__job_due_date','job__created','job__modified','modified']
+    ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
+    ordering = ['job__job_due_date','job__created','job__modified','modified','created']
     filterset_fields = ['status','job__company']
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
@@ -716,7 +717,14 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
         ordering = request.GET.get('ordering',None)
-        paginated_data = self.paginate_queryset(queryset.filter(job__user=user).order_by('job_id',ordering).distinct('job_id'))
+        filter_data =queryset.filter(
+            pk__in=Subquery(
+                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
+            )
+        ).order_by(ordering)
+
+        # paginated_data = self.paginate_queryset(queryset.filter(job__user=user).distinct('job_id', order_by=(ordering)).order_by(ordering))
+        paginated_data = self.paginate_queryset(filter_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 
