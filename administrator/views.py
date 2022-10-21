@@ -68,7 +68,7 @@ class ProfileEdit(APIView):
 
     def get(self, request, *args, **kwargs):
         queryset = CustomUser.objects.filter(email=self.request.user.email, is_trashed=False)
-        serializer = EditProfileSerializer(queryset, many=True)
+        serializer = EditProfileSerializer(queryset, many=True,context={'request':request})
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
@@ -1567,7 +1567,7 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
     queryset = InviteMember.objects.all().exclude(user=None).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     # pagination_class = FiveRecordsPagination
-    filterset_fields = ['agency', 'user']
+    filterset_fields = ['agency', 'user', 'company']
     search_fields = ['=agency', '=user']
     http_method_names = ['get']
 

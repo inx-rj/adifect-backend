@@ -76,7 +76,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_data = self.queryset.filter(user=request.user.id).order_by("-modified")
+        job_data = self.queryset.filter(user=request.user.id,is_active=True).order_by("-modified")
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)

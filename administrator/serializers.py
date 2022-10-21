@@ -21,11 +21,12 @@ class userPortfolioSerializer(serializers.ModelSerializer):
 
 
 class EditProfileSerializer(serializers.ModelSerializer):
+    Portfolio_user = userPortfolioSerializer(many=True,required=False)
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id','availability']
+                  'preferred_communication_id','availability','Portfolio_user']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -187,6 +188,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     hired_users = SerializerMethodField("hired_users_list")
     job_applied_modified =  SerializerMethodField("get_applied_modified")
     is_expire =  SerializerMethodField("get_is_expire")
+    flag = SerializerMethodField("flag_list")
 
     class Meta:
         model = Job
@@ -329,6 +331,16 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
                 return True
             return False
        return False
+    
+
+    def flag_list(self, obj):
+        request = self.context.get('request')
+        if obj.job_due_date is not None:
+            if obj.job_due_date<dt.datetime.today().date():
+                return "time up"
+            else:
+                return ""
+        return False
 
 
 #

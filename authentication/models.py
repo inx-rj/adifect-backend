@@ -72,7 +72,7 @@ class CustomUser(AbstractUser):
 
 
 class CustomUserPortfolio(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,blank=True, null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Portfolio_user",blank=True, null=True)
     portfolio_images = models.FileField(upload_to='user_portfolio', blank=True, null=True)
 
     def save(self, *args, **kwargs):

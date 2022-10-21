@@ -76,6 +76,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         elif obj.job_type == '1':
             return 'Hourly'
 
+
  
     
 class PublicJobViewSerializer(serializers.ModelSerializer):
