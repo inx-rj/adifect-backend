@@ -641,15 +641,10 @@ class DAMViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False, url_path='selected_delete', url_name='selected_delete')
     def delete_multiple(self, request, *args, **kwargs):
         try:
-            print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
-            print(order_list)
             if order_list:
-                print(order_list)
                 for i in DamMedia.objects.filter(dam_id__in=order_list):
-                    print(i)
-                    print("llllllllllllllllllllllllll")
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -670,7 +665,6 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        print(instance)
         for i in DamMedia.objects.filter(dam_id=instance.id):
             i.delete()
         self.perform_destroy(instance)
@@ -684,9 +678,8 @@ class DAMViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
     def create_collection(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        # instance = self.get_object()
         serializer = self.get_serializer(data=request.data, partial=partial)
-        images = request.data.getlist('dam_images', None)
+        images = request.data.get('dam_images', None)
         data = images.split(",")
         dam_files = request.FILES.getlist('dam_files',None)
         dam_name = request.POST.getlist('dam_files_name',None)
