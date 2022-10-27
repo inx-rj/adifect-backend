@@ -103,10 +103,10 @@ class WorksFlow(BaseModel):
 class AgencyLevel(BaseModel):
     class Agency_Levels(models.IntegerChoices):
         Agency_admin = 1
-        Marketer = 2
-        Approver = 3
+        Agency_Marketer = 2
+        Agency_Approver = 3
 
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='agency_level')
+    user = models.ForeignKey(CustomUser,related_name='agency_level',on_delete=models.SET_NULL, null=True, blank=True)
     levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
     is_active = models.BooleanField(default=True)
 
@@ -166,16 +166,6 @@ class DAM(BaseModel):
     class Meta:
         verbose_name_plural = 'DAM'
 
-    # def save(self, *args, **kwargs):
-    #     if self.type == 2:
-    #         self.name = str(self.agency.username)+f'-{dt.datetime.now()}'
-    #     super(DAM, self).save(*args, **kwargs)
-
-    # def __str__(self):
-    #     if self.parent is not None:
-    #         return self.parent.name + "/" + self.name
-    #     else:
-    #         return self.name
 
 
 def fileLocation(instance, dam_media):
@@ -198,10 +188,6 @@ class DamMedia(BaseModel):
     class Meta:
         verbose_name_plural = 'DAM Media'
 
-    # def save(self, *args, **kwargs):
-    #     if self.media:
-    #         self.media = get_thumbnail(self.media, '500x600', quality=99)
-    #     super(DamMedia, self).save(*args, **kwargs)
 
 
 # -------------------------------------- testing -----------------------------------------#

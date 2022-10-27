@@ -22,11 +22,12 @@ class userPortfolioSerializer(serializers.ModelSerializer):
 
 class EditProfileSerializer(serializers.ModelSerializer):
     Portfolio_user = userPortfolioSerializer(many=True,required=False)
+    user_level = SerializerMethodField("get_user_level")
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id','availability','Portfolio_user']
+                  'preferred_communication_id','availability','Portfolio_user','user_level']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -38,6 +39,12 @@ class EditProfileSerializer(serializers.ModelSerializer):
         super(EditProfileSerializer, self).__init__(*args, **kwargs)
         self.fields['profile_img'].error_messages['invalid_image'] = u'Unsupported file extension....'
 
+    def get_user_level(self, obj):
+        agency_level = False
+        if obj.agency_level.all():
+            agency_level = list(obj.agency_level.values_list('levels', flat=True))[0]
+        return agency_level
+
     def to_representation(self, instance):
         response = super().to_representation(instance)
         data = CustomUserPortfolio.objects.filter(user_id=instance.id).values()
@@ -47,17 +54,17 @@ class EditProfileSerializer(serializers.ModelSerializer):
 
 class UserListSerializer(serializers.ModelSerializer):
     user_rating = SerializerMethodField("get_user_rating")
-    agency_company = SerializerMethodField("get_company_list")
+    # agency_company = SerializerMethodField("get_company_list")
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating", "agency_company"]
+        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating"]
 
     def get_user_rating(self,obj):
         return obj.skills_user.all().values('skill_rating')
 
-    def get_company_list(self, obj):
-        return obj.company_agency.all().values()
+    # def get_company_list(self, obj):
+    #     return obj.company_agency.all().values()
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:

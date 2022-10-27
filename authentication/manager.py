@@ -38,10 +38,28 @@ class IsAgency(permissions.BasePermission):
 
 
 class IsCreator(permissions.BasePermission):
-
     def has_permission(self, request, view):
         if request.user.is_authenticated:
             if request.user.role == 1:
+                return True
+
+class IsAdminMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            print(request.user.agency_level.filter(levels=1))
+            if request.user.role == 3 and request.user.agency_level.filter(levels=1):
+                return True
+
+class IsMarketerMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            if request.user.role == 3 and request.user.agency_level.filter(levels=2):
+                return True
+
+class IsApproverMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            if request.user.role == 3 and request.user.agency_level.filter(levels=3):
                 return True
 
 

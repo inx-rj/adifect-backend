@@ -190,11 +190,18 @@ class LoginView(GenericAPIView):
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
         useremail = user.email
+        # user_level
+        agency_level = False
+        if user.agency_level.all():
+            agency_level = list(user.agency_level.values_list('levels', flat=True))[0]
+
+
 
         token = get_tokens_for_user(user)
         response = Response(status=status.HTTP_200_OK)
 
         # Set Token Cookie
+
 
         response.set_cookie(key='token', value=token, httponly=True)
         cache.set('token', token, 60)
@@ -206,7 +213,8 @@ class LoginView(GenericAPIView):
                 'email': useremail,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'role': user.role
+                'role': user.role,
+                'user_level':agency_level
             },
             'token': token['access'],
             'refresh': token['refresh']

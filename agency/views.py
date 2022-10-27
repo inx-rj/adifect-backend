@@ -41,7 +41,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['is_active']
+    filterset_fields = ['is_active', 'agency']
     search_fields = ['=is_active']
 
     def get_queryset(self):
@@ -74,9 +74,12 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     queryset = Job.objects.filter(is_trashed=False).exclude(status=0)
     pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company', '=name']
 
     def list(self, request, *args, **kwargs):
-        job_data = self.queryset.filter(user=request.user.id,is_active=True).order_by("-modified")
+        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user.id,is_active=True).order_by("-modified")
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -312,9 +315,12 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = InviteMember.objects.filter(agency=request.user, is_trashed=False, user__isnull=False).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False, user__isnull=False).order_by('-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -345,8 +351,9 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 exclusive_decode = StringEncoder.encode(self, 0)
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__user__email=email, agency=agency, is_trashed=False,
-                                                 company=company).first()
+            invite = InviteMember.objects.filter(user__user__email=email, agency=agency,company=company).first()
+            if not invite:
+                invite =  InviteMember.objects.filter(email=email,agency=agency,company=company).first()
             if not user:
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
@@ -633,10 +640,15 @@ class DAMViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False, url_path='selected_delete', url_name='selected_delete')
     def delete_multiple(self, request, *args, **kwargs):
         try:
+            print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
+            print(order_list)
             if order_list:
+                print(order_list)
                 for i in DamMedia.objects.filter(dam_id__in=order_list):
+                    print(i)
+                    print("llllllllllllllllllllllllll")
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -657,6 +669,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        print(instance)
         for i in DamMedia.objects.filter(dam_id=instance.id):
             i.delete()
         self.perform_destroy(instance)
@@ -666,6 +679,38 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+    @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
+    def create_collection(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        # instance = self.get_object()
+        serializer = self.get_serializer(data=request.data, partial=partial)
+        images = request.data.getlist('dam_images', None)
+
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            dam_id = DAM.objects.latest('id')
+            for i in images:
+                print(i)
+                print("hellooooooooooooooooooooooooo")
+                dam_inital = DamMedia.objects.get(id=i)
+                print(dam_inital.media)
+
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media)
+                dam_inital.delete()
+
+
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
@@ -689,9 +734,28 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['dam_id', 'title']
+    filterset_fields = ['dam_id', 'title','id']
     search_fields = ['=title']
-    http_method_names = ['put']
+    http_method_names = ['get','put','delete']
+
+    @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
+    def delete_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = DamMedia.objects.filter(id__in=order_list)
+                serializer_data = self.serializer_class(data,many=True,context={'request':request})
+                return Response(serializer_data.data)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -709,7 +773,6 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 

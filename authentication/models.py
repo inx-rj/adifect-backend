@@ -31,7 +31,7 @@ def validate_video_extension(value):
 
 
 class CustomUser(AbstractUser):
-    ROLES = ((0, 'Admin'), (1, 'Creator'), (2, 'Agency'))
+    ROLES = ((0, 'Admin'), (1, 'Creator'), (2, 'Agency'),(3,'Member'))
 
     role = models.IntegerField(choices=ROLES, default=1)
     forget_password_token = models.TextField(null=True, blank=True)
@@ -75,15 +75,15 @@ class CustomUserPortfolio(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Portfolio_user",blank=True, null=True)
     portfolio_images = models.FileField(upload_to='user_portfolio', blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        try:
-            this = CustomUserPortfolio.objects.get(id=self.id)
-            if this.portfolio_images != self.portfolio_images:
-                this.portfolio_images.delete()
+    # def save(self, *args, **kwargs):
+    #     try:
+    #         this = CustomUserPortfolio.objects.get(id=self.id)
+    #         if this.portfolio_images != self.portfolio_images:
+    #             this.portfolio_images.delete()
 
-        except:
-            pass
-        super(CustomUserPortfolio, self).save(*args, **kwargs)
+    #     except:
+    #         pass
+    #     super(CustomUserPortfolio, self).save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.user.first_name

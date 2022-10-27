@@ -39,7 +39,7 @@ from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
-from authentication.manager import IsAdmin
+from authentication.manager import IsAdmin,IsAdminMember
 import datetime as dt
 # Create your views here.
 
@@ -65,11 +65,16 @@ def validate_attachment(attachments):
 @permission_classes([IsAuthenticated])
 class ProfileEdit(APIView):
     serializer_class = EditProfileSerializer
+    # pagination_class = FiveRecordsPagination
+
 
     def get(self, request, *args, **kwargs):
         queryset = CustomUser.objects.filter(email=self.request.user.email, is_trashed=False)
         serializer = EditProfileSerializer(queryset, many=True,context={'request':request})
         return Response(serializer.data)
+        # paginated_data = FiveRecordsPagination(queryset)
+        # serializer = EditProfileSerializer(paginated_data, many=True,context={'request':request})
+        # return self.get_paginated_response(data=serializer.data)
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -226,7 +231,7 @@ class UserListViewSet(viewsets.ModelViewSet):
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.filter()
+    queryset = Job.objects.all()
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
 
@@ -907,7 +912,7 @@ class JobDraftViewSet(viewsets.ModelViewSet):
 
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
-    queryset = Company.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['modified','created']
     ordering =['modified','created']
@@ -1462,7 +1467,8 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class UserSkillsViewSet(viewsets.ModelViewSet):
     serializer_class = UserSkillsSerializer
-    queryset = UserSkills.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = UserSkills.objects.all().order_by('-modified')
+    
 
 
 
@@ -1484,7 +1490,7 @@ class JobInviteViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAdmin])
 class AgencyListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
-    queryset = CustomUser.objects.all().order_by('date_joined')
+    queryset = CustomUser.objects.all().order_by('-date_joined')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['id', 'username', 'first_name']
     search_fields = ['=username', '=first_name']
