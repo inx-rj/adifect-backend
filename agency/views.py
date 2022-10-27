@@ -687,18 +687,22 @@ class DAMViewSet(viewsets.ModelViewSet):
         # instance = self.get_object()
         serializer = self.get_serializer(data=request.data, partial=partial)
         images = request.data.getlist('dam_images', None)
+        data = images.split(",")
+        dam_files = request.FILES.getlist('dam_files',None)
+        dam_name = request.POST.getlist('dam_files_name',None)
+
 
         if serializer.is_valid():
             self.perform_create(serializer)
             dam_id = DAM.objects.latest('id')
-            for i in images:
-                print(i)
-                print("hellooooooooooooooooooooooooo")
+            for i in data:
                 dam_inital = DamMedia.objects.get(id=i)
-                print(dam_inital.media)
 
-                DamMedia.objects.create(dam=dam_id, media=dam_inital.media)
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title, description=dam_inital.description)
                 dam_inital.delete()
+                if dam_files:
+                    for index,i in enumerate(dam_files):
+                       DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
 
 
             context = {

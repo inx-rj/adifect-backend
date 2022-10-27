@@ -7,7 +7,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobFilterSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
-    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer,JobActivityChatSerializer
+    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer,JobActivityChatSerializer,UserPortfolioSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -1468,6 +1468,28 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
 class UserSkillsViewSet(viewsets.ModelViewSet):
     serializer_class = UserSkillsSerializer
     queryset = UserSkills.objects.all().order_by('-modified')
+
+    def create(self, request, *args, **kwargs):
+        # serializer.is_valid(raise_exception=True)
+        skills = request.data.getlist('skills')
+        user = request.data.get('user', None)
+        context = {}
+        if user:
+            UserSkills.objects.filter(user_id=user).delete()
+            for i in skills:
+                UserSkills.objects.create(user_id=user, skills=i)
+            context = {
+                'message': 'skills Added Successfully',
+                'status': status.HTTP_201_CREATED,
+                'error': False
+            }
+        else:
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_201_CREATED,
+                'error': True
+            }
+        return Response(context)
     
 
 
@@ -1521,7 +1543,7 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
         job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
-        job_id = JobApplied.objects.filter(is_trashed=False).values_list('job_id', flat=True)
+        job_id = job_data.values_list('id', flat=True)
         applied = JobApplied.objects.filter(job_id__in=list(job_id), status=2).count()
         # return self.get_paginated_response(data=serializer.data)
         Context = {
@@ -1642,6 +1664,15 @@ class CreatorJobListViewSet(viewsets.ModelViewSet):
         }
         return self.get_paginated_response(Context)
 
+
+class UserPortfolioViewset(viewsets.ModelViewSet):
+    serializer_class = UserPortfolioSerializer
+    queryset = CustomUserPortfolio.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = FiveRecordsPagination
+    filterset_fields = ['id', 'user']
+    search_fields = ['id', 'user']
+    http_method_names = ['get']
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
 

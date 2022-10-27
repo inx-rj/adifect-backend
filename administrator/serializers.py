@@ -688,7 +688,10 @@ class JobActivitySerializer(serializers.ModelSerializer):
         return ''
 
 #--------------------------------                        end             -------------------------------------------- #
-
+class UserPortfolioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUserPortfolio
+        fields = '__all__'
 
 
 class SearchFilterSerializer(serializers.Serializer):
