@@ -21,7 +21,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
-from .pagination import FiveRecordsPagination
+from .pagination import FiveRecordsPagination,FourRecordsPagination
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 import operator
@@ -913,7 +913,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['modified','created']
     ordering =['modified','created']
-    filterset_fields = ['is_active','agency']
+    filterset_fields = ['is_active','agency', 'is_blocked']
     search_fields = ['=is_active','=agency']
 
 
@@ -922,7 +922,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company']
+    filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
@@ -1465,16 +1465,18 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
 class UserSkillsViewSet(viewsets.ModelViewSet):
     serializer_class = UserSkillsSerializer
     queryset = UserSkills.objects.all().order_by('-modified')
+    filterset_fields = ['user']
+    search_fields = ['=user', ]
 
     def create(self, request, *args, **kwargs):
         # serializer.is_valid(raise_exception=True)
-        skills = request.data.getlist('skills')
+        skills = request.data.get('skills')
         user = request.data.get('user', None)
         context = {}
         if user:
             UserSkills.objects.filter(user_id=user).delete()
             for i in skills:
-                UserSkills.objects.create(user_id=user, skills=i)
+                UserSkills.objects.create(user_id=user, skills_id=i)
             context = {
                 'message': 'skills Added Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -1666,7 +1668,7 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
     serializer_class = UserPortfolioSerializer
     queryset = CustomUserPortfolio.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    pagination_class = FiveRecordsPagination
+    pagination_class = FourRecordsPagination
     filterset_fields = ['id', 'user']
     search_fields = ['id', 'user']
     http_method_names = ['get']
@@ -1687,6 +1689,32 @@ class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = MyProjectSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+
+
+
+class AdminCompanyBlock(APIView):
+    def post(self, request, args, *kwargs):
+        company_id = request.data.get('company_id', None)
+        context={}
+        if company_id:
+            company = Company.objects.filter(id=company_id).update(is_blocked=True)
+            job = Job.objects.filter(company=company_id).update(is_blocked=True)
+            workflow = WorksFlow.objects.filter(company=company_id).update(is_blocked=True)
+            if company:
+                context = {'message':'Blocked Successfully',
+                           'error':False,
+                           'status':status.HTTP_200_OK
+                }
+                return Response(context,status=status.HTTP_200_OK)
+
+
+        else:
+            context = {'message': 'Something Went Wrong',
+                       'error': True,
+                       'status': status.HTTP_400_BAD_REQUEST
+                       }
+        return Response(context)
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
 

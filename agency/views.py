@@ -582,24 +582,34 @@ class StageViewSet(viewsets.ModelViewSet):
 
 
 def copy_media_logic(id,parent_id=None):
-    try:
+    # try:
         if id:
             dam_old = DAM.objects.filter(pk=id).first()
+            print("hit folder")
             dam_old.pk = None
             dam_old.parent_id = parent_id
             dam_new = dam_old.save()
             new_id = None
-            for i in DamMedia.objects.filter(dam_id=id):
-                i.pk = None
-                i.dam = dam_new
-                i.save()
-                new_id = i.id
-            for j in DAM.objects.filter(parent=id):
-                return copy_media_logic(j.id, new_id)
+            print(id)
+            for j in DAM.objects.filter(parent=id,type=3):
+                for i in DamMedia.objects.filter(dam=j):
+                    print("image")
+                    i.pk = None
+                    i.dam = dam_new
+                    i.save()
+            for k in  DAM.objects.filter(parent=id,type=2):
+                print("collection")
+                for i in DamMedia.objects.filter(dam=k):
+                    i.pk = None
+                    i.dam = dam_new
+                    i.save()
+            for l in DAM.objects.filter(parent=id,type=1):
+                print("folder babes")
+                return copy_media_logic(l.id, dam_new.id)
             return True
-    except Exception as e:
-        print(e)
-        return False
+    # except Exception as e:
+    #     print(e)
+    #     return False
 
 
 
@@ -690,7 +700,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=False, url_path='copy-media', url_name='copy_media')
     def copy_media(self, request, *args, **kwargs):
-        try:
+        # try:
             id = request.data.get('id', None)
             parent_id = request.data.get('id', None)
             if id :
@@ -707,8 +717,8 @@ class DAMViewSet(viewsets.ModelViewSet):
                 'errors': True,
             }
             return Response(context, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        # except Exception as e:
+        #     return Response(status=status.HTTP_404_NOT_FOUND)
 
 
     def destroy(self, request, *args, **kwargs):
@@ -822,7 +832,22 @@ class DamMediaViewSet(viewsets.ModelViewSet):
 
 
 
+@permission_classes([IsAuthenticated])
+class DamDuplicateViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['id','parent','type']
+    search_fields = ['=name']
+    http_method_names = ['get']
 
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
+        # queryset = queryset.filter(agency=user)
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):

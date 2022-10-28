@@ -12,6 +12,7 @@ router.register(r'works-flow-stages', views.StageViewSet, basename='works_flow_s
 router.register(r'dam', views.DAMViewSet, basename='dam')
 router.register(r'dam-root', views.DamRootViewSet, basename='dam_root')
 router.register(r'dam-media', views.DamMediaViewSet, basename='dam_media')
+router.register(r'dam-duplicate', views.DamDuplicateViewSet, basename='dam_duplicate')
 router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 router.register(r'test-api', views.TestModalViewSet, basename='test_api')
 router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')

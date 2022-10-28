@@ -416,4 +416,4 @@ class UserSkills(BaseModel):
         )
 
     def __str__(self) -> str:
-        return f'{self.skills.skill_name}'
+        return f'{self.skills.skill_name if self.skills is not None else "" }'

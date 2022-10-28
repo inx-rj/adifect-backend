@@ -8,6 +8,10 @@ from django.db.models import Q
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 import datetime as dt
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from io import BytesIO
+from PIL import Image
+import sys
 
 # Create your models here.
 
@@ -184,11 +188,29 @@ def fileLocation(instance, dam_media):
 class DamMedia(BaseModel):
     dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
+    thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
     title = models.CharField(max_length=300, default=None,null=True, blank=True)
     description = models.CharField(max_length=2000, default=None,null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'DAM Media'
+    
+    def save(self, **kwargs):
+        output_size = (250, 250)
+        output_thumb = BytesIO()
+
+        img = Image.open(self.media)
+        img_name = self.media.name.split('.')[0]
+        img_type = self.media.name.split('.')[-1]
+
+
+        img.thumbnail(output_size)
+        img.save(output_thumb,format=img_type,quality=90)
+
+        self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg', sys.getsizeof(output_thumb), None)
+
+        super(DamMedia, self).save()
+
 
 
 
