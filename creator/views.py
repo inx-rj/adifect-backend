@@ -22,7 +22,7 @@ import datetime as dt
 @permission_classes([IsAuthenticated])
 class LatestsJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
-    queryset = Job.objects.filter(is_trashed=False)
+    queryset = Job.objects.filter(is_trashed=False, is_blocked=False)
 
     def list(self, request, *args, **kwargs):
         job_data = self.queryset.filter(user=request.user.id)
@@ -40,7 +40,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 class CreatorJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.filter(is_trashed=False)
+    queryset = Job.objects.filter(is_trashed=False, is_blocked=False)
 
     def retrieve(self, request, pk=None):
         id = pk
@@ -117,7 +117,7 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MyJobsViewSet(viewsets.ModelViewSet):
     # serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False).exclude(status=1).exclude(job=None)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__is_blocked=False).exclude(status=1).exclude(job=None)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']
@@ -131,7 +131,7 @@ class MyJobsViewSet(viewsets.ModelViewSet):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
         job_applied_data = queryset.filter(user=user).values_list('job_id',flat=True)
-        latest_job = Job.objects.filter(id__in=list(job_applied_data))
+        latest_job = Job.objects.filter(id__in=list(job_applied_data), is_blocked=False)
         latest_job = sorted(latest_job, key=lambda i: list(job_applied_data).index(i.pk))
         paginated_data = self.paginate_queryset(latest_job)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -140,7 +140,7 @@ class MyJobsViewSet(viewsets.ModelViewSet):
 
 class PublicJobViewApi(viewsets.ModelViewSet):
     serializer_class = PublicJobViewSerializer
-    queryset = Job.objects.filter(is_trashed=False)
+    queryset = Job.objects.filter(is_trashed=False, is_blocked=False)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     filterset_fields = ['id']
     ordering_fields = ['created', 'modified']
@@ -155,7 +155,7 @@ class PublicJobViewApi(viewsets.ModelViewSet):
 class MyProjectAllJob(APIView):
 
     def get(self, request, *args, **kwargs):
-        queryset = JobApplied.objects.filter(is_trashed=False,user=request.user).exclude(status=1)
+        queryset = JobApplied.objects.filter(is_trashed=False,user=request.user, job__is_blocked=False).exclude(status=1)
         job_list = []
         applied = queryset.filter(status=0).first()
         if applied is not None:
@@ -180,7 +180,7 @@ class MyProjectAllJob(APIView):
 
 @permission_classes([IsAuthenticated])
 class AvailableJobs(viewsets.ModelViewSet):
-    queryset = Job.objects.exclude(status=0).exclude(is_active=0)
+    queryset = Job.objects.filter(is_blocked=False).exclude(status=0).exclude(is_active=0)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created','modified']
@@ -204,7 +204,7 @@ class CreatorCompanyList(APIView):
     def get(self, request, *args, **kwargs):
             job_applied = JobApplied.objects.filter(user=request.user).exclude(status=1).values_list('job_id',
                                                                                                   flat=True)
-            jobs = Job.objects.filter(id__in=list(job_applied),company__is_trashed=False).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gte=1)
+            jobs = Job.objects.filter(id__in=list(job_applied),company__is_trashed=False, is_blocked=False).values('company','company__name').annotate(company_count=Count('company')).filter(company_count__gte=1)
             context = {
                 'message': 'company list',
                 'status': status.HTTP_200_OK,

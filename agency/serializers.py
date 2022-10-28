@@ -344,7 +344,7 @@ def re_order(sentence):
 
 class DamWithMediaRootSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
-    location = SerializerMethodField("get_location")
+    # location = SerializerMethodField("get_location")
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
@@ -364,11 +364,11 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
             return obj.parent_id
         else:
             return obj.id
-
-    def get_location(self, obj):
-        if obj:
-            return re_order(recursor(obj, 0))
-        return ''
+    #
+    # def get_location(self, obj):
+    #     if obj:
+    #         return re_order(recursor(obj, 0))
+    #     return ''
 
     def get_is_parent(self, obj):
         if obj.parent is not None:
@@ -381,7 +381,7 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
 
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
-    location = SerializerMethodField("get_location")
+    # location = SerializerMethodField("get_location")
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
@@ -395,10 +395,10 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
             return obj.parent_id
         else:
             return False
-    def get_location(self, obj):
-        if obj:
-            return re_order(recursor(obj, 0))
-        return ''
+    # def get_location(self, obj):
+    #     if obj:
+    #         return re_order(recursor(obj, 0))
+    #     return ''
 
     def get_is_parent(self, obj):
         if obj.parent is not None:

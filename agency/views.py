@@ -41,7 +41,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['is_active', 'agency']
+    filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['=is_active']
 
     def get_queryset(self):
@@ -170,7 +170,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company']
+    filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
@@ -580,6 +580,31 @@ class StageViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
 
+
+def copy_media_logic(id,parent_id=None):
+    try:
+        if id:
+            dam_old = DAM.objects.filter(pk=id).first()
+            dam_old.pk = None
+            dam_old.parent_id = parent_id
+            dam_new = dam_old.save()
+            new_id = None
+            for i in DamMedia.objects.filter(dam_id=id):
+                i.pk = None
+                i.dam = dam_new
+                i.save()
+                new_id = i.id
+            for j in DAM.objects.filter(parent=id):
+                return copy_media_logic(j.id, new_id)
+            return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+
+
+
 @permission_classes([IsAuthenticated])
 class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -663,6 +688,29 @@ class DAMViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
+    @action(methods=['post'], detail=False, url_path='copy-media', url_name='copy_media')
+    def copy_media(self, request, *args, **kwargs):
+        try:
+            id = request.data.get('id', None)
+            parent_id = request.data.get('id', None)
+            if id :
+                if copy_media_logic(id,parent_id):
+                    context = {
+                        'message': 'Copied',
+                        'status': status.HTTP_200_OK,
+                        'errors': False,
+                    }
+                    return Response(context)
+            context = {
+                'message': 'There Are Some Issue while Copy',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
@@ -681,8 +729,8 @@ class DAMViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data, partial=partial)
         images = request.data.get('dam_images', None)
         data = images.split(",")
-        dam_files = request.FILES.getlist('dam_files',None)
-        dam_name = request.POST.getlist('dam_files_name',None)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
 
 
         if serializer.is_valid():
@@ -695,7 +743,7 @@ class DAMViewSet(viewsets.ModelViewSet):
                 dam_inital.delete()
                 if dam_files:
                     for index,i in enumerate(dam_files):
-                       DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+                        DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
 
 
             context = {

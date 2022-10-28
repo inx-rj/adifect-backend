@@ -689,9 +689,15 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
 #--------------------------------                        end             -------------------------------------------- #
 class UserPortfolioSerializer(serializers.ModelSerializer):
+    portfolio_name = serializers.SerializerMethodField("get_portfolio_name")
     class Meta:
         model = CustomUserPortfolio
         fields = '__all__'
+
+    def get_portfolio_name(self, obj):
+        if obj.portfolio_images is not None:
+            return str(obj.portfolio_images.name).split('/')[-1]
+        return ''
 
 
 class SearchFilterSerializer(serializers.Serializer):

@@ -33,13 +33,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter,OrderingFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages,InviteMember
-from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer,InviteMemberSerializer
+from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer,InviteMemberSerializer,MyProjectSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
-from authentication.manager import IsAdmin,IsAdminMember
+from authentication.manager import IsAdmin,IsAdminMember,IsApproverMember
 import datetime as dt
 # Create your views here.
 
@@ -173,12 +173,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
 #     serializer_class = IndustrySerializer
 #     queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
 
-
+@permission_classes([IsAdmin | IsApproverMember])
 class LevelViewSet(viewsets.ModelViewSet):
     serializer_class = LevelSerializer
     queryset = Level.objects.filter(is_trashed=False).order_by('-modified')
 
-
+@permission_classes([IsAuthenticated])
 class SkillsViewSet(viewsets.ModelViewSet):
     serializer_class = SkillsSerializer
     queryset = Skills.objects.filter(is_trashed=False).order_by('-modified')
@@ -584,7 +584,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
-
                 status_job = serializer.validated_data.get('status', None)
                 test_status = None
                 if not status_job:
@@ -597,8 +596,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     test_status = JobActivity.Type.Reject
                 if test_status:
                     JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
-
-                
                 proposed_price = request.data.get('proposed_price', None)
                 proposed_due_date = request.data.get('proposed_due_date', None)
                 color = 'color:#ff3333;'
@@ -1524,7 +1521,7 @@ class AgencyListViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
-# @permission_classes([IsAdmin])
+@permission_classes([IsAdmin])
 class AgencyJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
@@ -1673,6 +1670,23 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
     filterset_fields = ['id', 'user']
     search_fields = ['id', 'user']
     http_method_names = ['get']
+
+
+class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
+    serializer_class = MyProjectSerializer
+    queryset = JobApplied.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified']
+    ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified']
+    filterset_fields = ['status', 'job__company','job__user']
+    search_fields = ['=status', ]
+    pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = MyProjectSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 # -------------------------------------------- for testing purpose ----------------------------------------------------#
 

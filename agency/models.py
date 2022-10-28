@@ -61,6 +61,7 @@ class Company(BaseModel):
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='company_agency', blank=True,
                                null=True)
     is_active = models.BooleanField(default=True)
+    is_blocked = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'Company'
@@ -84,6 +85,7 @@ class WorksFlow(BaseModel):
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='workflow_company', blank=True,
                                 null=True)
     is_active = models.BooleanField(default=True)
+    is_blocked = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = 'WorksFlow'
