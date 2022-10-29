@@ -1,3 +1,4 @@
+from email.policy import default
 from django.db import models
 from autoslug import AutoSlugField
 from authentication.models import CustomUser
@@ -133,6 +134,7 @@ class InviteMember(BaseModel):
     email = models.EmailField(max_length=254,default=None,null=True,blank=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
                                 blank=True)
+    is_blocked = models.BooleanField(default=False)                            
     class Meta:
         verbose_name_plural = 'Invite Members'
 

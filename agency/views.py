@@ -545,7 +545,7 @@ class InviteMemberUserList(APIView):
         company_id = kwargs.get('company_id', None)
         agency = request.user
         if agency.is_authenticated:
-            invited_user = InviteMember.objects.filter(agency=agency, is_trashed=False, status=1, user__isnull=False)
+            invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1, user__isnull=False)
             if company_id:
                 invited_user = invited_user.filter(company_id=company_id)
             serializer = self.serializer_class(invited_user, many=True, context={'request': request})
@@ -698,28 +698,54 @@ class DAMViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-    @action(methods=['post'], detail=False, url_path='copy-media', url_name='copy_media')
-    def copy_media(self, request, *args, **kwargs):
-        # try:
-            id = request.data.get('id', None)
-            parent_id = request.data.get('id', None)
-            if id :
-                if copy_media_logic(id,parent_id):
-                    context = {
-                        'message': 'Copied',
-                        'status': status.HTTP_200_OK,
-                        'errors': False,
-                    }
-                    return Response(context)
-            context = {
-                'message': 'There Are Some Issue while Copy',
-                'status': status.HTTP_400_BAD_REQUEST,
-                'errors': True,
-            }
-            return Response(context, status=status.HTTP_404_NOT_FOUND)
-        # except Exception as e:
-        #     return Response(status=status.HTTP_404_NOT_FOUND)
+    @action(methods=['post'], detail=False, url_path='copy_to', url_name='copy_to')
+    def copy_to(self, request, *args, **kwargs):
+        # partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data)
+        # folder = request.data.get('image', None)
+        # data = request.data
 
+        if serializer.is_valid():
+            print(serializer.validated_data.get('id'))
+            dam_inital = DamMedia.objects.filter(id=serializer.validated_data.get('id')).first()
+            print(1+'1')
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            # if data['target'] == '1':
+            #     dam_inital = DamMedia.objects.get(id=folder)
+            #     dam_id = DAM.objects.create(type=serializer.validated_data.get('type', None),parent=serializer.validated_data.get('parent', None),
+            #                                 agency=serializer.validated_data['agency'])
+            #     DamMedia.objects.create(dam=dam_id, media=dam_inital.media)
+
+            #     context = {
+            #         'message': 'Media Uploaded Successfully',
+            #         'status': status.HTTP_201_CREATED,
+            #         'errors': serializer.errors,
+            #         'data': serializer.data,
+            #     }
+
+            #     return Response(context)
+
+            # if data['target'] == '2':
+            #     dam_id = data['get_dam']
+            #     dam_inital = DamMedia.objects.get(id=folder)
+            #     DamMedia.objects.create(dam_id=dam_id, media=dam_inital.media)
+
+            #     context = {
+            #         'message': 'Media Uploaded Successfully',
+            #         'status': status.HTTP_201_CREATED,
+            #         'errors': serializer.errors,
+            #         'data': serializer.data,
+            #     }
+
+        #         return Response(context)
+        #     return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # else:
+        #     return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -844,7 +870,10 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
+        if request.GET.get('root'):
+             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent=None).order_by('-modified')
+        else:     
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)

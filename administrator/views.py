@@ -173,7 +173,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
 #     serializer_class = IndustrySerializer
 #     queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
 
-@permission_classes([IsAdmin | IsApproverMember])
+# @permission_classes([IsAdmin | IsApproverMember])
+@permission_classes([IsAuthenticated])
 class LevelViewSet(viewsets.ModelViewSet):
     serializer_class = LevelSerializer
     queryset = Level.objects.filter(is_trashed=False).order_by('-modified')
@@ -912,7 +913,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['modified','created']
-    ordering =['modified','created']
+    ordering =['-modified','created']
     filterset_fields = ['is_active','agency', 'is_blocked']
     search_fields = ['=is_active','=agency']
 
