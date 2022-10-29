@@ -41,6 +41,8 @@ from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERV
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from authentication.manager import IsAdmin,IsAdminMember,IsApproverMember
 import datetime as dt
+from django.db.models import Subquery
+
 # Create your views here.
 
 def get_tokens_for_user(user):
@@ -1544,7 +1546,7 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         job_id = job_data.values_list('id', flat=True)
-        applied = JobApplied.objects.filter(job_id__in=list(job_id), status=2).count()
+        applied = JobApplied.objects.filter(job_id__in=list(job_id),job__is_trashed=False, status=2).order_by('job_id').distinct('job_id').values_list('id',flat=True).count()
         # return self.get_paginated_response(data=serializer.data)
         Context = {
             'Total_Job_count': job_count,
@@ -1677,10 +1679,10 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
 
 class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
-    queryset = JobApplied.objects.all()
+    queryset = JobApplied.objects.filter(job__is_trashed=False)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
-    ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified']
-    ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified']
+    # ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified']
+    # ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified']
     filterset_fields = ['status', 'job__company','job__user']
     search_fields = ['=status', ]
     pagination_class = FiveRecordsPagination
@@ -1688,7 +1690,13 @@ class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        serializer = MyProjectSerializer(queryset, many=True, context={'request': request})
+        ordering = request.GET.get('ordering',None)
+        filter_data =queryset.filter(
+            pk__in=Subquery(
+                queryset.order_by('job_id').distinct('job_id').values('pk')
+            )
+        ).order_by(ordering)
+        serializer = MyProjectSerializer(filter_data, many=True, context={'request': request})
         return Response(data=serializer.data)
 
 

@@ -75,42 +75,46 @@ class SignUpView(APIView):
                     last_name=data['last_name'],
                     role=data['role']
                 )
+
                 user.set_password(data['password'])
-                email = serializer.validated_data['email']
-                from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To(email)
-                token = str(uuid.uuid4())
-                decodeId = StringEncoder.encode(self, user.id)
-                subject = "Confirm Email"
-                content = Content("text/html", f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
-                                               f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
-                                               f'600px; margin: 0 auto;" width="600" cellpadding="0" '
-                                               f'cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 '
-                                               f'0;"><div style="padding: 34px 44px; border-radius: 8px !important; '
-                                               f'background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; '
-                                               f'margin-top: 50px;"><div class="email-logo"><img style="width: 165px;" '
-                                               f'src="{LOGO_122_SERVER_PATH}" /></div><a href="#"></a><div '
-                                               f'class="welcome-text" style="padding-top: 80px;"><h1 style="font: '
-                                               f'24px;">   Welcome<span class="welcome-hand">👋</span></h1></div><div '
-                                               f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
-                                               f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
-                                               f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
-                                               f'below to verify your email address.<br /></div><div '
-                                               f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
-                                               f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
-                                               f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
-                                               f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
-                                               f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
-                                               f'Address</button></a></div> <div style="padding: 50px 0px;" '
-                                               f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
-                                               f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
-                                               f'rather not receive this kind of email, Don’t want any more emails '
-                                               f'from Adifect? <a href="#"><span style="text-decoration: '
-                                               f'underline;"> Unsubscribe.</span></a></div><div style="font-size: 16px; '
-                                               f'color: #384860;"> © 2022 '
-                                               f'Adifect</div></div></div></td></tr></tbody></table></div>')
-                data = send_email(from_email, to_email, subject, content)
-                user.forget_password_token = token
+                if not request.data.get('email_verify'):
+                    email = serializer.validated_data['email']
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(email)
+                    token = str(uuid.uuid4())
+                    decodeId = StringEncoder.encode(self, user.id)
+                    subject = "Confirm Email"
+                    content = Content("text/html", f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
+                                                   f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
+                                                   f'600px; margin: 0 auto;" width="600" cellpadding="0" '
+                                                   f'cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 '
+                                                   f'0;"><div style="padding: 34px 44px; border-radius: 8px !important; '
+                                                   f'background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; '
+                                                   f'margin-top: 50px;"><div class="email-logo"><img style="width: 165px;" '
+                                                   f'src="{LOGO_122_SERVER_PATH}" /></div><a href="#"></a><div '
+                                                   f'class="welcome-text" style="padding-top: 80px;"><h1 style="font: '
+                                                   f'24px;">   Welcome<span class="welcome-hand">👋</span></h1></div><div '
+                                                   f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
+                                                   f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
+                                                   f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
+                                                   f'below to verify your email address.<br /></div><div '
+                                                   f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
+                                                   f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
+                                                   f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
+                                                   f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
+                                                   f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
+                                                   f'Address</button></a></div> <div style="padding: 50px 0px;" '
+                                                   f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
+                                                   f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
+                                                   f'rather not receive this kind of email, Don’t want any more emails '
+                                                   f'from Adifect? <a href="#"><span style="text-decoration: '
+                                                   f'underline;"> Unsubscribe.</span></a></div><div style="font-size: 16px; '
+                                                   f'color: #384860;"> © 2022 '
+                                                   f'Adifect</div></div></div></td></tr></tbody></table></div>')
+                    data = send_email(from_email, to_email, subject, content)
+                    user.forget_password_token = token
+                else:
+                    user.email_verified=True
                 user.save()
                 if user.role == '2':
                      agency_level = AgencyLevel.objects.create(user=user,levels=1)

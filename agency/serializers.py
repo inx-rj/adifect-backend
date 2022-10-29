@@ -313,7 +313,41 @@ class DamMediaSerializer(serializers.ModelSerializer):
                 return obj.dam.is_favourite
         return False
 
+class DamMediaThumbnailSerializer(serializers.ModelSerializer):
+    files_name = SerializerMethodField("get_files_name")
+    files_size = SerializerMethodField("get_files_size")
+    upload_by = SerializerMethodField("get_user_name")
+    is_favourite =  SerializerMethodField("get_is_favourite")
+    class Meta:
+        model = DamMedia
+        fields = ['id','dam','thumbnail','title','description','files_name','files_size','upload_by','is_favourite']
 
+    def get_files_name(self, obj):
+        if obj:
+            if obj.media is not  None:
+                return str(obj.media.name).split('/')[-1]
+            else:
+                return ''
+        return ''
+
+    def get_files_size(self, obj):
+        if obj:
+            if obj.media is not  None:
+                return str(obj.media.size)
+            else:
+                return ''
+        return
+
+    def get_user_name(self, obj):
+        if obj.dam is not None:
+            if obj.dam.agency is not None:
+                return obj.dam.agency.get_full_name()
+        return ''
+
+    def get_is_favourite(self,obj):
+        if obj.dam is not None:
+                return obj.dam.is_favourite
+        return False
 
 
 #-------------------------------------------- dam ---------------------------------------------#
@@ -424,7 +458,39 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     #         return obj.name
     #     else:
     #         return False
+class DamWithMediaThumbnailSerializer(serializers.ModelSerializer):
+    dam_media = DamMediaThumbnailSerializer(many=True, required=False)
+    # location = SerializerMethodField("get_location")
+    is_parent = SerializerMethodField("get_is_parent")
+    parent =  SerializerMethodField("get_parent")
+    upload_by = SerializerMethodField("get_user_name")
 
+    class Meta:
+        model = DAM
+        fields = '__all__'
+
+    def get_parent(self,obj):
+        if obj.parent is not None:
+            return obj.parent_id
+        else:
+            return False
+    # def get_location(self, obj):
+    #     if obj:
+    #         return re_order(recursor(obj, 0))
+    #     return ''
+
+    def get_is_parent(self, obj):
+        if obj.parent is not None:
+            if obj.parent.parent is None:
+                return False
+            else:
+                return obj.parent.parent.id
+        else:
+            return False
+    def get_user_name(self,obj):
+        if obj.agency is not None:
+            return obj.agency.get_full_name()
+        return ''
 
 #--------------------------------------------------- End --------------------------------------------------#
 

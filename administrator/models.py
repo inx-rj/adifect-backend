@@ -238,7 +238,7 @@ class JobApplied(BaseModel):
 
     cover_letter = models.TextField(default=None,null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-    job = models.ForeignKey(Job,related_name='job_applied', on_delete=models.SET_NULL, null=True, blank=True)
+    job = models.ForeignKey(Job,related_name='job_applied',default=None,on_delete=models.SET_NULL, null=True, blank=True)
     job_bid_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     # duration = models.CharField(max_length=200, default=None, null=True, blank=True)
     links = models.CharField(default=None, max_length=50000, blank=True, null=True)
