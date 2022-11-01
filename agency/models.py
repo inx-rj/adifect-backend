@@ -196,7 +196,7 @@ class DamMedia(BaseModel):
 
     class Meta:
         verbose_name_plural = 'DAM Media'
-
+    
     def save(self, **kwargs):
         output_size = (250, 250)
         output_thumb = BytesIO()
@@ -205,10 +205,10 @@ class DamMedia(BaseModel):
         img_name = self.media.name.split('.')[0]
 
         img.thumbnail(output_size)
-        img.save(output_thumb, format=img.format, quality=90)
+        img.save(output_thumb,format=img.format,quality=90)
 
-        self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg',
-                                              sys.getsizeof(output_thumb), None)
+        self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg', sys.getsizeof(output_thumb), None)
+
         super(DamMedia, self).save()
 
 

@@ -1703,15 +1703,16 @@ class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
 
 
 class AdminCompanyBlock(APIView):
-    def post(self, request, args, *kwargs):
+    def post(self, request, *args, **kwargs):
         company_id = request.data.get('company_id', None)
+        status1 = request.data.get('status', None)
         context={}
-        if company_id:
-            company = Company.objects.filter(id=company_id).update(is_blocked=True)
-            job = Job.objects.filter(company=company_id).update(is_blocked=True)
-            workflow = WorksFlow.objects.filter(company=company_id).update(is_blocked=True)
+        if company_id and status1:
+            company = Company.objects.filter(id=company_id).update(is_blocked=status1)
+            job = Job.objects.filter(company=company_id).update(is_blocked=status1)
+            workflow = WorksFlow.objects.filter(company=company_id).update(is_blocked=status1)
             if company:
-                context = {'message':'Blocked Successfully',
+                context = {'message':'Company status updated Successfully',
                            'error':False,
                            'status':status.HTTP_200_OK
                 }

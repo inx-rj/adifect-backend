@@ -16,7 +16,7 @@ from administrator.pagination import FiveRecordsPagination
 from authentication.manager import IsAdmin,IsAgency,IsCreator
 from django.db.models import Count
 import datetime as dt
-
+from django.db.models import Q
 
 
 @permission_classes([IsAuthenticated])
@@ -163,7 +163,7 @@ class MyProjectAllJob(APIView):
         hired = queryset.filter(status=2).first()
         if hired is not None:
                 job_list.append(hired.id)
-        in_review = queryset.filter(status=3).first()
+        in_review = queryset.filter(status=3).f, is_blocked=Falseirst()
         if in_review is not None:
                 job_list.append(in_review.id)
         complete = queryset.filter(status=4).first()
@@ -191,13 +191,30 @@ class AvailableJobs(viewsets.ModelViewSet):
 
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(is_active=1)
         applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                   flat=True)
         jobs = queryset.exclude(id__in=list(applied_data)).order_by('-modified')
         paginated_data = self.paginate_queryset(jobs.filter(job_due_date__gte=dt.datetime.today()))
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
+
+    
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            if JobApplied.objects.filter(Q(user=request.user) & Q(job=id)).exists():
+                job_data = Job.objects.filter(id=id).first()
+                if job_data:
+                    serializer = JobsWithAttachmentsSerializer(job_data,context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response({'message':'No Data Found','error':True}, status=status.HTTP_204_NO_CONTENT)
+            else:
+                job_data = Job.objects.filter(id=id,is_active=1).first()
+                if job_data:
+                    serializer = JobsWithAttachmentsSerializer(job_data,context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response({'message':'No Data Found','error':True}, status=status.HTTP_204_NO_CONTENT)
 
 @permission_classes([IsAuthenticated])
 class CreatorCompanyList(APIView):

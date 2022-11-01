@@ -46,7 +46,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Company.objects.filter(agency=user).order_by('-modified')
+        queryset = Company.objects.filter(agency=user, agency__is_account_closed=False).order_by('-modified')
         return queryset
 
     def destroy(self, request, *args, **kwargs):
@@ -79,7 +79,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     search_fields = ['=company', '=name']
 
     def list(self, request, *args, **kwargs):
-        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user.id,is_active=True).order_by("-modified")
+        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user.id,is_active=True, user__is_account_closed=False).order_by("-modified")
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -176,7 +176,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset())
-        workflow_data = queryset.filter(agency=user)
+        workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -320,7 +320,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False, user__isnull=False).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False, user__isnull=False, agency__is_account_closed=False).order_by('-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -829,6 +829,12 @@ class DAMViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['put'], detail=False, url_path='rename_folder/(?P<pk>[^/.]+)', url_name='rename_folder')
+    def rename_folder(self, request, pk=None):
+        new_title = request.data.get('new_title',None)
+        dam_data=DamMedia.objects.filter(id=pk).update(title=new_title)
+        return Response(dam_data.data, status=status.HTTP_200_OK)
+
 
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
@@ -918,12 +924,16 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
 class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Job.objects.filter(status=0).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company']
+
 
     def list(self, request, *args, **kwargs):
-        data = self.queryset.filter(user=request.user).exclude(user__role=1)
-        serializer = self.serializer_class(data, many=True,context={'request': request})
-        return Response(data=serializer.data)
-
+        queryset = self.filter_queryset(self.get_queryset())
+        draft_data = queryset.filter(agency=request.user)
+        serializer = self.serializer_class(draft_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #

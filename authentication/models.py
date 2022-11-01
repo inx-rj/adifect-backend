@@ -52,6 +52,7 @@ class CustomUser(AbstractUser):
     availability = models.CharField(max_length=1000,null=True,blank=True)
     is_trashed = models.BooleanField(default=False)
     is_blocked = models.BooleanField(default=False)
+    is_account_closed = models.BooleanField(default=False)
 
 
     def save(self, *args, **kwargs):

@@ -11,5 +11,8 @@ urlpatterns = [
     path('reset-password/<str:token>/<str:uid>/', ChangePassword.as_view(), name='reset-password'),
     path('payment-verification', views.PaymentVerification.as_view(), name='payment_verification'),
     path('verify-email/<str:token>/<str:uid>/', views.VerifyEmail.as_view(), name='verify_email'),
+    path('email-change/', views.EmailChange.as_view(), name='email_change'),
+    path('profile-password-change/', views.ProfileChangePassword.as_view(), name='profile_password_change'),
+     path('close-account/', views.CloseAccount.as_view(), name='close_account'),
 ]
 urlpatterns += router.urls

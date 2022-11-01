@@ -95,3 +95,16 @@ class PaymentVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentDetails
         fields = '__all__'
+
+class ProfileChangePasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(max_length=200, required=True)
+    confirm_password = serializers.CharField(max_length=200, required=True)
+    current_password = serializers.CharField(max_length=200, required=True)
+
+    def validate(self, data):
+        new_password = data.get('new_password')
+        current_password = data.get('current_password')
+        confirm_password = data.get('confirm_password')
+        if len(new_password) < 7 or len(confirm_password) < 7 or len(current_password) < 7:
+            raise serializers.ValidationError("'Make sure your password is at least 7 letters'")
+        return data        
