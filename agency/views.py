@@ -79,10 +79,20 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     search_fields = ['=company', '=name']
 
     def list(self, request, *args, **kwargs):
-        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user.id,is_active=True, user__is_account_closed=False).order_by("-modified")
+        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user, is_active=True,
+                                                                    user__is_account_closed=False).order_by("-modified")
+        job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        job_id = job_data.values_list('id', flat=True)
+        applied = JobApplied.objects.filter(job_id__in=list(job_id), job__is_trashed=False, status=2).order_by(
+            'job_id').distinct('job_id').values_list('id', flat=True).count()
+        Context = {
+            'Total_Job_count': job_count,
+            'In_progress_jobs': applied,
+            'data': serializer.data,
+        }
+        return self.get_paginated_response(Context)
 
     def retrieve(self, request, pk=None):
         id = pk
@@ -619,14 +629,15 @@ def copy_media_logic(id,parent_id=None):
 class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter,OrderingFilter]
+    ordering_fields = ['modified','created']
+    ordering = ['modified','created']
     filterset_fields = ['id','parent','type']
     search_fields = ['=name']
 
 
     def list(self, request, *args, **kwargs):
-        user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -666,7 +677,6 @@ class DAMViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        print(request.data)
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid():
@@ -830,14 +840,16 @@ class DAMViewSet(viewsets.ModelViewSet):
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.filter(parent=None)
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent','type']
     search_fields = ['=name']
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -847,7 +859,9 @@ class DamRootViewSet(viewsets.ModelViewSet):
 class DamMediaViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
     filterset_fields = ['dam_id', 'title','id']
     search_fields = ['=title']
     http_method_names = ['get','put','delete','post']
@@ -916,7 +930,9 @@ class DamMediaViewSet(viewsets.ModelViewSet):
 class DamDuplicateViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
     filterset_fields = ['id','parent','type']
     search_fields = ['=name']
     http_method_names = ['get']
@@ -925,9 +941,9 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         if request.GET.get('root'):
-             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent=None).order_by('-modified')
+             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent=None)
         else:     
-            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user).order_by('-modified')
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -968,11 +984,9 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         ordering = request.GET.get('ordering',None)
         filter_data =queryset.filter(
             pk__in=Subquery(
-                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
+                queryset.filter(job__user=user,job__is_active=True).order_by('job_id').distinct('job_id').values('pk')
             )
         ).order_by(ordering)
-
-        # paginated_data = self.paginate_queryset(queryset.filter(job__user=user).distinct('job_id', order_by=(ordering)).order_by(ordering))
         paginated_data = self.paginate_queryset(filter_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
