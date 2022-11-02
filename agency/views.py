@@ -754,7 +754,6 @@ class DAMViewSet(viewsets.ModelViewSet):
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
-
                 return Response(context)
 
             # ---------------- image copy from collection --------#
@@ -770,16 +769,8 @@ class DAMViewSet(viewsets.ModelViewSet):
                     'errors': serializer.errors,
                     'data': serializer.data,
                 }
-
                 return Response(context)
-
-
-
-
-
-
             return Response({'message': serializer.errors}, status=status.HTTP_200_OK)
-
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -794,7 +785,6 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
-
     @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
     def create_collection(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -860,10 +850,10 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['dam_id', 'title','id']
     search_fields = ['=title']
-    http_method_names = ['get','put','delete']
+    http_method_names = ['get','put','delete','post']
 
     @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
-    def delete_multiple(self, request, *args, **kwargs):
+    def get_multiple(self, request, *args, **kwargs):
         try:
             id_list = request.GET.get('id', None)
             order_list = id_list.split(",")
@@ -879,6 +869,28 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             return Response(context, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['delete'], detail=False, url_path='delete_multiple', url_name='delete_multiple')
+    def delele_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = DamMedia.objects.filter(id__in=order_list).delete()
+                if data:
+                    context = {
+                        'message': 'Deleted Successfully',
+                        'status': status.HTTP_204_NO_CONTENT,
+                        'errors': False,
+                    }
+                    return Response(context, status=status.HTTP_200_OK)
+        except Exception as e:
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+            return Response(context,status=status.HTTP_400_BAD_REQUEST)
 
 
     def update(self, request, *args, **kwargs):
@@ -931,7 +943,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        draft_data = queryset.filter(agency=request.user)
+        draft_data = queryset.filter(user=request.user)
         serializer = self.serializer_class(draft_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -941,7 +953,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
-    queryset = JobApplied.objects.exclude(job=None)
+    queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
     filter_backends = [DjangoFilterBackend,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']
@@ -949,8 +961,6 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
-
-
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -966,7 +976,6 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         paginated_data = self.paginate_queryset(filter_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
-
 
 
 @permission_classes([IsAuthenticated])

@@ -320,7 +320,8 @@ class DamMediaThumbnailSerializer(serializers.ModelSerializer):
     is_favourite =  SerializerMethodField("get_is_favourite")
     class Meta:
         model = DamMedia
-        fields = ['id','dam','thumbnail','title','description','files_name','files_size','upload_by','is_favourite']
+        exclude = ('media',)
+        # fields = ['id','dam','thumbnail','title','description','files_name','files_size','upload_by','is_favourite']
 
     def get_files_name(self, obj):
         if obj:

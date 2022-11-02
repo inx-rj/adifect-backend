@@ -117,7 +117,7 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MyJobsViewSet(viewsets.ModelViewSet):
     # serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False).exclude(status=1).exclude(job=None)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__is_trashed=False).exclude(status=1).exclude(job=None)
     filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']

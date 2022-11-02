@@ -1707,7 +1707,7 @@ class AdminCompanyBlock(APIView):
         company_id = request.data.get('company_id', None)
         status1 = request.data.get('status', None)
         context={}
-        if company_id and status1:
+        if (company_id and status1) or (company_id and status1 == False):
             company = Company.objects.filter(id=company_id).update(is_blocked=status1)
             job = Job.objects.filter(company=company_id).update(is_blocked=status1)
             workflow = WorksFlow.objects.filter(company=company_id).update(is_blocked=status1)

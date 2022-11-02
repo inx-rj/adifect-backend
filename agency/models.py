@@ -168,7 +168,7 @@ class DAM(BaseModel):
     name = models.CharField(max_length=50, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
-    parent = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     is_favourite = models.BooleanField(default=False)
 
     class Meta:
@@ -193,6 +193,7 @@ class DamMedia(BaseModel):
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
     title = models.CharField(max_length=300, default=None,null=True, blank=True)
     description = models.CharField(max_length=2000, default=None,null=True, blank=True)
+    image_favourite = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = 'DAM Media'

@@ -429,6 +429,7 @@ class EmailChange(APIView):
             email = data.validated_data.get('email', None)
             password = data.validated_data.get('password', None)
             user = CustomUser.objects.filter(id=request.user.id).first()
+            old_email = user.email
             if not user.check_password(password):
                 context = {
                     'message': 'Please enter valid login details'
@@ -446,6 +447,14 @@ class EmailChange(APIView):
                     'message': 'Email Already Registered.'
                 }
                 return Response(context)
+
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(old_email)
+            subject = "Change Password"
+
+            content = content = Content("text/html",
+                              f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Congratulations,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Your Email is changed as per your request.<br /></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href=""></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+            data = send_email(from_email, to_email, subject, content)
 
             user.email = email
             user.email_verified = False
