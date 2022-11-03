@@ -1599,7 +1599,7 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
     # pagination_class = FiveRecordsPagination
     filterset_fields = ['agency', 'user', 'company']
     search_fields = ['=agency', '=user']
-    http_method_names = ['get']
+    http_method_names = ['get','put','patch']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
