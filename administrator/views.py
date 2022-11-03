@@ -1609,6 +1609,19 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         serializer = InviteMemberSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_blocked=request.data['is_blocked']
+        instance.save()
+        print(request.data['is_blocked'])
+        print("hiiiiiiiiiiiiiiiiiiiiiiii")
+        context = {
+            'message': 'Updated Succesfully',
+            'status': status.HTTP_200_OK,
+        }
+        return Response(context)
+
 
 #########                           job block by admin(M.B)                      #########
 

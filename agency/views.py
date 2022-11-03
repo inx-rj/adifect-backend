@@ -637,7 +637,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent__is_trashed=False)
         serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
