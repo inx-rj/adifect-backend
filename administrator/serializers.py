@@ -6,7 +6,7 @@ from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
      JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat
+    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -513,10 +513,18 @@ class JobTemplateAttachmentsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class JobTemplateTasksSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobTemplateTasks
+        fields = '__all__'
+
+
 class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     job_template_images = JobTemplateAttachmentsSerializer(many=True)
     level = LevelSerializer()
     skills = SkillsSerializer(many=True)
+    jobtemplate_tasks = JobTemplateTasksSerializer(many=True)
+
     # company = CompanySerializer()
     get_jobType_details = SerializerMethodField("get_jobType_info")
     workflow_name = SerializerMethodField("get_worksflow_name")

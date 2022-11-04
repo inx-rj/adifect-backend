@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
-    Question, Answer,UserSkills,JobActivity,JobActivityChat
+    Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -316,6 +316,14 @@ class JobViewSet(viewsets.ModelViewSet):
                 if second_serializer.is_valid():
                     self.perform_create(second_serializer)
                     Job_template_id = JobTemplate.objects.latest('id')
+                    if request.data.get("tasks", None):
+                        objs = []
+                        for i in json.loads(request.data['tasks']):
+                            task_title = i['title']
+                            if task_title:
+                                objs.append(JobTemplateTasks(job_template=Job_template_id, title=task_title, due_date=i['due_date']))
+                        task = JobTemplateTasks.objects.bulk_create(objs)
+
                     if image:
                         image_error = validate_job_attachments(image)
                         if image_error != 0:
@@ -852,6 +860,18 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
                     return Response(context, status=status.HTTP_400_BAD_REQUEST)
             self.perform_update(serializer)
             update_job_template = Job.objects.filter(template_name=template_name).update(template_name=template_name)
+            # ------- ----- -- -- --- -- task -- --- -- --- ----  --- ----#
+            if request.data.get('tasks', None):
+                for i in json.loads(request.data['tasks']):
+                    name = i['title']
+                    if name:
+                        if 'id' in i:
+                            JobTemplateTasks.objects.filter(id=i['id']).update(title=i['title'],
+                                                                       due_date=i['due_date'])
+                        else:
+                            JobTemplateTasks.objects.create(job_template=instance, title=name, due_date=i['due_date'])
+            # ------ --- -- - --- ---- end ---  --- -- - --- ---  ----  --#
+
             if remove_image_ids:
                 for id in remove_image_ids:
                     JobTemplateAttachments.objects.filter(id=id).delete()

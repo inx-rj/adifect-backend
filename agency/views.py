@@ -668,7 +668,38 @@ class DAMViewSet(viewsets.ModelViewSet):
                 for index,i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3,parent=serializer.validated_data.get('parent',None)  ,agency=serializer.validated_data['agency'])
-                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            # elif serializer.validated_data['type']==1:
+            #     print("yesssssssssssssssssss")
+            #     if request.data['parent'] is not None:
+            #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     elif request.data['parent'] is None:
+            #          if DAM.objects.filter(name=request.data['name']):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     else:
+            #         self.perform_create(serializer)
+            #         dam_id = DAM.objects.latest('id')
+            #         for index,i in enumerate(dam_files):
+            #             DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         context = {
+            #             'message': 'Media Uploaded Successfully',
+            #             'status': status.HTTP_201_CREATED,
+            #             'errors': serializer.errors,
+            #             'data': serializer.data,
+            #         }
+            #         return Response(context)
+
             else:
                 self.perform_create(serializer)
                 dam_id = DAM.objects.latest('id')

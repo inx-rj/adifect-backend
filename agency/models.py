@@ -165,7 +165,7 @@ class DAM(BaseModel):
         FOLDER = 1
         COLLECTION = 2
         IMAGE = 3
-    name = models.CharField(max_length=50, default=None,null=True, blank=True)
+    name = models.CharField(max_length=5000, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
@@ -173,8 +173,6 @@ class DAM(BaseModel):
 
     class Meta:
         verbose_name_plural = 'DAM'
-
-
 
 def fileLocation(instance, dam_media):
     if instance.dam.type == 1:
@@ -191,8 +189,8 @@ class DamMedia(BaseModel):
     dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
-    title = models.CharField(max_length=300, default=None,null=True, blank=True)
-    description = models.CharField(max_length=2000, default=None,null=True, blank=True)
+    title = models.CharField(max_length=5000, default=None,null=True, blank=True)
+    description = models.CharField(max_length=5000, default=None,null=True, blank=True)
     image_favourite = models.BooleanField(default=False)
 
     class Meta:

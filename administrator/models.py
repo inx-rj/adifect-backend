@@ -374,7 +374,17 @@ class JobTemplate(BaseModel):
         return f'{self.template_name}'
 
 
+class JobTemplateTasks(BaseModel):
+    job_template = models.ForeignKey(JobTemplate,related_name="jobtemplate_tasks", on_delete=models.SET_NULL, null=True, blank=True)
+    title = models.CharField(max_length=3000, null=False, blank=False)
+    due_date = models.DateField(auto_now_add=False)
+    is_active = models.BooleanField(default=True)
 
+    def __str__(self) -> CharField:
+        return self.title
+
+    class Meta:
+        verbose_name_plural = 'Job Template Task'
 
 class JobTemplateAttachments(BaseModel):
     job_template = models.ForeignKey(JobTemplate, related_name="job_template_images", on_delete=models.SET_NULL,
@@ -384,6 +394,9 @@ class JobTemplateAttachments(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Template_Attachments'
+
+
+
 #------ avneet ----#
 class Question(BaseModel):
     question = models.TextField(default=None, null=True, blank=True)
