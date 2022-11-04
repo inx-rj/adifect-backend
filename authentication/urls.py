@@ -4,6 +4,9 @@ from . import  views
 from rest_framework import routers
 router = routers.DefaultRouter()
 router.register(r'payment-method', views.PaymentMethodViewSet, basename='payment_method')
+router.register(r'user-profile', views.UserProfileViewSet, basename='user_profile')
+router.register(r'user-portfolio', views.CustomUserPortfolioViewSet, basename='user_portfolio')
+router.register(r'user-communication', views.UserCommunicationViewSet, basename='user_communication')
 urlpatterns = [
     path('registerview/', SignUpView.as_view(), name='registerview'),
     path('loginview/', LoginView.as_view(), name='loginview'),

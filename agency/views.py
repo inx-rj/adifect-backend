@@ -595,7 +595,6 @@ def copy_media_logic(id,parent_id=None):
     # try:
         if id:
             dam_old = DAM.objects.filter(pk=id).first()
-            print("hit folder")
             dam_old.pk = None
             dam_old.parent_id = parent_id
             dam_new = dam_old.save()
@@ -603,18 +602,15 @@ def copy_media_logic(id,parent_id=None):
             print(id)
             for j in DAM.objects.filter(parent=id,type=3):
                 for i in DamMedia.objects.filter(dam=j):
-                    print("image")
                     i.pk = None
                     i.dam = dam_new
                     i.save()
             for k in  DAM.objects.filter(parent=id,type=2):
-                print("collection")
                 for i in DamMedia.objects.filter(dam=k):
                     i.pk = None
                     i.dam = dam_new
                     i.save()
             for l in DAM.objects.filter(parent=id,type=1):
-                print("folder babes")
                 return copy_media_logic(l.id, dam_new.id)
             return True
     # except Exception as e:
@@ -637,7 +633,7 @@ class DAMViewSet(viewsets.ModelViewSet):
 
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent__is_trashed=False)
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -731,8 +727,8 @@ class DAMViewSet(viewsets.ModelViewSet):
                 if dam_media_inital:
                     dam_intial = dam_media_inital.dam
                     dam_intial.pk=None
-                    dam_intial.parent = parent
-                    dam_intial.type = type_new
+                    dam_intial.parent = parent                                                                                                                      
+                    dam_intial.type = type_new                  
                     dam_intial.save()
                     dam_media_inital.pk=None
                     dam_media_inital.dam=dam_intial
@@ -834,7 +830,7 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_data=DamMedia.objects.filter(id=pk).update(title=new_title)
         return Response(dam_data.data, status=status.HTTP_200_OK)
 
-
+   
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -848,7 +844,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent__is_trashed=False)
         # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -922,8 +918,14 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
+    @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
+    def latest_records(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user,dam__type=3).order_by('-modified')[:4]
+        # queryset = queryset.filter(agency=user)
+        serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 @permission_classes([IsAuthenticated])
 class DamDuplicateViewSet(viewsets.ModelViewSet):

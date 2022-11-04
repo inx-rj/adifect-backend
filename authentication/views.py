@@ -3,13 +3,16 @@ from cProfile import label
 from http.client import HTTPResponse
 from urllib import request
 from django.core.cache import cache
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django.shortcuts import render
 from .serializers import RegisterSerializer, UserSerializer, SendForgotEmailSerializer, \
-    ChangePasswordSerializer, PaymentMethodSerializer, PaymentVerificationSerializer, ProfileChangePasswordSerializer
+    ChangePasswordSerializer, PaymentMethodSerializer, PaymentVerificationSerializer, ProfileChangePasswordSerializer, \
+    UserProfileSerializer, UserCommunicationSerializer,CustomUserPortfolioSerializer
 # Create your views here.
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
-from .models import CustomUser, PaymentMethod, PaymentDetails
+from .models import CustomUser, PaymentMethod, PaymentDetails, UserProfile, UserCommunicationMode,CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -18,6 +21,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Q
+import os
 # third-party
 import jwt
 # standard library
@@ -29,14 +33,16 @@ from datetime import timedelta
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL,SEND_GRID_FROM_EMAIL
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
+    SEND_GRID_FROM_EMAIL
 from adifect import settings
 import base64
 from rest_framework import viewsets
 import requests
 import json
-from helper.helper import StringEncoder,send_email
-from agency.models import InviteMember,AgencyLevel
+from helper.helper import StringEncoder, send_email
+from agency.models import InviteMember, AgencyLevel
+
 # Get an instance of a logger
 logger = logging.getLogger('django')
 
@@ -84,41 +90,42 @@ class SignUpView(APIView):
                     token = str(uuid.uuid4())
                     decodeId = StringEncoder.encode(self, user.id)
                     subject = "Confirm Email"
-                    content = Content("text/html", f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
-                                                   f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
-                                                   f'600px; margin: 0 auto;" width="600" cellpadding="0" '
-                                                   f'cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 '
-                                                   f'0;"><div style="padding: 34px 44px; border-radius: 8px !important; '
-                                                   f'background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; '
-                                                   f'margin-top: 50px;"><div class="email-logo"><img style="width: 165px;" '
-                                                   f'src="{LOGO_122_SERVER_PATH}" /></div><a href="#"></a><div '
-                                                   f'class="welcome-text" style="padding-top: 80px;"><h1 style="font: '
-                                                   f'24px;">   Welcome<span class="welcome-hand">👋</span></h1></div><div '
-                                                   f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
-                                                   f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
-                                                   f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
-                                                   f'below to verify your email address.<br /></div><div '
-                                                   f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
-                                                   f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
-                                                   f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
-                                                   f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
-                                                   f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
-                                                   f'Address</button></a></div> <div style="padding: 50px 0px;" '
-                                                   f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
-                                                   f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
-                                                   f'rather not receive this kind of email, Don’t want any more emails '
-                                                   f'from Adifect? <a href="#"><span style="text-decoration: '
-                                                   f'underline;"> Unsubscribe.</span></a></div><div style="font-size: 16px; '
-                                                   f'color: #384860;"> © 2022 '
-                                                   f'Adifect</div></div></div></td></tr></tbody></table></div>')
+                    content = Content("text/html",
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
+                                      f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
+                                      f'600px; margin: 0 auto;" width="600" cellpadding="0" '
+                                      f'cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 '
+                                      f'0;"><div style="padding: 34px 44px; border-radius: 8px !important; '
+                                      f'background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; '
+                                      f'margin-top: 50px;"><div class="email-logo"><img style="width: 165px;" '
+                                      f'src="{LOGO_122_SERVER_PATH}" /></div><a href="#"></a><div '
+                                      f'class="welcome-text" style="padding-top: 80px;"><h1 style="font: '
+                                      f'24px;">   Welcome<span class="welcome-hand">👋</span></h1></div><div '
+                                      f'class="welcome-paragraph"><div style="padding: 20px 0px; font-size: '
+                                      f'16px; color: #384860;">Welcome to Adifect!</div><div style="padding: '
+                                      f'10px 0px; font-size: 16px; color: #384860;">Please click the link '
+                                      f'below to verify your email address.<br /></div><div '
+                                      f'style="padding: 20px 0px; font-size: 16px; color: #384860;"> '
+                                      f'Sincerely,<br />The Adifect Team</div></div><div style="padding-top: '
+                                      f'40px; cursor: pointer !important;" class="confirm-email-button"> <a href={FRONTEND_SITE_URL}/verify-email/{token}/{decodeId} style="cursor: pointer;"><button style="height: 56px; '
+                                      f'padding: 15px 44px; background: #2472fc; border-radius: 8px; '
+                                      f'border-style: none; color: white; font-size: 16px; cursor: pointer !important;"> Confirm Email '
+                                      f'Address</button></a></div> <div style="padding: 50px 0px;" '
+                                      f'class="email-bottom-para"><div style="padding: 20px 0px; font-size: '
+                                      f'16px; color: #384860;">This email was sent by Adifect. If you&#x27;d '
+                                      f'rather not receive this kind of email, Don’t want any more emails '
+                                      f'from Adifect? <a href="#"><span style="text-decoration: '
+                                      f'underline;"> Unsubscribe.</span></a></div><div style="font-size: 16px; '
+                                      f'color: #384860;"> © 2022 '
+                                      f'Adifect</div></div></div></td></tr></tbody></table></div>')
                     data = send_email(from_email, to_email, subject, content)
                     user.forget_password_token = token
                 else:
-                    user.email_verified=True
+                    user.email_verified = True
                 user.save()
                 if user.role == '2':
-                     agency_level = AgencyLevel.objects.create(user=user,levels=1)
-                     invite_member = InviteMember.objects.create(agency=user, user=agency_level, status=1)
+                    agency_level = AgencyLevel.objects.create(user=user, levels=1)
+                    invite_member = InviteMember.objects.create(agency=user, user=agency_level, status=1)
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -134,14 +141,14 @@ class VerifyEmail(APIView):
         token = self.kwargs.get(self.lookup_url_kwarg)
         uid = self.kwargs.get(self.lookup_url_kwarg2)
         encoded_id = int(StringEncoder.decode(self, uid))
-        user_data = CustomUser.objects.filter(id=encoded_id, email_verified=False,forget_password_token=token)
+        user_data = CustomUser.objects.filter(id=encoded_id, email_verified=False, forget_password_token=token)
         if user_data:
             user_data.update(email_verified=True)
-            context = {'message': 'Your email have been confirmed','status':status.HTTP_200_OK,'error':False}
+            context = {'message': 'Your email have been confirmed', 'status': status.HTTP_200_OK, 'error': False}
             return Response(context, status=status.HTTP_201_CREATED)
         context = {
             'message': "Something went wrong!",
-            'error':True
+            'error': True
         }
         return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
@@ -164,7 +171,6 @@ class LoginView(GenericAPIView):
         password = request.data['password']
         user = CustomUser.objects.filter(email=email, is_trashed=False).first()
 
-
         if not user:
             user = CustomUser.objects.filter(username=email, is_trashed=False).first()
 
@@ -186,11 +192,11 @@ class LoginView(GenericAPIView):
                 'message': 'Your old account is closed by you.',
                 'error': True
             }
-            return Response(context, status=status.HTTP_400_BAD_REQUEST)    
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
         if user.is_blocked:
             context = {
                 'message': 'Your Account Is Blocked.Kindly! Contact To The Administrator',
-                'error':True
+                'error': True
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
         if user.email_verified == False:
@@ -205,13 +211,10 @@ class LoginView(GenericAPIView):
         if user.agency_level.all():
             agency_level = list(user.agency_level.values_list('levels', flat=True))[0]
 
-
-
         token = get_tokens_for_user(user)
         response = Response(status=status.HTTP_200_OK)
 
         # Set Token Cookie
-
 
         response.set_cookie(key='token', value=token, httponly=True)
         cache.set('token', token, 60)
@@ -224,7 +227,7 @@ class LoginView(GenericAPIView):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'role': user.role,
-                'user_level':agency_level
+                'user_level': agency_level
             },
             'token': token['access'],
             'refresh': token['refresh']
@@ -347,7 +350,7 @@ class ChangePassword(GenericAPIView):
             return Response({'message': 'Password and Confirm Password do not match'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = int(StringEncoder.decode(self,self.kwargs.get(self.lookup_url_kwarg2)))
+        user_id = int(StringEncoder.decode(self, self.kwargs.get(self.lookup_url_kwarg2)))
         user_data = CustomUser.objects.get(id=user_id, is_trashed=False)
         user_data.set_password(password)
         user_data.forget_password_token = None
@@ -417,7 +420,7 @@ class PaymentVerification(APIView):
         else:
             context = {'message': 'Something Went Wrong', 'error': True, 'status': status.HTTP_400_BAD_REQUEST}
         return Response(context, status=status.HTTP_200_OK)
-        
+
 
 @permission_classes([IsAuthenticated])
 class EmailChange(APIView):
@@ -453,7 +456,7 @@ class EmailChange(APIView):
             subject = "Change Password"
 
             content = content = Content("text/html",
-                              f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Congratulations,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Your Email is changed as per your request.<br /></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href=""></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                        f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Congratulations,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Your Email is changed as per your request.<br /></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href=""></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
             data = send_email(from_email, to_email, subject, content)
 
             user.email = email
@@ -497,6 +500,7 @@ class EmailChange(APIView):
         else:
             return Response({'message': data.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @permission_classes([IsAuthenticated])
 class ProfileChangePassword(APIView):
     serializer_class = ProfileChangePasswordSerializer
@@ -535,6 +539,7 @@ class ProfileChangePassword(APIView):
         else:
             return Response({'message': data.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @permission_classes([IsAuthenticated])
 class CloseAccount(APIView):
 
@@ -552,3 +557,162 @@ class CloseAccount(APIView):
             return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+def validate_profile_image_video(images, type):
+    error = 0
+    if images and type == 'img':
+        ext = os.path.splitext(images.name)[1]
+        valid_extensions = ['.jpg', '.jpeg', '.png']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    if images and type == 'video':
+        ext = os.path.splitext(images.name)[1]
+        valid_extensions = ['.mp4']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    return error
+
+def validate_portfolio_images(images):
+    error = 0
+    for img in images:
+        ext = os.path.splitext(img.name)[1]
+        valid_extensions = ['.jpg', '.jpeg', '.png']
+        if not ext.lower() in valid_extensions:
+            error += 1
+    return error
+@permission_classes([IsAuthenticated])
+class UserProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = UserProfileSerializer
+    queryset = UserProfile.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['user']
+    search_fields = ['=user', ]
+
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user=request.user)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            if serializer.validated_data.get('profile_img'):
+                profile_error = validate_profile_image_video(serializer.validated_data['profile_img'], 'img')
+                if profile_error != 0:
+                    return Response({'message': "Invalid profile images"}, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.validated_data.get('video'):
+                profile_video_error = validate_profile_image_video(serializer.validated_data['video'], 'video')
+                if profile_video_error != 0:
+                    return Response({'message': "Invalid video format"}, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_create(serializer)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        context = {
+            'message': 'Error',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }
+        return Response(context)
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            if serializer.validated_data.get('profile_img'):
+                profile_error = validate_profile_image_video(serializer.validated_data['profile_img'], 'img')
+                if profile_error != 0:
+                    return Response({'message': "Invalid profile images"}, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.validated_data.get('video'):
+                profile_video_error = validate_profile_image_video(serializer.validated_data['video'], 'video')
+                if profile_video_error != 0:
+                    return Response({'message': "Invalid video format"}, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Succesfully',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        context = {
+            'message': 'Error',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }
+        return Response(context)
+
+@permission_classes([IsAuthenticated])
+class CustomUserPortfolioViewSet(viewsets.ModelViewSet):
+    serializer_class = CustomUserPortfolioSerializer
+    queryset = CustomUserPortfolio.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = ['user']
+    search_fields = ['=user', ]
+
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user=request.user)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        portfolio = request.FILES.getlist('portfolio')
+        remove_portfolio_ids = request.data.getlist('remove_portfolio', None)
+        if remove_portfolio_ids:
+            for id in remove_portfolio_ids:
+                CustomUserPortfolio.objects.filter(id=id).delete()
+        if portfolio:
+            portfolio_error = validate_portfolio_images(portfolio)
+            if portfolio_error != 0:
+                return Response({'message': "Invalid portfolio images"}, status=status.HTTP_400_BAD_REQUEST)
+            for img in portfolio:
+                CustomUserPortfolio.objects.create(user_id=request.user.id, portfolio_images=img)
+            context = {
+                'message': 'Portfolio Uploaded Succfully',
+                'status': status.HTTP_200_OK,
+                'errors': False,
+            }
+            return Response(context)
+        context = {
+            'message': 'No Data Found',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': True,
+        }
+        return Response(context)
+
+@permission_classes([IsAuthenticated])
+class UserCommunicationViewSet(viewsets.ModelViewSet):
+    serializer_class = UserCommunicationSerializer
+    queryset = UserCommunicationMode.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['user']
+    search_fields = ['=user', ]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user=request.user)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+
+
+
+
+

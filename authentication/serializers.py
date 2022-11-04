@@ -1,4 +1,3 @@
-# Django
 from typing_extensions import Required
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.encoding import smart_str, DjangoUnicodeDecodeError, force_bytes
@@ -8,7 +7,7 @@ import os
 # Django Local
 from rest_framework.response import Response
 
-from .models import CustomUser, PaymentMethod, PaymentDetails
+from .models import CustomUser, PaymentMethod, PaymentDetails,UserProfile,UserCommunicationMode,CustomUserPortfolio
 from django.db.models import Q
 # Django Rest Framework
 from rest_framework import serializers
@@ -83,8 +82,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=200, required=True)
     confirm_password = serializers.CharField(max_length=200, required=True)
 
-
-
 class PaymentMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
@@ -107,4 +104,28 @@ class ProfileChangePasswordSerializer(serializers.Serializer):
         confirm_password = data.get('confirm_password')
         if len(new_password) < 7 or len(confirm_password) < 7 or len(current_password) < 7:
             raise serializers.ValidationError("'Make sure your password is at least 7 letters'")
-        return data        
+        return data
+
+
+
+class UserDetailsSerializer(serializers.Serializer):
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = '__all__'
+
+class CustomUserPortfolioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUserPortfolio
+        fields = '__all__'
+
+
+class UserCommunicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserCommunicationMode
+        fields = '__all__'
+

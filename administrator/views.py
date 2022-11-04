@@ -946,8 +946,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                         name = i['stage_name']
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
-                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest, order=i['order'])
+                                                    is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest,order=i['order'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -965,7 +965,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 return Response(context)
             context = {
                 'message': "Error!",
-                'status': status.HTTP_201_CREATED,
+                'status': status.HTTP_400_BAD_REQUEST,
                 'errors': serializer.errors,
                 'data': [],
             }
@@ -979,6 +979,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 'data': [],
             }
             return Response(context)
+
+
 
     def update(self, request, *args, **kwargs):
         try:
@@ -1029,7 +1031,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                         'errors': serializer.errors,
                         'data': serializer.data,
                     }
-                    return Response(context)
+                    return Response(context, status=status.HTTP_201_CREATED)
                 context = {
                     'message': "error",
                     'status': status.HTTP_400_BAD_REQUEST,
@@ -1043,7 +1045,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 'errors': 'ERROR',
                 'data': [],
             }
-            return Response(context)
+            return Response(context, status=status.HTTP_400_BAD_REQUES)
         except Exception as e:
             print(e)
             context = {
@@ -1052,7 +1054,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 'errors': "Error",
                 'data': [],
             }
-            return Response(context)
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1067,7 +1069,15 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         }
         return Response(context)
 
-
+    @action(methods=['put'], detail=False, url_path='update_blocked/(?P<pk>[^/.]+)', url_name='update_blocked')
+    def update_blocked(self, request, pk=None, *args, **kwargs):
+        self.queryset.filter(id=pk).update(is_blocked=request.data['is_blocked'])
+        context = {
+            'message': 'Updated Succesfully',
+            'status': status.HTTP_200_OK,
+        }
+        return Response(context, status=status.HTTP_200_OK)
+        
 @permission_classes([IsAuthenticated])
 class JobProposal(APIView):
     serializer_class = JobAppliedSerializer
@@ -1615,7 +1625,6 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         instance.is_blocked=request.data['is_blocked']
         instance.save()
         print(request.data['is_blocked'])
-        print("hiiiiiiiiiiiiiiiiiiiiiiii")
         context = {
             'message': 'Updated Succesfully',
             'status': status.HTTP_200_OK,

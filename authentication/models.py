@@ -10,6 +10,7 @@ from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from .manager import SoftDeleteManager
 
+
 # Create your models here.
 
 def validate_image(value):
@@ -31,7 +32,7 @@ def validate_video_extension(value):
 
 
 class CustomUser(AbstractUser):
-    ROLES = ((0, 'Admin'), (1, 'Creator'), (2, 'Agency'),(3,'Member'))
+    ROLES = ((0, 'Admin'), (1, 'Creator'), (2, 'Agency'), (3, 'Member'))
 
     role = models.IntegerField(choices=ROLES, default=1)
     forget_password_token = models.TextField(null=True, blank=True)
@@ -49,11 +50,10 @@ class CustomUser(AbstractUser):
     preferred_communication_id = models.CharField(max_length=200, null=True, blank=True)
     is_exclusive = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
-    availability = models.CharField(max_length=1000,null=True,blank=True)
+    availability = models.CharField(max_length=1000, null=True, blank=True)
     is_trashed = models.BooleanField(default=False)
     is_blocked = models.BooleanField(default=False)
     is_account_closed = models.BooleanField(default=False)
-
 
     def save(self, *args, **kwargs):
         try:
@@ -67,13 +67,13 @@ class CustomUser(AbstractUser):
             pass
         super(CustomUser, self).save(*args, **kwargs)
 
-
     def __str__(self):
         return self.email
 
 
 class CustomUserPortfolio(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Portfolio_user",blank=True, null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Portfolio_user", blank=True,
+                             null=True)
     portfolio_images = models.FileField(upload_to='user_portfolio', blank=True, null=True)
 
     # def save(self, *args, **kwargs):
@@ -91,10 +91,6 @@ class CustomUserPortfolio(models.Model):
 
     class Meta:
         verbose_name_plural = 'CustomUser Portfolio'
-
-
-
-
 
 
 class BaseModel(models.Model):
@@ -116,21 +112,21 @@ class BaseModel(models.Model):
         abstract = True
 
 
-#---------------------------------------- Userprofile -------------------------------------------------------#
-'''
+# ---------------------------------------- Userprofile -------------------------------------------------------#
+
 class UserProfile(BaseModel):
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name='user_profile', blank=True, null=True)
+    class ProfileStatus(models.IntegerChoices):
+        Away = 0
+        Online = 1
+        Offline = 2
+
+    user = models.ForeignKey(CustomUser, related_name='user_profile', on_delete=models.SET_NULL, blank=True, null=True)
     profile_title = models.CharField(max_length=200, null=True, blank=True)
     profile_description = models.TextField(null=True, blank=True)
     profile_img = models.ImageField(upload_to='user_profile_images/', null=True, blank=True,
                                     validators=[validate_image])
     video = models.FileField(upload_to='user_video/', null=True, blank=True, validators=[validate_video_extension])
-    profile_status = models.CharField(choices=(('0', 'away'), ('1', 'online'), ('2', 'offline')), max_length=30,
-                                      default='1', blank=True, null=True)
-    preferred_communication_mode = models.CharField(
-        choices=(('0', 'Email'), ('1', 'Whatsapp'), ('2', 'Skype'), ('3', 'Direct message')), max_length=30,
-        default='0', blank=True, null=True)
-    preferred_communication_id = models.CharField(max_length=200, null=True, blank=True)
+    profile_status = models.IntegerField(choices=ProfileStatus.choices, default=ProfileStatus.Online)
 
     def save(self, *args, **kwargs):
         try:
@@ -146,8 +142,28 @@ class UserProfile(BaseModel):
 
     def __str__(self):
         return self.user.email
-'''
-#--------------------------------------- end -----------------------------------------------------------#
+
+
+class UserCommunicationMode(BaseModel):
+    class Modes(models.IntegerChoices):
+        Email = 0
+        Sms = 1
+        WhatsApp = 2
+        Slack = 3
+
+    communication_mode = models.IntegerField(choices=Modes.choices, default=Modes.Email)
+    user = models.ForeignKey(CustomUser, related_name="user_communication_mode", on_delete=models.SET_NULL, blank=True,
+                             null=True)
+    mode_value = models.CharField(max_length=1000, null=True, blank=True)
+    is_preferred = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.user.first_name
+
+    class Meta:
+        verbose_name_plural = 'User Communication Mode'
+
+# --------------------------------------------------- end -----------------------------------------------------------#
 
 class PaymentMethod(BaseModel):
     name = models.CharField(max_length=200)
