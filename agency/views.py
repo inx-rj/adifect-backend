@@ -19,7 +19,7 @@ from rest_framework import generics
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
-    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer, DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer
+    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer, DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
@@ -453,6 +453,21 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': 'something went wrong','error':True}, status=status.HTTP_400_BAD_REQUEST)
 
+
+    @action(methods=['put'], detail=False, url_path='update_blocked/(?P<pk>[^/.]+)', url_name='update_blocked')
+    def update_blocked(self, request, pk=None, *args, **kwargs):
+
+        data = self.queryset.filter(id=pk).update(is_blocked=request.data['is_blocked'])
+        if data:
+            context = {
+                'message': 'Updated Succesfully',
+                'status': status.HTTP_200_OK,
+            }
+            return Response(context, status=status.HTTP_200_OK)
+        else:
+            return Response({'message:'}, status=status.HTTP_200_OK)
+
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -830,6 +845,27 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_data=DamMedia.objects.filter(id=pk).update(title=new_title)
         return Response(dam_data.data, status=status.HTTP_200_OK)
 
+    @action(methods=['put'], detail=False, url_path='move_to', url_name='move_to')
+    def move_to(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id', None)
+            if id_list:
+                DAM.objects.filter(id__in=id_list).update(parent=request.data['parent'])
+                context = {
+                    'message': 'Updated successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
    
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
@@ -844,8 +880,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent__is_trashed=False)
-        # queryset = queryset.filter(agency=user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -922,9 +957,9 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user,dam__type=3).order_by('-modified')[:4]
+        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user,dam__parent__is_trashed=False).order_by('-modified')[:4]
         # queryset = queryset.filter(agency=user)
-        serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
+        serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
 @permission_classes([IsAuthenticated])
