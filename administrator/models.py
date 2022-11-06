@@ -10,7 +10,7 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry
+from agency.models import WorksFlow, Company, Industry,InviteMember
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 def validate_attachment(value):
@@ -226,6 +226,13 @@ class JobActivityChat(BaseModel):
     class Meta:
         verbose_name_plural = 'Job Activities Chat'
 
+class JobActivityAttachments(BaseModel):
+    job_activity_chat = models.ForeignKey(JobActivity, related_name="activity_job_attachments", on_delete=models.SET_NULL, null=True, blank=True)
+    chat_attachment = models.FileField(upload_to='activity_chat_attachments',default=None, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Activity Attachments'
+
 
 
 class JobApplied(BaseModel):
@@ -430,3 +437,38 @@ class UserSkills(BaseModel):
 
     def __str__(self) -> str:
         return f'{self.skills.skill_name if self.skills is not None else "" }'
+
+class SubmitJobWork(BaseModel):
+    class Status(models.IntegerChoices):
+        Approved = 1
+        Rejected = 2
+        Pending = 0
+    job_applied = models.ForeignKey(JobApplied,related_name="submit_work", on_delete=models.SET_NULL,blank=True, null=True)
+    message = models.CharField(max_length=5000,null=False, blank=False)
+    status = models.IntegerField(choices=Status.choices, default=Status.Pending)
+
+    class Meta:
+        verbose_name_plural = 'Submit Job Work'
+
+
+class JobWorkAttachments(BaseModel):
+    job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit_Work", on_delete=models.SET_NULL,
+                                     null=True, blank=True)
+    work_attachments= models.FileField(upload_to='work_attachments', blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Template_Attachments'
+
+class MemberApprovals(BaseModel):
+    class Status(models.IntegerChoices):
+        Approved = 1
+        Rejected = 2
+        Pending = 0
+    job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit", on_delete=models.SET_NULL,
+                                  null=True, blank=True)
+    approver = models.ForeignKey(InviteMember, related_name="job_approvers", on_delete=models.SET_NULL,
+                                 null=True, blank=True)
+    status = models.IntegerField(choices=Status.choices, default=Status.Pending)
+
+    class Meta:
+        verbose_name_plural = 'Member Approvals'

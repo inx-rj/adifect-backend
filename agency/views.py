@@ -105,9 +105,41 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
 
 
     def create(self, request, *args, **kwargs):
+        print("gotttttttttttttttt here")
         serializer = self.get_serializer(data=request.data)
         image = request.FILES.getlist('image')
+        dam_images = request.FILES.getlist('dam_images')
+        print(image)
+        print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
         if serializer.is_valid():
+            if dam_images:
+                print(dam_images)
+                print("hereeeeeeeeeeeeeeeeeeeeeeeee")
+                serializer.fields.pop('image')
+                for i in dam_images:
+                    print(i)
+                    print("gottttttttttttttttttttttttttt")
+                    if i.limit_usage > i.limit_used:
+                        context = {
+                                'message': 'Limit Exceeded',
+                                'status': status.HTTP_400_BAD_REQUEST,
+                                'errors': serializer.errors,
+                            }
+                        return Response(context)
+                    else:
+                        self.perform_create(serializer)
+                        i.limit_usage+=1
+                        job_id = Job.objects.latest('id')
+                        JobAttachments.objects.create(job=job_id, job_images=i)
+                        context = {
+                            'message': 'Job Created Successfully',
+                            'status': status.HTTP_201_CREATED,
+                            'errors': serializer.errors,
+                            'data': serializer.data,
+                        }
+                        return Response(context)
+                                    
+
             serializer.fields.pop('image')
             self.perform_create(serializer)
             job_id = Job.objects.latest('id')
@@ -974,14 +1006,28 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid():
-            self.perform_update(serializer)
-            context = {
-                'message': 'Updated Successfully...',
-                'status': status.HTTP_200_OK,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
+            if request.data['limit_usage_toggle'] == 'True':
+                if request.data['limit_usage'] < request.data['limit_used']:
+                    return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    self.perform_update(serializer)
+                    context = {
+                        'message': 'Updated Successfully...',
+                        'status': status.HTTP_200_OK,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context)
+
+            else:
+                self.perform_update(serializer)
+                context = {
+                    'message': 'Updated Successfully...',
+                    'status': status.HTTP_200_OK,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     

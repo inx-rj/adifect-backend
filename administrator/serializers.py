@@ -6,7 +6,7 @@ from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
      JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks
+    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks,JobActivityAttachments,SubmitJobWork,JobWorkAttachments,MemberApprovals
 from rest_framework.fields import SerializerMethodField
 # from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
@@ -661,13 +661,32 @@ class JobActivityChatSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobActivityAttachments
+        fields = '__all__'
+
+
+class JobApplied_serializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobApplied
+        fields = '__all__'
+
+
+class customUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
 
 
 class JobActivitySerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
     agency  = serializers.SerializerMethodField("get_agency")
     user_details = serializers.SerializerMethodField("get_user")
+    user_full_name = serializers.SerializerMethodField("get_user_name")
+    user_img  = serializers.SerializerMethodField("get_user_img")
     activity_job_chat = JobActivityChatSerializer(many=True)
+    job_applied_data = serializers.SerializerMethodField("get_job_applied_data")
     class Meta:
         model = JobActivity
         fields = '__all__'
@@ -687,13 +706,46 @@ class JobActivitySerializer(serializers.ModelSerializer):
     #         return obj.get_activity_type_display()
     #     return ''
 
-    def get_agency(self, obj):
-        return obj.job.user.get_full_name()
-
-    def get_user(self, obj):
+    def get_user_name(self, obj):
         if obj.user is not None:
             return obj.user.get_full_name()
         return ''
+
+    def get_job_applied_data(self, obj):
+        if obj.activity_type==3 and obj.activity_status==0:
+            return obj.job.job_applied.all().values()
+        else:
+            return ''
+
+
+    def get_agency(self, obj):
+        return obj.job.user.get_full_name()
+
+    def get_user_img(self, obj):
+        # if obj.user is not None:
+        #     customUserObj = CustomUser.objects.filter(id=obj.user.id).values('username','profile_img')
+        #     if customUserObj is not None:
+        #         return customUserObj
+        try:
+            if obj.user:
+                profile = obj.user.profile_img.url
+                return profile
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+
+    def get_user(self, obj):
+        if obj.user is not None:
+            customUserObj = CustomUser.objects.filter(id=obj.user.id).values('username','profile_img')
+            if customUserObj is not None:
+                return customUserObj
+            else:
+                return ''
+        return ''
+
+
 
 #--------------------------------                        end             -------------------------------------------- #
 class UserPortfolioSerializer(serializers.ModelSerializer):
@@ -711,3 +763,20 @@ class UserPortfolioSerializer(serializers.ModelSerializer):
 class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
 
+
+class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobWorkAttachments
+        fields = '__all__'
+
+class SubmitJobWorkSerializer(serializers.ModelSerializer):
+    job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
+    class Meta:
+        model = SubmitJobWork
+        fields = '__all__'
+
+
+class MemberApprovalsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MemberApprovals
+        fields = '__all__'

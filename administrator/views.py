@@ -1,4 +1,4 @@
-from locale import DAY_1
+# from locale import DAY_1
 from sqlite3 import DatabaseError
 import datetime
 from django.shortcuts import render
@@ -7,7 +7,8 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobFilterSerializer, RelatedJobsSerializer, \
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
-    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer,JobActivityChatSerializer,UserPortfolioSerializer
+    QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer,JobActivitySerializer,\
+    JobActivityChatSerializer,UserPortfolioSerializer,SubmitJobWorkSerializer,MemberApprovalsSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,7 +18,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
-    Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks
+    Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks,JobActivityAttachments,SubmitJobWork,JobWorkAttachments,MemberApprovals
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -32,7 +33,7 @@ from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter,OrderingFilter
 import json
-from agency.models import Industry, Company, WorksFlow, Workflow_Stages,InviteMember
+from agency.models import Industry, Company, WorksFlow, Workflow_Stages,InviteMember, DamMedia
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer,InviteMemberSerializer,MyProjectSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
@@ -256,11 +257,16 @@ class JobViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
+        print("adminnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
         serializer = self.get_serializer(data=request.data)
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
         template_image = request.FILES.getlist('template_image')
         templte_sample_image = request.FILES.getlist('template_sample_image')
+        dam_images = request.data.getlist('dam_images')
+        dam_sample_images = request.data.getlist('dam_sample_images')
+
+
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
             if template_name:
@@ -295,6 +301,23 @@ class JobViewSet(viewsets.ModelViewSet):
                     return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
                 for i in image:
                     JobAttachments.objects.create(job=job_id, job_images=i)
+            if dam_images:
+                    dam_inital = DamMedia.objects.get(id=i)
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        print("limit exceeded")
+                    else:
+                        JobAttachments.objects.create(job=job_id,job_images=dam_inital.media)
+                        dam_inital.limit_used+=1
+                        dam_inital.save()
+            if dam_sample_images:
+                for i in dam_sample_images:
+                    dam_inital = DamMedia.objects.get(id=i)
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        print("limit exceeded")
+                    else:
+                        JobAttachments.objects.create(job=job_id,work_sample_images=dam_inital.media)
+                        dam_inital.limit_used+=1
+                        dam_inital.save()
             if sample_image:
                 sample_image_error = validate_job_attachments(sample_image)
                 if sample_image_error != 0:
@@ -713,15 +736,50 @@ class LatestJobAPI(APIView):
             }
             return Response(context)
 
+
 @permission_classes([IsAuthenticated])
 class JobActivityViewSet(viewsets.ModelViewSet):
     serializer_class = JobActivitySerializer
     queryset = JobActivity.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(Q(job__user=request.user)|Q(user=request.user))
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            if serializer.validated_data['activity_status'] == 1:
+                attachment =  request.FILES.getlist('chat_attachments')
+                if attachment:
+                    latest_chat = JobActivityChat.objects.latest('id')
+                    for i in attachment:
+                        JobActivityAttachments.objects.create(job_activity_chat=latest_chat,chat_attachment=i)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context,status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 
@@ -1788,3 +1846,52 @@ class TestApi(APIView):
         }
         return Response(context)
 # ---------------------------------------------------- end ------------------------------------------------ #
+#--------------------------------- new Job Submit ------------------------------------------------------------#
+
+@permission_classes([IsAuthenticated])
+class JobWorkSubmitViewSet(viewsets.ModelViewSet):
+    serializer_class = SubmitJobWorkSerializer
+    queryset = SubmitJobWork.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job_applied__job']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            #----- work flow for approvals detail -----#
+            job = serializer.validated_data['job_applied'].job.workflow
+            self.perform_create(serializer)
+            attachment =  request.FILES.getlist('work_attachments')
+            if attachment:
+                latest_work = SubmitJobWork.objects.latest('id')
+                for i in attachment:
+                    JobWorkAttachments.objects.create(job_work=latest_work,work_attachments=i)
+
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context,status=status.HTTP_400_BAD_REQUEST)
+
+
+
+

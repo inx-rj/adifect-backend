@@ -45,6 +45,8 @@ router.register(r'creator-list', views.CreatorListViewSet, basename='creator_lis
 router.register(r'creator-job-list', views.CreatorJobListViewSet, basename='creator_job_list')
 router.register(r'user-portfolio', views.UserPortfolioViewset, basename='user_portfolio')
 router.register(r'agency-job-details', views.AgencyJobDetailsViewSet, basename='agency_job_details')
+router.register(r'submit-job-work', views.JobWorkSubmitViewSet, basename='submit_job_work')
+
 #-------------------------------------  END  ---------------------------------------------#
 
 urlpatterns = [

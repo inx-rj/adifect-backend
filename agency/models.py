@@ -13,6 +13,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from io import BytesIO
 from PIL import Image
 import sys
+# from administrator.models import Skills
 
 # Create your models here.
 
@@ -186,12 +187,22 @@ def fileLocation(instance, dam_media):
 
 
 class DamMedia(BaseModel):
+    class Type(models.IntegerChoices):
+        Public = 1
+        Private = 0
     dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
     title = models.CharField(max_length=5000, default=None,null=True, blank=True)
     description = models.CharField(max_length=5000, default=None,null=True, blank=True)
     image_favourite = models.BooleanField(default=False)
+    limit_usage_toggle = models.BooleanField(default=False)
+    limit_usage = models.IntegerField(default=0)
+    limit_used = models.IntegerField(default=0)
+    usage = models.IntegerField(choices=Type.choices,null=True,blank=True, default=None)
+    # skills = models.ManyToManyField(Skills,blank=True)
+    tags = models.CharField(max_length=10000,null=True, blank=True)
+
 
     class Meta:
         verbose_name_plural = 'DAM Media'
