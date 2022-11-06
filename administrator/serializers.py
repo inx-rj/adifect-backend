@@ -771,6 +771,8 @@ class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
 
 class SubmitJobWorkSerializer(serializers.ModelSerializer):
     job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
+    attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,validators=[validate_file_extension])
+
     class Meta:
         model = SubmitJobWork
         fields = '__all__'
