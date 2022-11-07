@@ -724,10 +724,13 @@ class JobActivitySerializer(serializers.ModelSerializer):
         return obj.job.user.get_full_name()
 
     def get_agency_img(self, obj):
-        if obj.job is not None:
-            if obj.job.user is not None:
-                return obj.job.user.profile_img.url
-        else:
+        try:
+            if obj.job is not None:
+                if obj.job.user is not None:
+                    return obj.job.user.profile_img.url
+            else:
+                return ''
+        except:
             return ''
 
     def get_user_img(self, obj):

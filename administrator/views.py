@@ -1904,7 +1904,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     JobWorkAttachments.objects.create(job_work=latest_work,work_attachments=i)
 
             context = {
-                'message': 'Created Successfully',
+                'message': 'Job Successfully Submitted',
                 'status': status.HTTP_201_CREATED,
                 'errors': serializer.errors,
                 'data': serializer.data,

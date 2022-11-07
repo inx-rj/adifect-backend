@@ -395,7 +395,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     agency_level = AgencyLevel.objects.create(levels=levels)
                     invite = InviteMember.objects.create(agency=agency,email=email,user=agency_level, status=0, company=company)
                     # invite_id = invite.pk
-                    decodeId = StringEncoder.encode(self, agency_level.id)
+                decodeId = StringEncoder.encode(self, invite.user.id)
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
@@ -408,7 +408,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     print(e)
-                    return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             if user:
                 if not invite:
                     agency_level = AgencyLevel.objects.create(user=user, levels=levels)
@@ -459,7 +459,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
 
                     except Exception as e:
                         print(e)
-                        return Response({'message': 'Something Went Wrong'})
+                        return Response({'message': str(e)})
             return Response({'message': 'success'},
                             status=status.HTTP_200_OK)
 
@@ -1004,6 +1004,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             if request.data['limit_usage_toggle'] == 'True':
                 if request.data['limit_usage'] < request.data['limit_used']:
                     return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
+                    
                 else:
                     self.perform_update(serializer)
                     context = {
