@@ -190,9 +190,10 @@ class DamMedia(BaseModel):
     class Type(models.IntegerChoices):
         Public = 1
         Private = 0
-    dam = models.ForeignKey(DAM, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_media")
+    dam = models.ForeignKey(DAM, on_delete=models.CASCADE, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
+    media_type = models.IntegerField(default=0)
     title = models.CharField(max_length=5000, default=None,null=True, blank=True)
     description = models.CharField(max_length=5000, default=None,null=True, blank=True)
     image_favourite = models.BooleanField(default=False)
@@ -209,18 +210,24 @@ class DamMedia(BaseModel):
         verbose_name_plural = 'DAM Media'
     
     def save(self, **kwargs):
-        output_size = (250, 250)
-        output_thumb = BytesIO()
+        
+        if str(self.media).endswith(".mp4"):
+            self.thumbnail=self.media
+            self.media_type=1
+            super(DamMedia, self).save()
+        else:
+            output_size = (250, 250)
+            output_thumb = BytesIO()
 
-        img = Image.open(self.media)
-        img_name = self.media.name.split('.')[0]
+            img = Image.open(self.media)
+            img_name = self.media.name.split('.')[0]
 
-        img.thumbnail(output_size)
-        img.save(output_thumb,format=img.format,quality=90)
+            img.thumbnail(output_size)
+            img.save(output_thumb,format=img.format,quality=90)
 
-        self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg', sys.getsizeof(output_thumb), None)
+            self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg', sys.getsizeof(output_thumb), None)
 
-        super(DamMedia, self).save()
+            super(DamMedia, self).save()
 
 
 

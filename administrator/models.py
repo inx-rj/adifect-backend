@@ -149,6 +149,7 @@ class Job(BaseModel):
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
+    
 
 
     class Meta:
@@ -227,7 +228,7 @@ class JobActivityChat(BaseModel):
         verbose_name_plural = 'Job Activities Chat'
 
 class JobActivityAttachments(BaseModel):
-    job_activity_chat = models.ForeignKey(JobActivity, related_name="activity_job_attachments", on_delete=models.SET_NULL, null=True, blank=True)
+    job_activity_chat = models.ForeignKey(JobActivityChat, related_name="activity_job_attachments", on_delete=models.SET_NULL, null=True, blank=True)
     chat_attachment = models.FileField(upload_to='activity_chat_attachments',default=None, blank=True, null=True)
 
     class Meta:
@@ -471,6 +472,7 @@ class MemberApprovals(BaseModel):
     approver = models.ForeignKey(InviteMember, related_name="job_approvers", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
+    message = models.CharField(default=None, max_length=50000, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Member Approvals'

@@ -27,7 +27,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id','availability','Portfolio_user','user_level']
+                  'preferred_communication_id','availability','Portfolio_user','user_level','sub_title']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -655,10 +655,6 @@ class UserSkillsSerializer(serializers.ModelSerializer):
 
 # --------------                           job activity                      -----------------#
 
-class JobActivityChatSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = JobActivityChat
-        fields = '__all__'
 
 
 class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
@@ -666,6 +662,11 @@ class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
         model = JobActivityAttachments
         fields = '__all__'
 
+class JobActivityChatSerializer(serializers.ModelSerializer):
+    activity_job_attachments = JobActivityAttachmentsSerializer(many=True,required=False)
+    class Meta:
+        model = JobActivityChat
+        fields = '__all__'
 
 class JobApplied_serializer(serializers.ModelSerializer):
     class Meta:
@@ -708,7 +709,7 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
     def get_user_name(self, obj):
         if obj.user is not None:
-            return obj.user.get_full_name()
+            return {'user_name':obj.user.get_full_name(),'id':obj.user.id}
         return ''
 
     def get_job_applied_data(self, obj):
@@ -721,7 +722,8 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
 
     def get_agency_name(self, obj):
-        return obj.job.user.get_full_name()
+        if obj.job.user is not None:
+            return  {'agency_name':obj.job.user.get_full_name(),'id':obj.job.user.id}
 
     def get_agency_img(self, obj):
         try:

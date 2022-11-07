@@ -405,7 +405,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         return Response({'message': 'mail Send successfully, Please check your mail'},
                                         status=status.HTTP_200_OK)
                     else:
-                        return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({'message': 'You are not authorized to send invitation.'}, status=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     print(e)
                     return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -455,7 +455,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                             return Response({'message': 'mail Send successfully, Please check your mail'},
                                             status=status.HTTP_200_OK)
                         else:
-                            return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                            return Response({'message': 'You are not authorized to send invitation.'}, status=status.HTTP_400_BAD_REQUEST)
 
                     except Exception as e:
                         print(e)
@@ -1000,11 +1000,34 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
+        dam_media = request.data.get('dam_media',None)
+        dam_media = dam_media.split(",")
         if serializer.is_valid():
-            if request.data['limit_usage_toggle'] == 'True':
-                if request.data['limit_usage'] < request.data['limit_used']:
-                    return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
-                    
+            dam_id = DAM.objects.latest('id')
+            if request.data['collection']:
+                if request.data['limit_usage_toggle'] == 'True':
+
+                    if request.data['limit_usage'] < request.data['limit_used']:
+                        return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        for i in dam_media:
+                            DamMedia.objects.create(dam=dam_id,media=i)
+            else:
+                if request.data['limit_usage_toggle'] == 'True':
+
+                    if request.data['limit_usage'] < request.data['limit_used']:
+                        return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
+                        
+                    else:
+                        self.perform_update(serializer)
+                        context = {
+                            'message': 'Updated Successfully...',
+                            'status': status.HTTP_200_OK,
+                            'errors': serializer.errors,
+                            'data': serializer.data,
+                        }
+                        return Response(context)
+
                 else:
                     self.perform_update(serializer)
                     context = {
@@ -1014,16 +1037,6 @@ class DamMediaViewSet(viewsets.ModelViewSet):
                         'data': serializer.data,
                     }
                     return Response(context)
-
-            else:
-                self.perform_update(serializer)
-                context = {
-                    'message': 'Updated Successfully...',
-                    'status': status.HTTP_200_OK,
-                    'errors': serializer.errors,
-                    'data': serializer.data,
-                }
-                return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     

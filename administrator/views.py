@@ -93,6 +93,7 @@ class ProfileEdit(APIView):
         user.profile_status = request.data.get('profile_status', None)
         user.first_name = request.data.get('first_name', None)
         user.last_name = request.data.get('last_name', None)
+        user.sub_title = request.data.get('sub_title', None)
         video = request.data.get('video', None)
         user.preferred_communication_mode = request.data.get('preferred_communication_mode', None)
         user.preferred_communication_id = request.data.get('preferred_communication_id', None)
@@ -293,7 +294,6 @@ class JobViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
-        print("adminnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
         serializer = self.get_serializer(data=request.data)
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
@@ -782,10 +782,14 @@ class JobActivityViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
+        attachment = request.FILES.getlist('chat_attachments')
+        print(attachment)
+        print(request.data)
         if serializer.is_valid():
             self.perform_create(serializer)
             if serializer.validated_data['activity_status'] == 1:
                 attachment =  request.FILES.getlist('chat_attachments')
+
                 if attachment:
                     latest_chat = JobActivityChat.objects.latest('id')
                     for i in attachment:
@@ -897,6 +901,45 @@ class JobTasksViewSet(viewsets.ModelViewSet):
     search_fields = ['=job', ]
 
 
+def dam_images_templates(dam_images,job_template_id):
+    if dam_images:
+        for i in dam_images:
+            dam_inital = DamMedia.objects.get(id=i)
+            if type(dam_inital.limit_usage) == int:
+                if dam_inital.limit_usage < dam_inital.limit_used:
+                    print("limit exceeded")
+                else:
+                    JobTemplateAttachments.objects.create(job_template=job_template_id,job_template_images=dam_inital.media)
+                    dam_inital.limit_used+=1
+                    dam_inital.save()
+            else:
+                JobTemplateAttachments.objects.create(job_template=job_template_id,job_template_images=dam_inital.media)
+                dam_inital.limit_used+=1
+                dam_inital.save()
+            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+                dam_inital.usage_limit_reached=True
+                dam_inital.save()
+
+
+def dam_sample_template_images_list(dam_sample_work,job_template_id):
+     if dam_sample_work:
+                for i in dam_sample_work:
+                    dam_inital = DamMedia.objects.get(id=i)
+                    if type(dam_inital.limit_usage) == int:
+                        if dam_inital.limit_usage < dam_inital.limit_used:
+                            print("limit exceeded")
+                        else:
+                            JobTemplateAttachments.objects.create(job_template=job_template_id,work_sample_images=dam_inital.media)
+                            dam_inital.limit_used+=1
+                            dam_inital.save()
+                    else:
+                        JobTemplateAttachments.objects.create(job_template=job_template_id,work_sample_images=dam_inital.media)
+                        dam_inital.limit_used+=1
+                        dam_inital.save()
+                    if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+                        dam_inital.usage_limit_reached=True
+                        dam_inital.save()
+
 @permission_classes([IsAuthenticated])
 class JobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
@@ -929,8 +972,12 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
         remove_image_ids = request.data.getlist('remove_image', None)
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
+        dam_images = request.data.getlist('dam_images')
+        dam_sample_work = request.data.getlist('dam_sample_work')
+
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
+            job_template_id = JobTemplate.objects.latest('id')
             if template_name:
                 if JobTemplate.objects.filter(
                         ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exclude(
@@ -965,6 +1012,9 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
                     return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
                 for i in image:
                     JobTemplateAttachments.objects.create(job_template=instance, job_template_images=i)
+            dam_images_templates(dam_images,job_template_id)
+            dam_sample_template_images_list(dam_sample_work,job_template_id)
+
             if sample_image:
                 sample_image_error = validate_job_attachments(sample_image)
                 if sample_image_error != 0:
