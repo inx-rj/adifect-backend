@@ -446,6 +446,7 @@ class SubmitJobWork(BaseModel):
     job_applied = models.ForeignKey(JobApplied,related_name="submit_work", on_delete=models.SET_NULL,blank=True, null=True)
     message = models.CharField(max_length=5000,null=False, blank=False)
     submit_job_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
+    task = models.ForeignKey(JobTasks,related_name="submit_task", on_delete=models.SET_NULL,blank=True, null=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
 
     class Meta:

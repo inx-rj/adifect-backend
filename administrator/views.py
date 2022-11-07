@@ -230,6 +230,42 @@ class UserListViewSet(viewsets.ModelViewSet):
             }
         return Response(context)
 
+def dam_images_list(dam_images,job_id):
+    if dam_images:
+        for i in dam_images:
+            dam_inital = DamMedia.objects.get(id=i)
+            if type(dam_inital.limit_usage) == int:
+                if dam_inital.limit_usage < dam_inital.limit_used:
+                    print("limit exceeded")
+                else:
+                    JobAttachments.objects.create(job=job_id,job_images=dam_inital.media)
+                    dam_inital.limit_used+=1
+                    dam_inital.save()
+            else:
+                JobAttachments.objects.create(job=job_id,job_images=dam_inital.media)
+                dam_inital.limit_used+=1
+                dam_inital.save()
+            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+                dam_inital.usage_limit_reached=True
+                dam_inital.save()
+
+
+
+def dam_sample_images_list(dam_sample_images,job_id):
+     if dam_sample_images:
+                for i in dam_sample_images:
+                    dam_inital = DamMedia.objects.get(id=i)
+                    if type(dam_inital.limit_usage) == int:
+                        if dam_inital.limit_usage < dam_inital.limit_used:
+                            print("limit exceeded")
+                        else:
+                            JobAttachments.objects.create(job=job_id,work_sample_images=dam_inital.media)
+                            dam_inital.limit_used+=1
+                            dam_inital.save()
+                    else:
+                        JobAttachments.objects.create(job=job_id,work_sample_images=dam_inital.media)
+                        dam_inital.limit_used+=1
+                        dam_inital.save()
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
@@ -301,23 +337,8 @@ class JobViewSet(viewsets.ModelViewSet):
                     return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
                 for i in image:
                     JobAttachments.objects.create(job=job_id, job_images=i)
-            if dam_images:
-                    dam_inital = DamMedia.objects.get(id=i)
-                    if dam_inital.limit_usage < dam_inital.limit_used:
-                        print("limit exceeded")
-                    else:
-                        JobAttachments.objects.create(job=job_id,job_images=dam_inital.media)
-                        dam_inital.limit_used+=1
-                        dam_inital.save()
-            if dam_sample_images:
-                for i in dam_sample_images:
-                    dam_inital = DamMedia.objects.get(id=i)
-                    if dam_inital.limit_usage < dam_inital.limit_used:
-                        print("limit exceeded")
-                    else:
-                        JobAttachments.objects.create(job=job_id,work_sample_images=dam_inital.media)
-                        dam_inital.limit_used+=1
-                        dam_inital.save()
+            dam_images_list(dam_images,job_id)
+            dam_sample_images_list(dam_sample_images,job_id)
             if sample_image:
                 sample_image_error = validate_job_attachments(sample_image)
                 if sample_image_error != 0:
@@ -380,6 +401,8 @@ class JobViewSet(viewsets.ModelViewSet):
         remove_image_ids = request.data.getlist('remove_image', None)
         template_image = request.FILES.getlist('template_image')
         templte_sample_image = request.FILES.getlist('template_sample_image')
+        dam_images = request.data.getlist('dam_images')
+        dam_sample_images = request.data.getlist('dam_sample_images')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
             if not JobApplied.objects.filter(Q(job=instance) & (Q(status=2) | Q(status=3) | Q(status=4))):
@@ -396,6 +419,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_update(serializer)
+                job_id = Job.objects.latest('id')
                 JobApplied.objects.filter(job=instance).update(is_modified=True)
                 if remove_image_ids:
                     for id in remove_image_ids:
@@ -407,6 +431,8 @@ class JobViewSet(viewsets.ModelViewSet):
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
+                dam_images_list(dam_images,job_id)
+                dam_sample_images_list(dam_sample_images,job_id)
                 if sample_image:
                     sample_image_error = validate_job_attachments(sample_image)
                     if sample_image_error != 0:
@@ -1186,7 +1212,7 @@ class JobProposal(APIView):
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
             if test_status:
-                JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=request.user)
+                JobActivity.objects.create(job=job_details.job, activity_type=test_status,user=job_details.user)
 
             #------------------ EMAIL Section ---------------------------------------#
             if int(initial_status) == 2 and update_proposal :

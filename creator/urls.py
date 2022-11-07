@@ -10,6 +10,8 @@ router.register(r'creator-jobs', views.CreatorJobsViewSet, basename='creator_job
 router.register(r'my-jobs', views.MyJobsViewSet, basename='my_jobs')
 router.register(r'public-job-api', views.PublicJobViewApi, basename='public_job_api')
 router.register(r'available-jobs', views.AvailableJobs, basename='available_jobs')
+router.register(r'job-activity', views.JobActivityCreaterViewSet, basename='job_activity')
+
 
 
 urlpatterns = [

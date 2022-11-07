@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied
-from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer
+from administrator.models import Job, JobAttachments, JobApplied,JobActivity
+from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, JobActivitySerializer
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -34,6 +34,18 @@ class LatestsJobsViewSet(viewsets.ModelViewSet):
 class JobAppliedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job']
+
+    def list(self, request, *args, **kwargs):
+        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user)
+        data = job_data.values('id')
+        if data:
+            data = data[0]
+        return Response(data=data, status=status.HTTP_201_CREATED)
+
 
 
 # @permission_classes([IsAuthenticated])
@@ -229,3 +241,23 @@ class CreatorCompanyList(APIView):
                 'data':jobs
             }
             return Response(context)
+
+
+@permission_classes([IsAuthenticated])
+class JobActivityCreaterViewSet(viewsets.ModelViewSet):
+    serializer_class = JobActivitySerializer
+    queryset = JobActivity.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user=request.user)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+

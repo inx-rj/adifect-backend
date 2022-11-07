@@ -105,20 +105,13 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
 
 
     def create(self, request, *args, **kwargs):
-        print("gotttttttttttttttt here")
         serializer = self.get_serializer(data=request.data)
         image = request.FILES.getlist('image')
         dam_images = request.FILES.getlist('dam_images')
-        print(image)
-        print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
         if serializer.is_valid():
             if dam_images:
-                print(dam_images)
-                print("hereeeeeeeeeeeeeeeeeeeeeeeee")
                 serializer.fields.pop('image')
                 for i in dam_images:
-                    print(i)
-                    print("gottttttttttttttttttttttttttt")
                     if i.limit_usage > i.limit_used:
                         context = {
                                 'message': 'Limit Exceeded',
@@ -696,11 +689,13 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files',None)
         dam_name = request.POST.getlist('dam_files_name',None)
         if serializer.is_valid():
+            print(request.data)
+            print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type']==3:
                 for index,i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3,parent=serializer.validated_data.get('parent',None)  ,agency=serializer.validated_data['agency'])
-            #         DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
             # elif serializer.validated_data['type']==1:
             #     print("yesssssssssssssssssss")
             #     if request.data['parent'] is not None:

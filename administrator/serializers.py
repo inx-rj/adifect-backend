@@ -681,8 +681,8 @@ class customUserSerializer(serializers.ModelSerializer):
 
 class JobActivitySerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
-    agency  = serializers.SerializerMethodField("get_agency")
-    user_details = serializers.SerializerMethodField("get_user")
+    agency_name  = serializers.SerializerMethodField("get_agency_name")
+    agency_img  = serializers.SerializerMethodField("get_agency_img")
     user_full_name = serializers.SerializerMethodField("get_user_name")
     user_img  = serializers.SerializerMethodField("get_user_img")
     activity_job_chat = JobActivityChatSerializer(many=True)
@@ -713,13 +713,22 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
     def get_job_applied_data(self, obj):
         if obj.activity_type==3 and obj.activity_status==0:
-            return obj.job.job_applied.all().values()
+            # JobAppliedSerializer
+            # return obj.job.job_applied.filter(user=obj.user).values()
+            return JobAppliedSerializer(obj.job.job_applied.filter(user=obj.user),many=True).data
         else:
             return ''
 
 
-    def get_agency(self, obj):
+    def get_agency_name(self, obj):
         return obj.job.user.get_full_name()
+
+    def get_agency_img(self, obj):
+        if obj.job is not None:
+            if obj.job.user is not None:
+                return obj.job.user.profile_img.url
+        else:
+            return ''
 
     def get_user_img(self, obj):
         # if obj.user is not None:
@@ -736,14 +745,6 @@ class JobActivitySerializer(serializers.ModelSerializer):
             return ''
 
 
-    def get_user(self, obj):
-        if obj.user is not None:
-            customUserObj = CustomUser.objects.filter(id=obj.user.id).values('username','profile_img')
-            if customUserObj is not None:
-                return customUserObj
-            else:
-                return ''
-        return ''
 
 
 

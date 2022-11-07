@@ -197,9 +197,10 @@ class DamMedia(BaseModel):
     description = models.CharField(max_length=5000, default=None,null=True, blank=True)
     image_favourite = models.BooleanField(default=False)
     limit_usage_toggle = models.BooleanField(default=False)
-    limit_usage = models.IntegerField(default=0)
+    limit_usage = models.IntegerField(default=None,null=True,blank=True)
     limit_used = models.IntegerField(default=0)
     usage = models.IntegerField(choices=Type.choices,null=True,blank=True, default=None)
+    usage_limit_reached = models.BooleanField(default=False)
     # skills = models.ManyToManyField(Skills,blank=True)
     tags = models.CharField(max_length=10000,null=True, blank=True)
 
