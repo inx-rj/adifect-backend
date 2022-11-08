@@ -218,7 +218,7 @@ class JobActivityChat(BaseModel):
     job_activity = models.ForeignKey(JobActivity, related_name="activity_job_chat", on_delete=models.SET_NULL, null=True, blank=True)
     sender = models.ForeignKey(CustomUser,related_name="job_activity_chat_sender", on_delete=models.SET_NULL, null=True, blank=True)
     receiver = models.ForeignKey(CustomUser,related_name="job_activity_chat_receiver", on_delete=models.SET_NULL, null=True, blank=True)
-    messages = models.CharField(max_length=2000)
+    messages = models.CharField(max_length=2000,blank=True,null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
@@ -445,7 +445,7 @@ class SubmitJobWork(BaseModel):
         Rejected = 2
         Pending = 0
     job_applied = models.ForeignKey(JobApplied,related_name="submit_work", on_delete=models.SET_NULL,blank=True, null=True)
-    message = models.CharField(max_length=5000,null=False, blank=False)
+    message = models.CharField(max_length=5000,blank=True,null=True)
     submit_job_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     task = models.ForeignKey(JobTasks,related_name="submit_task", on_delete=models.SET_NULL,blank=True, null=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)

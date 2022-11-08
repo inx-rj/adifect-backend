@@ -949,7 +949,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['dam_id', 'title','id']
-    search_fields = ['=title']
+    search_fields = ['dam__name','dam__parent__name','title']
     http_method_names = ['get','put','delete','post']
 
     @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
@@ -1014,24 +1014,25 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
+        print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
         user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user,dam__parent__is_trashed=False).order_by('-modified')[:4]
+        # queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user).order_by('created')[:4]
+        queryset =DamMedia.objects.filter(Q(dam__agency=request.user) & (Q(dam__parent__is_trashed=False)|Q(dam__parent__isnull=True))).order_by('-created')[:4]
+
+        print(queryset)
         # queryset = queryset.filter(agency=user)
         serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
     @action(methods=['post'], detail=False, url_path='move_collection', url_name='move_collection')
     def move_collection(self, request, *args, **kwargs):
-        print(request.data)
-        data = request.POST.getlist('dam_images', None)
-        print(data)
-        print("hlwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")
-        dam_id = DAM.objects.create(type=3,parent_id=request.data.get('parent',None) ,agency_id=request.data.get('agency'))
-        print(dam_id)
-        dam_inital = DamMedia.objects.filter(id__in=data).update(dam=dam_id)
-        print(dam_inital)
-        if dam_inital:
-            print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        data = request.POST.get('dam_images', None)
+        dam_intial = 0
+        for i in data.split(','):
+           dam_id =  DAM.objects.create(type=3,parent_id=request.data.get('parent',None),agency_id=request.data.get('user'))
+           dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
+           dam_intial += 1
+        if dam_intial:
             context = {
                 'message': 'Media Uploaded Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -1075,6 +1076,18 @@ class DraftJobViewSet(viewsets.ModelViewSet):
         draft_data = queryset.filter(user=request.user)
         serializer = self.serializer_class(draft_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+        
+class MemberJobListViewSet(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsSerializer
+    queryset = Workflow_Stages.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False).values_list('workflow_id', flat=True)
+        job_data = Job.objects.filter(workflow_id__in=list(workflow_id))
+        serializer = self.serializer_class(job_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #

@@ -17,6 +17,7 @@ router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 router.register(r'test-api', views.TestModalViewSet, basename='test_api')
 router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
 router.register(r'my-project',views.MyProjectViewSet, basename='my_project')
+router.register(r'member-job-list', views.MemberJobListViewSet, basename='member_job_list')
 
 
 urlpatterns = [

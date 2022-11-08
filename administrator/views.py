@@ -782,12 +782,10 @@ class JobActivityViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        attachment = request.FILES.getlist('chat_attachments')
         if serializer.is_valid():
             self.perform_create(serializer)
             if serializer.validated_data['activity_status'] == 1:
                 attachment =  request.FILES.getlist('chat_attachments')
-
                 if attachment:
                     latest_chat = JobActivityChat.objects.latest('id')
                     for i in attachment:
