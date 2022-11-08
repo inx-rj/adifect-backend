@@ -465,7 +465,6 @@ class DamWithMediaThumbnailSerializer(serializers.ModelSerializer):
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
-    test_method = SerializerMethodField("get_test_method")
 
     class Meta:
         model = DAM
@@ -495,9 +494,6 @@ class DamWithMediaThumbnailSerializer(serializers.ModelSerializer):
             return obj.agency.get_full_name()
         return ''
 
-    def get_test_method(self,obj):
-        if obj.dam_media.all():
-            return DamMediaThumbnailSerializer(obj.dam_media.filter(is_video=True),many=True).data
 
 #--------------------------------------------------- End --------------------------------------------------#
 

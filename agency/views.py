@@ -949,7 +949,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['dam_id', 'title','id']
-    search_fields = ['dam__name','dam__parent__name','title']
+    search_fields = ['title']
     http_method_names = ['get','put','delete','post']
 
     @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
@@ -1029,16 +1029,25 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         data = request.POST.get('dam_images', None)
         dam_intial = 0
         for i in data.split(','):
-           dam_id =  DAM.objects.create(type=3,parent_id=request.data.get('parent',None),agency_id=request.data.get('user'))
-           dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
-           dam_intial += 1
-        if dam_intial:
+           print(request.data)
+           if not request.data.get('parent',None) == 'null':
+                print("1111111111111111111111111111111111111")
+                print(request.data)
+                dam_id =  DAM.objects.create(type=3,parent_id=request.data.get('parent',None),agency_id=request.data.get('user'))
+                dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
+                dam_intial += 1
+           else:
+                print("22222222222222222222222222222222222222222")
+                dam_id =  DAM.objects.create(type=3,agency_id=request.data.get('user'))
+                dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
+                dam_intial += 1
+           if dam_intial:
             context = {
                 'message': 'Media Uploaded Successfully',
                 'status': status.HTTP_201_CREATED,
             }
             return Response(context)
-        return Response({"message":"Unable to move"},status=status.HTTP_404_NOT_FOUND)
+           return Response({"message":"Unable to move"},status=status.HTTP_404_NOT_FOUND)
 
 @permission_classes([IsAuthenticated])
 class DamDuplicateViewSet(viewsets.ModelViewSet):
@@ -1083,7 +1092,8 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False).values_list('workflow_id', flat=True)
+        workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False,is_trashed=False).values_list('workflow_id', flat=True)
+        print(workflow_id)
         job_data = Job.objects.filter(workflow_id__in=list(workflow_id))
         serializer = self.serializer_class(job_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)

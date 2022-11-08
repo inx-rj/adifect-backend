@@ -317,7 +317,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         usersObj = JobApplied.objects.filter(job=obj.id, status=2)
         if usersObj:
-            return usersObj.values('user__username')
+            return usersObj.values('user__username','user_id')
         else:
             return ""
 
