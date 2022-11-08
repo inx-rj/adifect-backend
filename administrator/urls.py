@@ -63,7 +63,8 @@ urlpatterns = [
     path('question-filter/', views.QuestionFilterAPI.as_view(), name='question_filter'),
     path('job-share-details/', views.JobShareDetails.as_view(), name='job_share_details'),
     path('job-block/', views.JobBlock.as_view(), name='job_block'),
-    path('admin-company-block/', views.AdminCompanyBlock.as_view(), name='admin_company_block')
+    path('admin-company-block/', views.AdminCompanyBlock.as_view(), name='admin_company_block'),
+
 
 ]
 urlpatterns += router.urls

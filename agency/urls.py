@@ -27,5 +27,6 @@ urlpatterns = [
        name='register_view_invite'),
     # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
+    path('dam-favourite/', views.DAMMediaCount.as_view(), name='dam_favourite')
 ]
 urlpatterns += router.urls

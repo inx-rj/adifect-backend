@@ -998,8 +998,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
-        dam_media = request.data.get('dam_media',None)
-        dam_media = dam_media.split(",")
+
         if serializer.is_valid():
             self.perform_update(serializer)
             context = {
@@ -1132,3 +1131,19 @@ class MyProjectViewSet(viewsets.ModelViewSet):
 class TestModalViewSet(viewsets.ModelViewSet):
     serializer_class = TestModalSerializer
     queryset = TestModal.objects.all()
+
+
+@permission_classes([IsAuthenticated])
+class DAMMediaCount(APIView):
+     def get(self, request, *args, **kwargs):
+        user= request.user
+        fav_folder = DAM.objects.filter(type=1,agency=user,is_favourite=True).count()
+        total_image = DAM.objects.filter(type=3,agency=user).count()
+        total_collection =  DAM.objects.filter(type=2,agency=user).count()
+        context = {'fav_folder':fav_folder,
+                'total_image':total_image,
+                'total_collection':total_collection
+                
+
+        }
+        return Response(context,status=status.HTTP_200_OK)
