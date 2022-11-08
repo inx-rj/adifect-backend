@@ -668,7 +668,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter,OrderingFilter]
     ordering_fields = ['modified','created']
     ordering = ['modified','created']
-    filterset_fields = ['id','parent','type']
+    filterset_fields = ['id','parent','type','name']
     search_fields = ['=name']
 
 
@@ -689,8 +689,6 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files',None)
         dam_name = request.POST.getlist('dam_files_name',None)
         if serializer.is_valid():
-            print(request.data)
-            print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type']==3:
                 for index,i in enumerate(dam_files):
                     # self.perform_create(serializer)
@@ -924,7 +922,7 @@ class DAMViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-   
+        
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -1003,40 +1001,14 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         dam_media = request.data.get('dam_media',None)
         dam_media = dam_media.split(",")
         if serializer.is_valid():
-            dam_id = DAM.objects.latest('id')
-            if request.data['collection']:
-                if request.data['limit_usage_toggle'] == 'True':
-
-                    if request.data['limit_usage'] < request.data['limit_used']:
-                        return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
-                    else:
-                        for i in dam_media:
-                            DamMedia.objects.create(dam=dam_id,media=i)
-            else:
-                if request.data['limit_usage_toggle'] == 'True':
-
-                    if request.data['limit_usage'] < request.data['limit_used']:
-                        return Response({'message': "You cannot set limit less than limit used."}, status=status.HTTP_400_BAD_REQUEST)
-                        
-                    else:
-                        self.perform_update(serializer)
-                        context = {
-                            'message': 'Updated Successfully...',
-                            'status': status.HTTP_200_OK,
-                            'errors': serializer.errors,
-                            'data': serializer.data,
-                        }
-                        return Response(context)
-
-                else:
-                    self.perform_update(serializer)
-                    context = {
-                        'message': 'Updated Successfully...',
-                        'status': status.HTTP_200_OK,
-                        'errors': serializer.errors,
-                        'data': serializer.data,
-                    }
-                    return Response(context)
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1047,6 +1019,25 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         # queryset = queryset.filter(agency=user)
         serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+    @action(methods=['post'], detail=False, url_path='move_collection', url_name='move_collection')
+    def move_collection(self, request, *args, **kwargs):
+        print(request.data)
+        data = request.POST.getlist('dam_images', None)
+        print(data)
+        print("hlwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")
+        dam_id = DAM.objects.create(type=3,parent_id=request.data.get('parent',None) ,agency_id=request.data.get('agency'))
+        print(dam_id)
+        dam_inital = DamMedia.objects.filter(id__in=data).update(dam=dam_id)
+        print(dam_inital)
+        if dam_inital:
+            print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+            }
+            return Response(context)
+        return Response({"message":"Unable to move"},status=status.HTTP_404_NOT_FOUND)
 
 @permission_classes([IsAuthenticated])
 class DamDuplicateViewSet(viewsets.ModelViewSet):

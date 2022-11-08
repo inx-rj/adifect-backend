@@ -10,7 +10,7 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry,InviteMember
+from agency.models import WorksFlow, Company, Industry,InviteMember,Workflow_Stages
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 def validate_attachment(value):
@@ -473,6 +473,8 @@ class MemberApprovals(BaseModel):
                                  null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
     message = models.CharField(default=None, max_length=50000, blank=True, null=True)
+    workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
+                                 null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Member Approvals'

@@ -783,8 +783,6 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         attachment = request.FILES.getlist('chat_attachments')
-        print(attachment)
-        print(request.data)
         if serializer.is_valid():
             self.perform_create(serializer)
             if serializer.validated_data['activity_status'] == 1:
@@ -902,17 +900,22 @@ class JobTasksViewSet(viewsets.ModelViewSet):
 
 
 def dam_images_templates(dam_images,job_template_id):
+    print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
     if dam_images:
+        print("dammmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm")
         for i in dam_images:
+            print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             dam_inital = DamMedia.objects.get(id=i)
             if type(dam_inital.limit_usage) == int:
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
+                    print("elseeeeeeeeeeee11111111111111111111111")
                     JobTemplateAttachments.objects.create(job_template=job_template_id,job_template_images=dam_inital.media)
                     dam_inital.limit_used+=1
                     dam_inital.save()
             else:
+                print("elseeeeeeeeeeee2222222222222222222222222")
                 JobTemplateAttachments.objects.create(job_template=job_template_id,job_template_images=dam_inital.media)
                 dam_inital.limit_used+=1
                 dam_inital.save()
@@ -1945,14 +1948,23 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             #----- work flow for approvals detail -----#
-            job = serializer.validated_data['job_applied'].job.workflow
+            workflow = serializer.validated_data['job_applied'].job.workflow
             self.perform_create(serializer)
+            latest_work = SubmitJobWork.objects.latest('id')
             attachment =  request.FILES.getlist('work_attachments')
             if attachment:
-                latest_work = SubmitJobWork.objects.latest('id')
                 for i in attachment:
                     JobWorkAttachments.objects.create(job_work=latest_work,work_attachments=i)
+            if workflow:
+                #----- stage 1 --------#
 
+                if workflow.stage_workflow.all():
+                    first_stage = workflow.stage_workflow.all()[0]
+                    if MemberApprovals.objects.filter(workflow_stage=first_stage,status=2):
+                        return Response({'message':'Your Work Is Rejected','error':True})
+                    for j in first_stage.approvals.all():
+                        MemberApprovals.objects.create(job_work=latest_work,approver=j,workflow_stage=first_stage)
+                #------------ end -------#
             context = {
                 'message': 'Job Successfully Submitted',
                 'status': status.HTTP_201_CREATED,
@@ -1970,4 +1982,71 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
 
 
 
+@permission_classes([IsAuthenticated])
+class MemberApprovalViewSet(viewsets.ModelViewSet):
+    serializer_class = MemberApprovalsSerializer
+    queryset = MemberApprovals.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['approver', 'status']
 
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            stage_id_list = []
+            if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2):
+                for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
+                    member_count = i.approvals.all().count()
+                    if i.is_all_approval:
+                        stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
+                                                                     status=1).count()
+                        if stage_clear == member_count:
+                            stage_id_list.append(i.id)
+                            # for j in i.approvals.all():
+                            #     MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage=i)
+                        else:
+                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                                stage_id_list.append(i.id)
+                    else:
+                        stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
+                                                                     status=1).count()
+                        if stage_clear:
+                            stage_id_list.append(i.id)
+                        else:
+                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                                stage_id_list.append(i.id)
+                            # for j in i.approvals.all():
+                if stage_id_list:
+                    new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(id__in=stage_id_list)
+                    if new_stage:
+                        for j in new_stage[0].approvals.all():
+                            MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage= new_stage[0])
+
+
+            context = {
+                'message': 'Job Work Status Updated Succesfully',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context, status=status.HTTP_200_OK)
+        context = {
+            'message': 'Error',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }
+        return Response(context, status=status.HTTP_400_BAD_REQUEST)

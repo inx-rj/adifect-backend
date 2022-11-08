@@ -150,7 +150,7 @@ class Workflow_Stages(BaseModel):
     approvals = models.ManyToManyField(InviteMember, related_name="stage_approvals")
     is_observer = models.BooleanField(default=False)
     observer = models.ManyToManyField(InviteMember, related_name="stage_observer")
-    workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="stage_workflow", null=True,
+    workflow = models.ForeignKey(WorksFlow,  related_name="stage_workflow",on_delete=models.SET_NULL, null=True,
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
 
@@ -193,7 +193,7 @@ class DamMedia(BaseModel):
     dam = models.ForeignKey(DAM, on_delete=models.CASCADE, null=True, blank=True, related_name="dam_media")
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
-    media_type = models.IntegerField(default=0)
+    is_video = models.BooleanField(default=False)
     title = models.CharField(max_length=5000, default=None,null=True, blank=True)
     description = models.CharField(max_length=5000, default=None,null=True, blank=True)
     image_favourite = models.BooleanField(default=False)
@@ -213,7 +213,7 @@ class DamMedia(BaseModel):
         
         if str(self.media).endswith(".mp4"):
             self.thumbnail=self.media
-            self.media_type=1
+            self.is_video= True
             super(DamMedia, self).save()
         else:
             output_size = (250, 250)

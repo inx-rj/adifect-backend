@@ -658,9 +658,15 @@ class UserSkillsSerializer(serializers.ModelSerializer):
 
 
 class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
+    image_name = serializers.SerializerMethodField("get_image_name")
     class Meta:
         model = JobActivityAttachments
         fields = '__all__'
+
+    def get_image_name(self, obj):
+        if obj.chat_attachment is not None:
+            return str(obj.chat_attachment.name).split('/')[-1]
+        return ''
 
 class JobActivityChatSerializer(serializers.ModelSerializer):
     activity_job_attachments = JobActivityAttachmentsSerializer(many=True,required=False)
