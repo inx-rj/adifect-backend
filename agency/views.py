@@ -1098,7 +1098,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']
-    filterset_fields = ['status','job__company']
+    filterset_fields = ['status','job__company','job__is_active']
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
@@ -1109,7 +1109,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         ordering = request.GET.get('ordering',None)
         filter_data =queryset.filter(
             pk__in=Subquery(
-                queryset.filter(job__user=user,job__is_active=True).order_by('job_id').distinct('job_id').values('pk')
+                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
             )
         ).order_by(ordering)
         paginated_data = self.paginate_queryset(filter_data)

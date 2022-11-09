@@ -710,8 +710,8 @@ class JobActivitySerializer(serializers.ModelSerializer):
     agency_img  = serializers.SerializerMethodField("get_agency_img")
     user_full_name = serializers.SerializerMethodField("get_user_name")
     user_img  = serializers.SerializerMethodField("get_user_img")
-    activity_job_chat = JobActivityChatSerializer(many=True)
-    activity_job_work = JobWorkActivitySerializer(many=True)
+    activity_job_chat = JobActivityChatSerializer(many=True,required=False)
+    activity_job_work = JobWorkActivitySerializer(many=True,required=False)
     job_applied_data = serializers.SerializerMethodField("get_job_applied_data")
     class Meta:
         model = JobActivity
