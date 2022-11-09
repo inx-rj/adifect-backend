@@ -202,7 +202,7 @@ class DamMedia(BaseModel):
     limit_used = models.IntegerField(default=0)
     usage = models.IntegerField(choices=Type.choices,null=True,blank=True, default=None)
     usage_limit_reached = models.BooleanField(default=False)
-    # skills = models.ManyToManyField(Skills,blank=True)
+    skills = models.ManyToManyField('administrator.skills',blank=True)
     tags = models.CharField(max_length=10000,null=True, blank=True)
 
 

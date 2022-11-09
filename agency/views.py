@@ -669,7 +669,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified','created']
     ordering = ['modified','created']
     filterset_fields = ['id','parent','type','name']
-    search_fields = ['=name']
+    search_fields = ['name']
 
 
     def list(self, request, *args, **kwargs):
@@ -931,7 +931,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent','type']
-    search_fields = ['=name']
+    search_fields = ['name']
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
@@ -1013,13 +1013,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
-        print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
-        user = request.user
-        # queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user).order_by('created')[:4]
         queryset =DamMedia.objects.filter(Q(dam__agency=request.user) & (Q(dam__parent__is_trashed=False)|Q(dam__parent__isnull=True))).order_by('-created')[:4]
-
-        print(queryset)
-        # queryset = queryset.filter(agency=user)
         serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1030,13 +1024,10 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         for i in data.split(','):
            print(request.data)
            if not request.data.get('parent',None) == 'null':
-                print("1111111111111111111111111111111111111")
-                print(request.data)
                 dam_id =  DAM.objects.create(type=3,parent_id=request.data.get('parent',None),agency_id=request.data.get('user'))
                 dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
                 dam_intial += 1
            else:
-                print("22222222222222222222222222222222222222222")
                 dam_id =  DAM.objects.create(type=3,agency_id=request.data.get('user'))
                 dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
                 dam_intial += 1
@@ -1066,7 +1057,6 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
              queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent=None)
         else:     
             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
-        # queryset = queryset.filter(agency=user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1135,7 +1125,7 @@ class TestModalViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class DAMMediaCount(APIView):
-     def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         user= request.user
         fav_folder = DAM.objects.filter(type=1,agency=user,is_favourite=True).count()
         total_image = DAM.objects.filter(type=3,agency=user).count()
@@ -1147,3 +1137,52 @@ class DAMMediaCount(APIView):
 
         }
         return Response(context,status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        records_count = DAM.objects.filter(parent=request.data['parent'],agency=request.user).count()
+        context = {'message':"Folder's count get successfull",
+                'count':records_count,
+        }
+        return Response(context,status=status.HTTP_200_OK)
+
+@permission_classes([IsAuthenticated])
+class DamMediaFilterViewSet(viewsets.ModelViewSet):
+    serializer_class = DamMediaSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['dam_id', 'title','id']
+    search_fields = ['title']
+    http_method_names = ['get','put','delete','post']
+
+
+    @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
+    def favourites(self, request,pk=None, *args, **kwargs):
+         id = request.GET.get('id', None)
+         if id:
+            print("iffffffffffffffffffffffffffffff")
+            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
+            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
+            fav_collection_data = DamMediaThumbnailSerializer(fav_collection,many=True,context={'request':request})
+            fav_images = DAM.objects.filter(parent=id,type=3,agency=request.user,is_favourite=True)
+            fav_images_data = DamWithMediaThumbnailSerializer(fav_images,many=True,context={'request':request})
+         else:
+            print("elseeeeeeeeeeeeeeeeeeeeeeeeee")
+            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
+            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
+            fav_collection_data = DamMediaThumbnailSerializer(fav_collection,many=True,context={'request':request})
+            fav_images = DAM.objects.filter(parent=id,type=3,agency=request.user,is_favourite=True)
+            fav_images_data = DamWithMediaThumbnailSerializer(fav_images,many=True,context={'request':request})
+            
+         context = {
+            'fav_folder':fav_folder_data.data,
+            'fav_collection':fav_collection_data.data,
+            'fav_images':fav_images_data.data
+            }
+         return Response(context,status=status.HTTP_200_OK)
+
+
+

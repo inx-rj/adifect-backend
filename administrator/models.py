@@ -10,8 +10,9 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry,InviteMember,Workflow_Stages
+from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages
 from django.core.validators import MaxValueValidator, MinValueValidator
+
 
 def validate_attachment(value):
     ext = os.path.splitext(value.name)[1]  # [0] returns path+filename
@@ -130,27 +131,25 @@ class Job(BaseModel):
     description = models.TextField(default=None, blank=True, null=True)
     job_type = models.CharField(choices=jobType, max_length=30, default='0', null=True, blank=True)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, null=True, blank=True)
-    expected_delivery_date = models.DateField(default=None,null=True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2,null=True, blank=True,default=None)
-    tags = models.CharField(max_length=10000,null=True, blank=True)
-    skills = models.ManyToManyField(Skills,blank=True)
+    expected_delivery_date = models.DateField(default=None, null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
+    tags = models.CharField(max_length=10000, null=True, blank=True)
+    skills = models.ManyToManyField(Skills, blank=True)
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
-    related_jobs = models.ForeignKey('self',on_delete=models.SET_NULL, blank=True, null=True)
+    related_jobs = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="job_company", null=True, blank=True)
     industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, related_name="job_industry", null=True,
                                  blank=True)
     workflow = models.ForeignKey(WorksFlow, on_delete=models.SET_NULL, related_name="job_workflow", blank=True,
                                  null=True)
-    job_due_date = models.DateField(default=None,null=True, blank=True)
+    job_due_date = models.DateField(default=None, null=True, blank=True)
     due_date_index = models.IntegerField(null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
-    
-
 
     class Meta:
         verbose_name_plural = 'Job'
@@ -190,11 +189,13 @@ class JobAttachments(BaseModel):
         verbose_name_plural = 'Job Attachments'
 
 
-
 class JobActivity(BaseModel):
     class Status(models.IntegerChoices):
         Notification = 0
         Chat = 1
+        JobWork = 2
+        WorkStage = 3
+
 
     class Type(models.IntegerChoices):
         Create = 0
@@ -202,10 +203,12 @@ class JobActivity(BaseModel):
         Proposal = 2
         Accept = 3
         Reject = 4
-    job  = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
-    activity_type = models.IntegerField(choices=Type.choices,null=True, blank=True)
+
+    job = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
+    activity_type = models.IntegerField(choices=Type.choices, null=True, blank=True)
     # activity_type = models.IntegerField(choices=Type.choices, default=Type.Create)
-    user = models.ForeignKey(CustomUser,related_name='job_activity_user', on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(CustomUser, related_name='job_activity_user', on_delete=models.SET_NULL, null=True,
+                             blank=True)
     activity_status = models.IntegerField(choices=Status.choices, default=Status.Notification)
 
     def __str__(self) -> str:
@@ -214,11 +217,15 @@ class JobActivity(BaseModel):
     class Meta:
         verbose_name_plural = 'Job Activities'
 
+
 class JobActivityChat(BaseModel):
-    job_activity = models.ForeignKey(JobActivity, related_name="activity_job_chat", on_delete=models.SET_NULL, null=True, blank=True)
-    sender = models.ForeignKey(CustomUser,related_name="job_activity_chat_sender", on_delete=models.SET_NULL, null=True, blank=True)
-    receiver = models.ForeignKey(CustomUser,related_name="job_activity_chat_receiver", on_delete=models.SET_NULL, null=True, blank=True)
-    messages = models.CharField(max_length=2000,blank=True,null=True)
+    job_activity = models.ForeignKey(JobActivity, related_name="activity_job_chat", on_delete=models.SET_NULL,
+                                     null=True, blank=True)
+    sender = models.ForeignKey(CustomUser, related_name="job_activity_chat_sender", on_delete=models.SET_NULL,
+                               null=True, blank=True)
+    receiver = models.ForeignKey(CustomUser, related_name="job_activity_chat_receiver", on_delete=models.SET_NULL,
+                                 null=True, blank=True)
+    messages = models.CharField(max_length=2000, blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
@@ -227,12 +234,41 @@ class JobActivityChat(BaseModel):
     class Meta:
         verbose_name_plural = 'Job Activities Chat'
 
+
 class JobActivityAttachments(BaseModel):
-    job_activity_chat = models.ForeignKey(JobActivityChat, related_name="activity_job_attachments", on_delete=models.SET_NULL, null=True, blank=True)
-    chat_attachment = models.FileField(upload_to='activity_chat_attachments',default=None, blank=True, null=True)
+    job_activity_chat = models.ForeignKey(JobActivityChat, related_name="activity_job_attachments",
+                                          on_delete=models.SET_NULL, null=True, blank=True)
+    chat_attachment = models.FileField(upload_to='activity_chat_attachments', default=None, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Job Activity Attachments'
+
+
+class JobWorkActivity(BaseModel):
+    Activity_choice = (
+        ('approved', "approved"),
+        ('rejected', 'rejected'),
+        ('moved', 'moved'),
+        ('submit_approval', 'submit_approval'),
+    )
+
+    job_activity_chat = models.ForeignKey(JobActivity, related_name="activity_job_work",
+                                          on_delete=models.SET_NULL, null=True, blank=True)
+    job_work = models.ForeignKey('SubmitJobWork', related_name='job_work_activity', on_delete=models.SET_NULL,
+                                 null=True, blank=True)
+    approver = models.ForeignKey('MemberApprovals', related_name='job_approver_activity', on_delete=models.SET_NULL,
+                                 null=True, blank=True)
+    workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_activity_stages", on_delete=models.SET_NULL,
+                                       null=True, blank=True)
+
+    work_activity = models.CharField(
+        max_length=30,
+        choices=Activity_choice,
+        null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name_plural = 'Job Work Activity'
 
 
 
@@ -244,9 +280,10 @@ class JobApplied(BaseModel):
         IN_REVIEW = 3
         Completed = 4
 
-    cover_letter = models.TextField(default=None,null=True, blank=True)
+    cover_letter = models.TextField(default=None, null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-    job = models.ForeignKey(Job,related_name='job_applied',default=None,on_delete=models.SET_NULL, null=True, blank=True)
+    job = models.ForeignKey(Job, related_name='job_applied', default=None, on_delete=models.SET_NULL, null=True,
+                            blank=True)
     job_bid_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     # duration = models.CharField(max_length=200, default=None, null=True, blank=True)
     links = models.CharField(default=None, max_length=50000, blank=True, null=True)
@@ -254,13 +291,13 @@ class JobApplied(BaseModel):
     due_date = models.DateField(default=None, blank=True, null=True)
     proposed_price = models.DecimalField(default=None, max_digits=10, decimal_places=2, blank=True, null=True)
     proposed_due_date = models.DateField(default=None, blank=True, null=True)
-    question = models.TextField(default=None,null=True, blank=True)
+    question = models.TextField(default=None, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.APPLIED)
     job_applied_date = models.DateField(auto_now_add=True)
     Accepted_proposal_date = models.DateTimeField(editable=False, default=None, null=True, blank=True)
     is_seen = models.BooleanField(default=False)
     is_modified = models.BooleanField(default=False)
-    
+
     class Meta:
         verbose_name_plural = 'Jobs Applied'
 
@@ -372,7 +409,8 @@ class JobTemplate(BaseModel):
         verbose_name_plural = 'Job Template'
 
     def clean(self):
-        exist_job = JobTemplate.objects.filter(template_name=self.template_name, is_trashed=False).exclude(template_name=None)
+        exist_job = JobTemplate.objects.filter(template_name=self.template_name, is_trashed=False).exclude(
+            template_name=None)
         if self.id:
             exist_job = exist_job.exclude(pk=self.id)
         if exist_job:
@@ -383,7 +421,8 @@ class JobTemplate(BaseModel):
 
 
 class JobTemplateTasks(BaseModel):
-    job_template = models.ForeignKey(JobTemplate,related_name="jobtemplate_tasks", on_delete=models.SET_NULL, null=True, blank=True)
+    job_template = models.ForeignKey(JobTemplate, related_name="jobtemplate_tasks", on_delete=models.SET_NULL,
+                                     null=True, blank=True)
     title = models.CharField(max_length=3000, null=False, blank=False)
     due_date = models.DateField(auto_now_add=False)
     is_active = models.BooleanField(default=True)
@@ -393,6 +432,7 @@ class JobTemplateTasks(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Template Task'
+
 
 class JobTemplateAttachments(BaseModel):
     job_template = models.ForeignKey(JobTemplate, related_name="job_template_images", on_delete=models.SET_NULL,
@@ -404,50 +444,56 @@ class JobTemplateAttachments(BaseModel):
         verbose_name_plural = 'Job Template_Attachments'
 
 
-
-#------ avneet ----#
+# ------ avneet ----#
 class Question(BaseModel):
     question = models.TextField(default=None, null=True, blank=True)
-    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="question_job_applied",blank=True, null=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="question_user",blank=True, null=True)
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="question_job_applied",
+                                    blank=True, null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="question_user", blank=True, null=True)
     status = models.IntegerField(default=2)
-    
+
     def __str__(self) -> str:
         return f'{self.question}'
 
-class Answer(BaseModel):
-    question = models.ForeignKey(Question, on_delete=models.SET_NULL, related_name="answer_question",blank=True, null=True)
-    answer = models.CharField(max_length=200)
-    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="answer_job_applied",blank=True, null=True)
-    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_agency",blank=True, null=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_user",blank=True, null=True)
 
-    
+class Answer(BaseModel):
+    question = models.ForeignKey(Question, on_delete=models.SET_NULL, related_name="answer_question", blank=True,
+                                 null=True)
+    answer = models.CharField(max_length=200)
+    job_applied = models.ForeignKey(JobApplied, on_delete=models.SET_NULL, related_name="answer_job_applied",
+                                    blank=True, null=True)
+    agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_agency", blank=True,
+                               null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="answer_user", blank=True, null=True)
+
     def __str__(self) -> str:
         return f'{self.answer}'
 
 
 class UserSkills(BaseModel):
-    user = models.ForeignKey(CustomUser,related_name="skills_user",on_delete=models.SET_NULL,null=True)
-    skills = models.ForeignKey(Skills,related_name="user_skill",on_delete=models.SET_NULL,null=True)
-    skill_rating =models.FloatField(default=None,null=True, validators=[
-                MaxValueValidator(5.0),
-                MinValueValidator(0.1)
-            ]
-        )
+    user = models.ForeignKey(CustomUser, related_name="skills_user", on_delete=models.SET_NULL, null=True)
+    skills = models.ForeignKey(Skills, related_name="user_skill", on_delete=models.SET_NULL, null=True)
+    skill_rating = models.FloatField(default=None, null=True, validators=[
+        MaxValueValidator(5.0),
+        MinValueValidator(0.1)
+    ]
+                                     )
 
     def __str__(self) -> str:
-        return f'{self.skills.skill_name if self.skills is not None else "" }'
+        return f'{self.skills.skill_name if self.skills is not None else ""}'
+
 
 class SubmitJobWork(BaseModel):
     class Status(models.IntegerChoices):
         Approved = 1
         Rejected = 2
         Pending = 0
-    job_applied = models.ForeignKey(JobApplied,related_name="submit_work", on_delete=models.SET_NULL,blank=True, null=True)
-    message = models.CharField(max_length=5000,blank=True,null=True)
+
+    job_applied = models.ForeignKey(JobApplied, related_name="submit_work", on_delete=models.SET_NULL, blank=True,
+                                    null=True)
+    message = models.CharField(max_length=5000, blank=True, null=True)
     submit_job_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
-    task = models.ForeignKey(JobTasks,related_name="submit_task", on_delete=models.SET_NULL,blank=True, null=True)
+    task = models.ForeignKey(JobTasks, related_name="submit_task", on_delete=models.SET_NULL, blank=True, null=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
 
     class Meta:
@@ -456,25 +502,27 @@ class SubmitJobWork(BaseModel):
 
 class JobWorkAttachments(BaseModel):
     job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit_Work", on_delete=models.SET_NULL,
-                                     null=True, blank=True)
-    work_attachments= models.FileField(upload_to='work_attachments', blank=True, null=True)
+                                 null=True, blank=True)
+    work_attachments = models.FileField(upload_to='work_attachments', blank=True, null=True)
 
     class Meta:
-        verbose_name_plural = 'Job Template_Attachments'
+        verbose_name_plural = 'Job Works Attachments'
+
 
 class MemberApprovals(BaseModel):
     class Status(models.IntegerChoices):
         Approved = 1
         Rejected = 2
         Pending = 0
+
     job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit", on_delete=models.SET_NULL,
-                                  null=True, blank=True)
+                                 null=True, blank=True)
     approver = models.ForeignKey(InviteMember, related_name="job_approvers", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
     message = models.CharField(default=None, max_length=50000, blank=True, null=True)
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
-                                 null=True, blank=True)
+                                       null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Member Approvals'
