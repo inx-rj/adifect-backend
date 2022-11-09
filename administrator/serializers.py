@@ -10,6 +10,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
+from agency.models import Workflow_Stages
 from langcodes import Language
 import datetime as dt
 
@@ -723,6 +724,7 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer()
     # approver = MemberApprovalsSerializer()
     approver_name = serializers.SerializerMethodField("get_approver_name")
+    approver_image = serializers.SerializerMethodField("get_approver_image")
     workflow =  serializers.SerializerMethodField("get_workflow_stage")
     class Meta:
         model = JobWorkActivity
@@ -730,11 +732,22 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
 
     def get_workflow_stage(self,obj):
         if obj.workflow_stage is not None:
-            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name}
+            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name,'stage_count':Workflow_Stages.objects.filter(workflow=obj.workflow_stage.workflow).count()}
 
     def get_approver_name(self, obj):
-        if obj.approver is not None:
-            return obj.approver.approver.user.user.get_full_name()
+        try:
+            if obj.approver is not None:
+                return obj.approver.approver.user.user.get_full_name()
+        except Exception as e:
+            return ''
+
+    def get_approver_image(self, obj):
+        try:
+            if obj.approver is not None:
+                return obj.approver.approver.user.user.profile_img.url
+            return ''
+        except Exception as e:
+            return ''
 
 
 class customUserSerializer(serializers.ModelSerializer):

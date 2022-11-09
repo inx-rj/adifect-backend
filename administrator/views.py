@@ -240,7 +240,7 @@ def dam_images_list(dam_images, job_id):
     if dam_images:
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
@@ -251,7 +251,7 @@ def dam_images_list(dam_images, job_id):
                 JobAttachments.objects.create(job=job_id, job_images=dam_inital.media)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+            if  dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
@@ -260,7 +260,7 @@ def dam_sample_images_list(dam_sample_images, job_id):
     if dam_sample_images:
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            if  dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
@@ -270,6 +270,10 @@ def dam_sample_images_list(dam_sample_images, job_id):
             else:
                 JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media)
                 dam_inital.limit_used += 1
+                dam_inital.save()
+
+            if  dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
 
@@ -894,13 +898,12 @@ class JobTasksViewSet(viewsets.ModelViewSet):
 
 
 def dam_images_templates(dam_images, job_template_id):
-    print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
     if dam_images:
         print("dammmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm")
         for i in dam_images:
             print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            if dam_inital.limit_usage_toggle=='true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
@@ -915,7 +918,7 @@ def dam_images_templates(dam_images, job_template_id):
                                                       job_template_images=dam_inital.media)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle=='true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
@@ -1259,8 +1262,13 @@ class JobProposal(APIView):
             job_details = job_proposal.first()
             if initial_status == 2:
                 test_status = JobActivity.Type.Accept
+                if not JobActivity.objects.filter(job=job_details.job,activity_type=JobActivity.Type.Accept):
+                    JobActivity.objects.create(job=job_details.job, activity_type=5)
+
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
+
+
             if test_status:
                 JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=job_details.user)
 
@@ -1921,7 +1929,7 @@ class TestApi(APIView):
 
 
 # ---------------------------------------------------- end ------------------------------------------------ #
-# --------------------------------- new Job Submit ------------------------------------------------------------#
+# --------------------------------------------------------------- new Job Submit ------------------------------------------------------------#
 
 @permission_classes([IsAuthenticated])
 class JobWorkSubmitViewSet(viewsets.ModelViewSet):
@@ -2079,3 +2087,52 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
             'errors': serializer.errors,
         }
         return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+class JobWorkStatus(APIView):
+    queryset = MemberApprovals.objects.all()
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+        if job and user:
+            if self.queryset.filter(job_work__job_applied__job_id=job,status=0,job_work__job_applied__user_id=user,workflow_stage__is_all_approval=True).exists():
+
+                context = {'Disable': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                        Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                        Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) & Q(Q(status=1) | Q (status=2))).exists():
+                        context = {'Disable': False,
+                                   'error': False,
+                                   'status': status.HTTP_200_OK
+                                   }
+
+                        return Response(context, status=status.HTTP_200_OK)
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) &
+                        Q(status=0)).exists():
+
+                    context = {'Disable': True,
+                               'error': False,
+                               'status': status.HTTP_200_OK
+                               }
+                    return Response(context, status=status.HTTP_200_OK)
+
+            else:
+                context = {'Disable': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context,status=status.HTTP_200_OK)
+
+
+        context = {'message': 'Job And User Not Found',
+                   'error': True,
+                   'status': status.HTTP_400_BAD_REQUEST
+                   }
+        return Response(context)
+

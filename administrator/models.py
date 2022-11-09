@@ -203,6 +203,8 @@ class JobActivity(BaseModel):
         Proposal = 2
         Accept = 3
         Reject = 4
+        Moved = 5
+        Completed = 6
 
     job = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
     activity_type = models.IntegerField(choices=Type.choices, null=True, blank=True)

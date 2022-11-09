@@ -1008,8 +1008,10 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
-
+        
         if serializer.is_valid():
+            print(request.data)
+            print("innnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
             self.perform_update(serializer)
             context = {
                 'message': 'Updated Successfully...',
@@ -1150,7 +1152,6 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def favourites(self, request,pk=None, *args, **kwargs):
          id = request.GET.get('id', None)
          if id:
-            print("iffffffffffffffffffffffffffffff")
             fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
             fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
             fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
@@ -1158,7 +1159,6 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             fav_images = DAM.objects.filter(parent=id,type=3,agency=request.user,is_favourite=True)
             fav_images_data = DamWithMediaThumbnailSerializer(fav_images,many=True,context={'request':request})
          else:
-            print("elseeeeeeeeeeeeeeeeeeeeeeeeee")
             fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
             fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
             fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
@@ -1178,21 +1178,20 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         id = request.GET.get('id', None)
         if id:
             fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id,is_trashed=False).count()
-            total_image = DAM.objects.filter(type=3,agency=request.user,parent=id,is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3,dam__agency=request.user,dam__parent=id,is_trashed=False,is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3,dam__agency=request.user,dam__parent=id,is_trashed=False,is_video=True).count()
             total_collection =  DAM.objects.filter(type=2,agency=request.user,parent=id,is_trashed=False).count()
-            context = {'fav_folder':fav_folder,
-                    'total_image':total_image,
-                    'total_collection':total_collection
-            }
         else:
             fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True).count()
-            total_image = DAM.objects.filter(type=3,agency=request.user).count()
+            total_image = DamMedia.objects.filter(dam__type=3,dam__agency=request.user,is_trashed=False,is_video=False).count()
             total_collection =  DAM.objects.filter(type=2,agency=request.user).count()
-            context = {'fav_folder':fav_folder,
+            total_video = DamMedia.objects.filter(dam__type=3,dam__agency=request.user,is_trashed=False,is_video=True).count()
+
+        context = {'fav_folder':fav_folder,
                     'total_image':total_image,
-                    'total_collection':total_collection
-            
-            }
+                    'total_collection':total_collection,
+                    'total_video':total_video
+        }
         return Response(context,status=status.HTTP_200_OK)
 
 
