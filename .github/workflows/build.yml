@@ -6,7 +6,7 @@ on:
     branches:
       - "main"
       - "development"
-      - "pre-prod-release"
+      - "releases/**"
 
 env:
   DEV_REPO_NAME: 014481445141.dkr.ecr.us-east-1.amazonaws.com/adifect/dev-adifect
@@ -64,39 +64,39 @@ jobs:
                  git commit -m " update prod image tags:- $PROD_TAG "
                  git push
 
-          elif [[ "$BRANCH" == "pre-prod-release" ]];then
+          elif [[ "$BRANCH" == "development" ]];then
 
-                 echo "Build QA Image"
-                 docker build -t $QA_REPO_NAME:adifect_backend_release_$GIT_COMMIT .
-                 docker push $QA_REPO_NAME:adifect_backend_release_$GIT_COMMIT
+                 echo "Build Dev image"
+                 echo "the branch is $BRANCH"
+                 docker build -t $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT .
+                 docker push $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT
                  echo "update image tags"
                  git config --global user.email github-actions@github.com
                  git config --global user.name github-actions
                  git fetch --all
-                 #git clone https://$GITHUBPAT@github.com/SndRight/sndright-deployment-scripts.git -b master
-                 #cd sndright-deployment-scripts/kubernetest-apps/sndrigh-dev-kube/app/qa-config/
-                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" qa_sndright-app.yml
-                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" jobs/update_redisdata.yaml
-                 #sed -i "s|$QA_REPO_NAME.*|$QA_REPO_NAME:sndright_app_release_$GIT_COMMIT|g" jobs/multiple_cron_run.yaml
-                 #git add .
-                 #git commit -m " update QA image tags: $GIT_COMMIT "
-                 #git push
+                 git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
+                 cd infrastructure/
+                 export DEV_TAG=adifect_backend_develop_$GIT_COMMIT
+                 yq -e '.image.tag = env(DEV_TAG)' -i charts/adifect-backend/dev-environment/values.yaml
+                 git add .
+                 git commit -m " update dev image tags:- $DEV_TAG "
+                 git push
 
           else
-                echo "Build Dev image"
+                echo "Build QA image"
                 echo "the branch is $BRANCH"
-                docker build -t $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT .
-                docker push $DEV_REPO_NAME:adifect_backend_develop_$GIT_COMMIT
+                docker build -t $DEV_REPO_NAME:adifect_backend_release_$GIT_COMMIT .
+                docker push $DEV_REPO_NAME:adifect_backend_release_$GIT_COMMIT
                 echo "update image tags"
                 git config --global user.email github-actions@github.com
                 git config --global user.name github-actions
                 git fetch --all
                 git clone https://$GITHUBPAT@github.com/Adifect/infrastructure.git -b master
                 cd infrastructure/
-                export DEV_TAG=adifect_backend_develop_$GIT_COMMIT
-                yq -e '.image.tag = env(DEV_TAG)' -i charts/adifect-backend/dev-environment/values.yaml
+                export QA_TAG=adifect_backend_release_$GIT_COMMIT
+                yq -e '.image.tag = env(QA_TAG)' -i charts/adifect-backend/qa-environment/values.yaml
                 git add .
-                git commit -m " update dev image tags:- $DEV_TAG "
+                git commit -m " update QA image tags:- $QA_TAG "
                 git push
 
           fi
