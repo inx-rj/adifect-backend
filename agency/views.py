@@ -371,6 +371,11 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             if not agency:
                 return Response({'message': 'Agency does not exists', 'error': True},
                                 status=status.HTTP_400_BAD_REQUEST)
+
+            if InviteMember.objects.filter(Q(company=company) & (Q(email=email) | Q(user__user__email=email))).exclude(
+                    status=2):
+                return Response({'message': 'The user is Already Invited.', 'error': True},
+                                status=status.HTTP_400_BAD_REQUEST)
             if user:
                 # if user.role == 2:
                 #     return Response({'message': "You Can't Invite Agency Directly", 'error': True,
@@ -952,6 +957,11 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     search_fields = ['title']
     http_method_names = ['get','put','delete','post']
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id)
+        serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
     @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
     def get_multiple(self, request, *args, **kwargs):
         try:
@@ -1098,7 +1108,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']
-    filterset_fields = ['status','job__company','job__is_active']
+    filterset_fields = ['status','job__company']
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
@@ -1109,7 +1119,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         ordering = request.GET.get('ordering',None)
         filter_data =queryset.filter(
             pk__in=Subquery(
-                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
+                queryset.filter(job__user=user,job__is_active=True).order_by('job_id').distinct('job_id').values('pk')
             )
         ).order_by(ordering)
         paginated_data = self.paginate_queryset(filter_data)
@@ -1123,27 +1133,6 @@ class TestModalViewSet(viewsets.ModelViewSet):
     queryset = TestModal.objects.all()
 
 
-@permission_classes([IsAuthenticated])
-class DAMMediaCount(APIView):
-    def get(self, request, *args, **kwargs):
-        user= request.user
-        fav_folder = DAM.objects.filter(type=1,agency=user,is_favourite=True).count()
-        total_image = DAM.objects.filter(type=3,agency=user).count()
-        total_collection =  DAM.objects.filter(type=2,agency=user).count()
-        context = {'fav_folder':fav_folder,
-                'total_image':total_image,
-                'total_collection':total_collection
-                
-
-        }
-        return Response(context,status=status.HTTP_200_OK)
-
-    def post(self, request, *args, **kwargs):
-        records_count = DAM.objects.filter(parent=request.data['parent'],agency=request.user).count()
-        context = {'message':"Folder's count get successfull",
-                'count':records_count,
-        }
-        return Response(context,status=status.HTTP_200_OK)
 
 @permission_classes([IsAuthenticated])
 class DamMediaFilterViewSet(viewsets.ModelViewSet):
@@ -1154,7 +1143,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     ordering = ['modified', 'created']
     filterset_fields = ['dam_id', 'title','id']
     search_fields = ['title']
-    http_method_names = ['get','put','delete','post']
+
 
 
     @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
@@ -1183,6 +1172,29 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             'fav_images':fav_images_data.data
             }
          return Response(context,status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=False, url_path='count', url_name='count')
+    def count(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id,is_trashed=False).count()
+            total_image = DAM.objects.filter(type=3,agency=request.user,parent=id,is_trashed=False).count()
+            total_collection =  DAM.objects.filter(type=2,agency=request.user,parent=id,is_trashed=False).count()
+            context = {'fav_folder':fav_folder,
+                    'total_image':total_image,
+                    'total_collection':total_collection
+            }
+        else:
+            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True).count()
+            total_image = DAM.objects.filter(type=3,agency=request.user).count()
+            total_collection =  DAM.objects.filter(type=2,agency=request.user).count()
+            context = {'fav_folder':fav_folder,
+                    'total_image':total_image,
+                    'total_collection':total_collection
+            
+            }
+        return Response(context,status=status.HTTP_200_OK)
+
 
 
 

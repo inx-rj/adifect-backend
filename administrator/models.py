@@ -504,7 +504,6 @@ class JobWorkAttachments(BaseModel):
     job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit_Work", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     work_attachments = models.FileField(upload_to='work_attachments', blank=True, null=True)
-
     class Meta:
         verbose_name_plural = 'Job Works Attachments'
 

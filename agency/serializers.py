@@ -481,7 +481,6 @@ class DamWithMediaThumbnailSerializer(serializers.ModelSerializer):
     #     return ''
 
     def get_is_parent(self, obj):
-        print(obj)
         if obj.parent is not None:
             if obj.parent.parent is None:
                 return False

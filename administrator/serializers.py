@@ -8,7 +8,6 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
      JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
     JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks,JobActivityAttachments,SubmitJobWork,JobWorkAttachments,MemberApprovals,JobWorkActivity
 from rest_framework.fields import SerializerMethodField
-# from agency.serializers import CompanySerializer
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
 from langcodes import Language
@@ -669,6 +668,34 @@ class UserSkillsSerializer(serializers.ModelSerializer):
 # --------------                           job activity                      -----------------#
 
 
+class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
+    work_attachments_name = serializers.SerializerMethodField("get_work_attachments_name")
+    class Meta:
+        model = JobWorkAttachments
+        fields = '__all__'
+
+    def get_work_attachments_name(self, obj):
+        if obj.work_attachments is not None:
+            return str(obj.work_attachments.name).split('/')[-1]
+        return
+
+class SubmitJobWorkSerializer(serializers.ModelSerializer):
+    job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
+    attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,validators=[validate_file_extension])
+
+    class Meta:
+        model = SubmitJobWork
+        fields = '__all__'
+
+
+class MemberApprovalsSerializer(serializers.ModelSerializer):
+    job_work = SubmitJobWorkSerializer(required=False)
+    class Meta:
+        model = MemberApprovals
+        fields = '__all__'
+
+
+
 
 class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
     image_name = serializers.SerializerMethodField("get_image_name")
@@ -693,9 +720,21 @@ class JobApplied_serializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class JobWorkActivitySerializer(serializers.ModelSerializer):
+    job_work = SubmitJobWorkSerializer()
+    # approver = MemberApprovalsSerializer()
+    approver_name = serializers.SerializerMethodField("get_approver_name")
+    workflow =  serializers.SerializerMethodField("get_workflow_stage")
     class Meta:
         model = JobWorkActivity
         fields = '__all__'
+
+    def get_workflow_stage(self,obj):
+        if obj.workflow_stage is not None:
+            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name}
+
+    def get_approver_name(self, obj):
+        if obj.approver is not None:
+            return obj.approver.approver.user.user.get_full_name()
 
 
 class customUserSerializer(serializers.ModelSerializer):
@@ -795,28 +834,3 @@ class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
 
 
-class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
-    work_attachments_name = serializers.SerializerMethodField("get_work_attachments_name")
-    class Meta:
-        model = JobWorkAttachments
-        fields = '__all__'
-
-    def get_work_attachments_name(self, obj):
-        if obj.work_attachments is not None:
-            return str(obj.work_attachments.name).split('/')[-1]
-        return
-
-class SubmitJobWorkSerializer(serializers.ModelSerializer):
-    job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
-    attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,validators=[validate_file_extension])
-
-    class Meta:
-        model = SubmitJobWork
-        fields = '__all__'
-
-
-class MemberApprovalsSerializer(serializers.ModelSerializer):
-    job_work = SubmitJobWorkSerializer(required=False)
-    class Meta:
-        model = MemberApprovals
-        fields = '__all__'

@@ -21,6 +21,7 @@ router.register(r'member-job-list', views.MemberJobListViewSet, basename='member
 router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter')
 
 
+
 urlpatterns = [
     path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
          name='update_invite_member'),
@@ -28,6 +29,6 @@ urlpatterns = [
        name='register_view_invite'),
     # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
-    path('dam-favourite/', views.DAMMediaCount.as_view(), name='dam_favourite')
+
 ]
 urlpatterns += router.urls
