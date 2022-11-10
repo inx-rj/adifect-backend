@@ -1982,8 +1982,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
 
                 if workflow.stage_workflow.all():
                     first_stage = workflow.stage_workflow.all()[0]
-                    if MemberApprovals.objects.filter(workflow_stage=first_stage, status=2):
-                        return Response({'message': 'Your Work Is Rejected', 'error': True})
+                    # if MemberApprovals.objects.filter(workflow_stage=first_stage, status=2):
+                    #     return Response({'message': 'Your Work Is Rejected', 'error': True})
                     created = 0
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
@@ -2109,8 +2109,6 @@ class JobWorkStatus(APIView):
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
-        print("====")
-        print(self.queryset.filter(job_work__job_applied__job=496))
 
         if job and user:
             if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
@@ -2126,7 +2124,6 @@ class JobWorkStatus(APIView):
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
                     Q(workflow_stage__is_all_approval=False) & Q(
                         Q(status=1) | Q(status=2))).exists():
-                print('here 2')
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
@@ -2138,7 +2135,6 @@ class JobWorkStatus(APIView):
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
                     Q(workflow_stage__is_all_approval=False) &
                     Q(status=0)).exists():
-                print("here 2 ")
                 context = {'Disable': True,
                            'error': False,
                            'status': status.HTTP_200_OK
@@ -2146,7 +2142,6 @@ class JobWorkStatus(APIView):
                 return Response(context, status=status.HTTP_200_OK)
 
             else:
-                print("jdjjkdsjk2")
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
