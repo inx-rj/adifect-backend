@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied
+from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
@@ -1100,7 +1100,6 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
     queryset = Workflow_Stages.objects.all()
     pagination_class = FiveRecordsPagination
 
-
     def list(self, request, *args, **kwargs):
         user = request.user
         workflow_id = self.queryset.filter(approvals__user__user=user, workflow__is_trashed=False,
@@ -1126,8 +1125,8 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
-    filter_backends = [DjangoFilterBackend, SearchFilter,]
-    filterset_fields = ['job','status', 'job__company', 'job__is_active']
+    filter_backends = [DjangoFilterBackend, SearchFilter, ]
+    filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
     ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
     ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
     search_fields = ['=status', ]
@@ -1195,7 +1194,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True, parent=id,
+            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
                                             is_trashed=False).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
@@ -1216,3 +1215,24 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                    'total_video': total_video
                    }
         return Response(context, status=status.HTTP_200_OK)
+
+
+class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsSerializer
+    queryset = MemberApprovals.objects.all()
+    pagination_class = FiveRecordsPagination
+
+    def list(self, request, *args, **kwargs):
+        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,status=0).values_list('job_work__job_applied__job_id', flat=True)
+        job_data = Job.objects.filter(id__in=list(job_id))
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+        # return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, pk=None):
+        if pk:
+            job_data = Job.objects.filter(id=pk).first()
+            serializer = self.serializer_class(job_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)

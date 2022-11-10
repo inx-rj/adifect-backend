@@ -8,7 +8,8 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
-    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, JobsWithAttachmentsThumbnailSerializer
+    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
+    JobsWithAttachmentsThumbnailSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -242,24 +243,25 @@ def dam_images_list(dam_images, job_id):
             dam_inital = DamMedia.objects.get(id=i)
             print(dam_inital)
             print("yoooooooooooooooooooooooooooo")
+            print(job_id)
+            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+                print("innnnnnnnnnnnnnnnnnnnnnnnnnnnn")
+                dam_inital.job_count += 1
+                dam_inital.save()
+
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
-                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media,dam_media_id=dam_inital)
+                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media,dam_media_id=dam_inital)
+                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if  dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
-                dam_inital.save()
-            
-            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
-                print("innnnnnnnnnnnnnnnnnnnnnnnnnnnn")
-                dam_inital.job_count +=1
                 dam_inital.save()
 
 
@@ -269,26 +271,28 @@ def dam_sample_images_list(dam_sample_images, job_id):
             dam_inital = DamMedia.objects.get(id=i)
             print(dam_inital)
             print("yoooooooooooooooooooooooooooooo")
-            if  dam_inital.limit_usage_toggle == 'true':
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
-                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,dam_media_id=dam_inital)
+                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
+                                                  dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,dam_media_id=dam_inital)
+                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
 
-            if  dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
             if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
                 print("hahahahahahahahaha")
-                dam_inital.job_count +=1
+                dam_inital.job_count += 1
                 dam_inital.save()
+
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
@@ -786,7 +790,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['job','user','job__user',]
+    filterset_fields = ['job', 'user', 'job__user', ]
 
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
@@ -914,7 +918,7 @@ def dam_images_templates(dam_images, job_template_id):
     if dam_images:
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if dam_inital.limit_usage_toggle=='true':
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
@@ -927,7 +931,7 @@ def dam_images_templates(dam_images, job_template_id):
                                                       job_template_images=dam_inital.media)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if dam_inital.limit_usage_toggle=='true' and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
@@ -1273,7 +1277,6 @@ class JobProposal(APIView):
 
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
-
 
             if test_status:
                 JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=job_details.user)
@@ -1985,6 +1988,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
+
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
                                                               user=serializer.validated_data['job_applied'].user)
@@ -2015,7 +2019,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['approver', 'status', 'job_work__job_applied__job']
+    filterset_fields = ['approver__user__user', 'status', 'job_work__job_applied__job']
 
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
@@ -2078,10 +2082,11 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                      workflow_stage=new_stage[0])
                         if created:
-                            activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
+                            activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                                                                  activity_status=3,
                                                                   user=instance.job_work.job_applied.user)
                             JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
-                                                       work_activity='moved', workflow_stage=new_stage[0])
+                                                           work_activity='moved', workflow_stage=new_stage[0])
 
             context = {
                 'message': 'Job Work Status Updated Succesfully',
@@ -2097,13 +2102,16 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         }
         return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
+
 class JobWorkStatus(APIView):
     queryset = MemberApprovals.objects.all()
+
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
         if job and user:
-            if self.queryset.filter(job_work__job_applied__job_id=job,status=0,job_work__job_applied__user_id=user,workflow_stage__is_all_approval=True).exists():
+            if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
+                                    workflow_stage__is_all_approval=True).exists():
 
                 context = {'Disable': True,
                            'error': False,
@@ -2112,34 +2120,34 @@ class JobWorkStatus(APIView):
                 return Response(context, status=status.HTTP_200_OK)
 
             elif self.queryset.filter(
-                        Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                        Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) & Q(Q(status=1) | Q (status=2))).exists():
-                        context = {'Disable': False,
-                                   'error': False,
-                                   'status': status.HTTP_200_OK
-                                   }
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) & Q(
+                        Q(status=1) | Q(status=2))).exists():
+                context = {'Disable': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
 
-                        return Response(context, status=status.HTTP_200_OK)
+                return Response(context, status=status.HTTP_200_OK)
             elif self.queryset.filter(
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
                     Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) &
-                        Q(status=0)).exists():
-                    context = {'Disable': True,
-                               'error': False,
-                               'status': status.HTTP_200_OK
-                               }
-                    return Response(context, status=status.HTTP_200_OK)
+                    Q(status=0)).exists():
+                context = {'Disable': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
 
             else:
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
                            }
-                return Response(context,status=status.HTTP_200_OK)
+                return Response(context, status=status.HTTP_200_OK)
 
         context = {'message': 'Job And User Not Found',
                    'error': True,
                    'status': status.HTTP_400_BAD_REQUEST
                    }
         return Response(context)
-
