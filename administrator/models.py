@@ -12,6 +12,10 @@ from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
 from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages
 from django.core.validators import MaxValueValidator, MinValueValidator
+from io import BytesIO
+from PIL import Image
+import sys
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
 def validate_attachment(value):
@@ -172,21 +176,42 @@ class Job(BaseModel):
 class JobAttachments(BaseModel):
     job = models.ForeignKey(Job, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
     job_images = models.FileField(upload_to='job_images', blank=True, null=True)
+    job_images_thumbnail = models.FileField(upload_to="job_images_thumbnail", blank=True, null=True)
     work_sample_images = models.FileField(upload_to='work_sample_images', blank=True, null=True)
+    work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
 
-    # def delete(self, *args, **kwargs):
-    #     if self.job_images:
-    #         self.job_images.delete()
-    #     if self.work_sample_images:
-    #         self.work_sample_images.delete()
-    #
-    #     super().delete(*args, **kwargs)
+    def save(self, **kwargs):
+        output_size = (250, 250)
+        output_thumb = BytesIO()
+        if self.job_images:
+            img = Image.open(self.job_images)
+            img_name = self.job_images.name.split('.')[0]
+            img.thumbnail(output_size)
+            img.save(output_thumb, format=img.format, quality=90)
+
+            self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                            'image/jpeg',
+                                                            sys.getsizeof(output_thumb), None)
+        if self.work_sample_images:
+            img_work_sample = Image.open(self.work_sample_images)
+            img_name = self.work_sample_images.name.split('.')[0]
+            print(img_name)
+            img_work_sample.thumbnail(output_size)
+            img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
+
+            self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                            'image/jpeg',
+                                                            sys.getsizeof(output_thumb), None)
+
+        super(JobAttachments, self).save()
 
     def __str__(self) -> str:
         return f'{self.job}'
 
     class Meta:
         verbose_name_plural = 'Job Attachments'
+
+
 
 
 class JobActivity(BaseModel):

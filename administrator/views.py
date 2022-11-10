@@ -8,7 +8,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
-    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer
+    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, JobsWithAttachmentsThumbnailSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -292,7 +292,7 @@ class JobViewSet(viewsets.ModelViewSet):
         else:
             job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
-        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 
     def retrieve(self, request, pk=None):
@@ -773,7 +773,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['job']
+    filterset_fields = ['job','user','job__user',]
 
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
@@ -899,21 +899,17 @@ class JobTasksViewSet(viewsets.ModelViewSet):
 
 def dam_images_templates(dam_images, job_template_id):
     if dam_images:
-        print("dammmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm")
         for i in dam_images:
-            print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             dam_inital = DamMedia.objects.get(id=i)
             if dam_inital.limit_usage_toggle=='true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
-                    print("elseeeeeeeeeeee11111111111111111111111")
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           job_template_images=dam_inital.media)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                print("elseeeeeeeeeeee2222222222222222222222222")
                 JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                       job_template_images=dam_inital.media)
                 dam_inital.limit_used += 1
@@ -1262,8 +1258,6 @@ class JobProposal(APIView):
             job_details = job_proposal.first()
             if initial_status == 2:
                 test_status = JobActivity.Type.Accept
-                if not JobActivity.objects.filter(job=job_details.job,activity_type=JobActivity.Type.Accept):
-                    JobActivity.objects.create(job=job_details.job, activity_type=5)
 
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
@@ -1271,7 +1265,8 @@ class JobProposal(APIView):
 
             if test_status:
                 JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=job_details.user)
-
+            if not JobActivity.objects.filter(job=job_details.job, activity_type=JobActivity.Type.Accept):
+                JobActivity.objects.create(job=job_details.job, activity_type=5)
             # ------------------ EMAIL Section ---------------------------------------#
             if int(initial_status) == 2 and update_proposal:
                 from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -2115,7 +2110,6 @@ class JobWorkStatus(APIView):
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
                     Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) &
                         Q(status=0)).exists():
-
                     context = {'Disable': True,
                                'error': False,
                                'status': status.HTTP_200_OK
@@ -2128,7 +2122,6 @@ class JobWorkStatus(APIView):
                            'status': status.HTTP_200_OK
                            }
                 return Response(context,status=status.HTTP_200_OK)
-
 
         context = {'message': 'Job And User Not Found',
                    'error': True,

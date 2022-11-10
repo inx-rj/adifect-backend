@@ -951,8 +951,8 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['modified', 'created']
-    ordering = ['modified', 'created']
+    ordering_fields = ['modified', 'created','limit_used']
+    ordering = ['modified', 'created','limit_used']
     filterset_fields = ['dam_id', 'title','id']
     search_fields = ['title']
     http_method_names = ['get','put','delete','post']
@@ -1010,8 +1010,6 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=partial)
         
         if serializer.is_valid():
-            print(request.data)
-            print("innnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
             self.perform_update(serializer)
             context = {
                 'message': 'Updated Successfully...',
@@ -1094,6 +1092,7 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False,is_trashed=False).values_list('workflow_id', flat=True)
+        print(workflow_id)
         job_data = Job.objects.filter(workflow_id__in=list(workflow_id))
         serializer = self.serializer_class(job_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -1140,7 +1139,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['modified', 'created']
+    ordering_fields = ['modified', 'created','limit_used']
     ordering = ['modified', 'created']
     filterset_fields = ['dam_id', 'title','id']
     search_fields = ['title']
@@ -1192,6 +1191,9 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                     'total_video':total_video
         }
         return Response(context,status=status.HTTP_200_OK)
+
+
+
 
 
 

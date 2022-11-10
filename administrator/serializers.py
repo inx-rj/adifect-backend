@@ -136,6 +136,26 @@ class JobSerializer(serializers.ModelSerializer):
         return job
 
 
+class JobAttachmentsThumbnailSerializer(serializers.ModelSerializer):
+    job_image_name = SerializerMethodField("get_image_name")
+    work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+    class Meta:
+        model = JobAttachments
+        exclude = ('job_images', 'work_sample_images',)
+
+
+
+
+    def get_image_name(self, obj):
+        if obj.job_images:
+            return str(obj.job_images).split('/')[-1]
+        return None
+
+    def get_work_sample_image_name(self, obj):
+        if obj.work_sample_images:
+            return str(obj.work_sample_images).split('/')[-1]
+        return None
+
 class JobAttachmentsSerializer(serializers.ModelSerializer):
     job_image_name = SerializerMethodField("get_image_name")
     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
@@ -152,8 +172,6 @@ class JobAttachmentsSerializer(serializers.ModelSerializer):
         if obj.work_sample_images:
             return str(obj.work_sample_images).split('/')[-1]
         return None
-
-
 
 
 # class CompanySerializer(serializers.ModelSerializer):
@@ -174,6 +192,20 @@ class JobTasksSerializer(serializers.ModelSerializer):
         model = JobTasks
         fields = '__all__'
 
+class JobsWithAttachmentsThumbnailSerializer(serializers.ModelSerializer):
+    images = JobAttachmentsThumbnailSerializer(many=True)
+    # category = CategorySerializer()
+    # industry = IndustrySerializer()
+    jobtasks_job = JobTasksSerializer(many=True)
+    level = LevelSerializer()
+    skills = SkillsSerializer(many=True)
+
+    class Meta:
+        model = Job
+        fields = '__all__'
+        extra_kwargs = {
+            'expected_delivery_date': {'required': True},
+        }
 
 class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     images = JobAttachmentsSerializer(many=True)
