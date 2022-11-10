@@ -1094,7 +1094,6 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False,is_trashed=False).values_list('workflow_id', flat=True)
-        print(workflow_id)
         job_data = Job.objects.filter(workflow_id__in=list(workflow_id))
         serializer = self.serializer_class(job_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -1105,13 +1104,12 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class MyProjectViewSet(viewsets.ModelViewSet):
-    # print('hii')
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
     filter_backends = [DjangoFilterBackend,SearchFilter]
     ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
     ordering = ['job__job_due_date','job__created','job__modified','modified','created']
-    filterset_fields = ['status','job__company']
+    filterset_fields = ['status','job__company','job__is_active']
     search_fields = ['=status',]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
@@ -1122,7 +1120,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         ordering = request.GET.get('ordering',None)
         filter_data =queryset.filter(
             pk__in=Subquery(
-                queryset.filter(job__user=user,job__is_active=True).order_by('job_id').distinct('job_id').values('pk')
+                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
             )
         ).order_by(ordering)
         paginated_data = self.paginate_queryset(filter_data)
