@@ -1105,6 +1105,7 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class MyProjectViewSet(viewsets.ModelViewSet):
+    # print('hii')
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
     filter_backends = [DjangoFilterBackend,SearchFilter]
