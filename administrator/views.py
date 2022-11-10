@@ -244,16 +244,19 @@ def dam_images_list(dam_images, job_id):
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
-                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media)
+                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media,dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media)
+                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media,dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
             if  dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
+            
+            if JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+                dam_inital.job_count +=1
 
 
 def dam_sample_images_list(dam_sample_images, job_id):
@@ -264,11 +267,11 @@ def dam_sample_images_list(dam_sample_images, job_id):
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                 else:
-                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media)
+                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media)
+                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
 
@@ -276,6 +279,8 @@ def dam_sample_images_list(dam_sample_images, job_id):
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
+            if JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+                dam_inital.job_count +=1
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
@@ -1239,7 +1244,7 @@ class JobProposal(APIView):
         job_id = pk
         if job_id:
             query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE).order_by(
-                '-modified')
+                '-created')
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
@@ -1955,6 +1960,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             if attachment:
                 for i in attachment:
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
+
+            JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
             activity = JobActivity.objects.create(job=job, activity_status=2,
                                                   user=serializer.validated_data['job_applied'].user)
             JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,

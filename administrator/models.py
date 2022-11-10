@@ -179,6 +179,7 @@ class JobAttachments(BaseModel):
     job_images_thumbnail = models.FileField(upload_to="job_images_thumbnail", blank=True, null=True)
     work_sample_images = models.FileField(upload_to='work_sample_images', blank=True, null=True)
     work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
+    dam_media_id = models.CharField(max_length=5000000,default=None,null=True,blank=True)
 
     def save(self, **kwargs):
         output_size = (250, 250)
