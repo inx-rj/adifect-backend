@@ -240,6 +240,8 @@ def dam_images_list(dam_images, job_id):
     if dam_images:
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
+            print(dam_inital)
+            print("yoooooooooooooooooooooooooooo")
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
@@ -255,14 +257,18 @@ def dam_images_list(dam_images, job_id):
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
             
-            if JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+                print("innnnnnnnnnnnnnnnnnnnnnnnnnnnn")
                 dam_inital.job_count +=1
+                dam_inital.save()
 
 
 def dam_sample_images_list(dam_sample_images, job_id):
     if dam_sample_images:
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
+            print(dam_inital)
+            print("yoooooooooooooooooooooooooooooo")
             if  dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
@@ -279,8 +285,10 @@ def dam_sample_images_list(dam_sample_images, job_id):
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
-            if JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
+                print("hahahahahahahahaha")
                 dam_inital.job_count +=1
+                dam_inital.save()
 
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
@@ -1243,8 +1251,7 @@ class JobProposal(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE).order_by(
-                '-created')
+            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}

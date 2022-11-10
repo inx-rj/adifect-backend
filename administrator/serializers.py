@@ -13,7 +13,7 @@ from .validators import validate_file_extension
 from agency.models import Workflow_Stages
 from langcodes import Language
 import datetime as dt
-
+from django.db.models import Q
 class userPortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUserPortfolio
@@ -224,7 +224,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     username = SerializerMethodField("get_username")
     job_applied_id = SerializerMethodField("get_job_applied_id")
     is_edit = SerializerMethodField("get_is_edit")
-    hired_users = SerializerMethodField("hired_users_list")
+    hired_users = SerializerMethodField("get_hired_users_list")
     job_applied_modified =  SerializerMethodField("get_applied_modified")
     is_expire =  SerializerMethodField("get_is_expire")
     flag = SerializerMethodField("flag_list")
@@ -345,9 +345,9 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             print(e)
             return ''
 
-    def hired_users_list(self, obj):
+    def get_hired_users_list(self, obj):
         request = self.context.get('request')
-        usersObj = JobApplied.objects.filter(job=obj.id, status=2)
+        usersObj = JobApplied.objects.filter(Q(job=obj.id) & Q(Q(status=2)|Q(status=3)))
         if usersObj:
             return usersObj.values('user__username','user_id')
         else:
