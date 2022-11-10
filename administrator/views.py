@@ -2109,6 +2109,9 @@ class JobWorkStatus(APIView):
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
+        print("====")
+        print(self.queryset.filter(job_work__job_applied__job=496))
+
         if job and user:
             if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
                                     workflow_stage__is_all_approval=True).exists():
@@ -2121,18 +2124,21 @@ class JobWorkStatus(APIView):
 
             elif self.queryset.filter(
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) & Q(
+                    Q(workflow_stage__is_all_approval=False) & Q(
                         Q(status=1) | Q(status=2))).exists():
+                print('here 2')
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
                            }
 
                 return Response(context, status=status.HTTP_200_OK)
+
             elif self.queryset.filter(
                     Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) & Q(workflow_stage__is_approval=True) &
+                    Q(workflow_stage__is_all_approval=False) &
                     Q(status=0)).exists():
+                print("here 2 ")
                 context = {'Disable': True,
                            'error': False,
                            'status': status.HTTP_200_OK
@@ -2140,6 +2146,7 @@ class JobWorkStatus(APIView):
                 return Response(context, status=status.HTTP_200_OK)
 
             else:
+                print("jdjjkdsjk2")
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
