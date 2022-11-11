@@ -1958,6 +1958,34 @@ class TestApi(APIView):
 # ---------------------------------------------------- end ------------------------------------------------ #
 # --------------------------------------------------------------- new Job Submit ------------------------------------------------------------#
 
+def JobWorkSubmitEmail(user):
+    try:
+        subject = "Job Work Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px; border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000">Hello {user.get_full_name()},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Your Job is submitted.</div><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style= "padding: 20px 0px;font-size: 16px;color:#000000;"></div>Sincerely,<br />The Adifect Team</div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email( Email(SEND_GRID_FROM_EMAIL),user.email, subject, content)
+    except Exception as e:
+        print(e)
+
+
+def JobWorkApprovalEmail(approver,work):
+    try:
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+          print(j.work_attachments.url)
+          img_url +=f'<img src={j.work_attachments.url}/>'
+        subject = "Job Work Approver Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img src="{work.job_applied.user.profile_img.url if  work.job_applied.user.profile_img is not  None else ""}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"><div style="padding: 15px 0px 0px 63px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div><div style="padding: 15px 0px 0px 30px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
+    except Exception as e:
+        print(e)
+
+
+
+
+
+
 @permission_classes([IsAuthenticated])
 class JobWorkSubmitViewSet(viewsets.ModelViewSet):
     serializer_class = SubmitJobWorkSerializer
@@ -1983,6 +2011,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             job = serializer.validated_data['job_applied'].job
             self.perform_create(serializer)
             latest_work = SubmitJobWork.objects.latest('id')
+            JobWorkSubmitEmail(latest_work.job_applied.user)
             attachment = request.FILES.getlist('work_attachments')
             if attachment:
                 for i in attachment:
@@ -1993,6 +2022,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                                                   user=serializer.validated_data['job_applied'].user)
             JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                            work_activity='submit_approval')
+
             if job.workflow:
                 workflow = job.workflow
                 # ----- stage 1 --------#
@@ -2005,6 +2035,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
+                        JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
                                                               user=serializer.validated_data['job_applied'].user)
@@ -2025,6 +2056,9 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 
 @permission_classes([IsAuthenticated])
@@ -2229,4 +2263,23 @@ class JobCompletedStatus(APIView):
                    'error': True,
                    'status': status.HTTP_400_BAD_REQUEST
                    }
+        return Response(context)
+
+class JobActivityUserList(APIView):
+    def get(self, request, *args, **kwargs):
+        job_id = kwargs.get('job_id')
+        if job_id:
+            data = JobActivity.objects.filter(job_id=job_id).order_by('user_id').distinct('user_id').values('user_id','user__username','user__profile_img')
+            context = {
+                'message': "Data Found",
+                'status': status.HTTP_200_OK,
+                'data':data,
+                'error': False
+            }
+        else:
+            context = {
+                'message': "Job Not  Found",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'error': True
+            }
         return Response(context)

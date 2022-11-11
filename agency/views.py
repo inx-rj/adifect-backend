@@ -684,6 +684,27 @@ class DAMViewSet(viewsets.ModelViewSet):
     filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
     search_fields = ['name']
 
+    def get_queryset(self):
+        print("yoooooooooooooooooooooooooooo")
+        data = self.request.data
+        mixed_query = data.get('mixed',None)
+        
+        if not mixed_query:
+            return self.queryset
+        and_params = {}
+        for key in data:
+           if 'and_' in key:
+              and_params[key] = data[key]
+        
+        
+        queryset = DAM.objects.filter(**and_params)
+        for key in self.request.data:
+            print("hlooooooooooooooooooooooooooo")
+            if 'or_' in key:
+              queryset = queryset | DAM.objects.filter(key=data[key])
+
+        return queryset
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         serializer = DamWithMediaThumbnailSerializer(queryset, many=True, context={'request': request})
