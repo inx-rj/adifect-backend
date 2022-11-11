@@ -239,19 +239,17 @@ class UserListViewSet(viewsets.ModelViewSet):
 
 def dam_images_list(dam_images, job_id):
     if dam_images:
+        exceeded_files = []
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            print(dam_inital)
-            print("yoooooooooooooooooooooooooooo")
-            print(job_id)
-            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
-                print("innnnnnnnnnnnnnnnnnnnnnnnnnnnn")
+            if not JobAttachments.objects.filter(job=job_id,dam_media_id=dam_inital).exists():
                 dam_inital.job_count += 1
                 dam_inital.save()
 
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
                 else:
                     JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
@@ -264,15 +262,22 @@ def dam_images_list(dam_images, job_id):
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 def dam_sample_images_list(dam_sample_images, job_id):
     if dam_sample_images:
+        exceeded_files = []
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
             print(dam_inital)
             print("yoooooooooooooooooooooooooooooo")
+            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
+                print("hahahahahahahahaha")
+                dam_inital.job_count += 1
+                dam_inital.save()
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
+                    exceeded_files.append(dam_inital)
                     print("limit exceeded")
                 else:
                     JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
@@ -288,10 +293,7 @@ def dam_sample_images_list(dam_sample_images, job_id):
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
-            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists:
-                print("hahahahahahahahaha")
-                dam_inital.job_count += 1
-                dam_inital.save()
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @permission_classes([IsAuthenticated])
@@ -916,11 +918,18 @@ class JobTasksViewSet(viewsets.ModelViewSet):
 
 def dam_images_templates(dam_images, job_template_id):
     if dam_images:
+        exceeded_files = []
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
+            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+                dam_inital.job_count += 1
+                dam_inital.save()
+
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
+                    
                 else:
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           job_template_images=dam_inital.media)
@@ -934,15 +943,20 @@ def dam_images_templates(dam_images, job_template_id):
             if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
-
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 def dam_sample_template_images_list(dam_sample_work, job_template_id):
     if dam_sample_work:
+        exceeded_files = []
         for i in dam_sample_work:
             dam_inital = DamMedia.objects.get(id=i)
+            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+                dam_inital.job_count += 1
+                dam_inital.save()
             if type(dam_inital.limit_usage) == int:
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
                 else:
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           work_sample_images=dam_inital.media)
@@ -955,6 +969,7 @@ def dam_sample_template_images_list(dam_sample_work, job_template_id):
             if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @permission_classes([IsAuthenticated])
@@ -1278,6 +1293,8 @@ class JobProposal(APIView):
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
 
+            if initial_status == 4:
+                test_status = JobActivity.Type.Completed
             if test_status:
                 JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=job_details.user)
             if not JobActivity.objects.filter(job=job_details.job, activity_type=JobActivity.Type.Accept):
@@ -1988,13 +2005,11 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
-
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
                                                               user=serializer.validated_data['job_applied'].user)
                         JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                                        work_activity='moved', workflow_stage=first_stage)
-
                 # ------------ end -------#
             context = {
                 'message': 'Job Successfully Submitted',
@@ -2038,6 +2053,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_update(serializer)
             if serializer.validated_data['status']:
+                print("jdfjkjkdfkjjkjkkjdvkfkl")
+                print(serializer.validated_data['status'])
                 if serializer.validated_data['status'] == 1:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
@@ -2045,6 +2062,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                    work_activity='approved', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
                 if serializer.validated_data['status'] == 2:
+                    print("hsdjhjh")
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,

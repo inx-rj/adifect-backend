@@ -681,7 +681,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name']
+    filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -960,7 +960,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id']
+    filterset_fields = ['dam_id', 'title', 'id','image_favourite','is_video']
     search_fields = ['title']
     http_method_names = ['get', 'put', 'delete', 'post']
 
@@ -1011,7 +1011,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        instance = self.get_object()
+        instance = self .get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
 

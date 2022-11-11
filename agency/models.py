@@ -166,9 +166,11 @@ class DAM(BaseModel):
         FOLDER = 1
         COLLECTION = 2
         IMAGE = 3
+        VIDEO = 4
     name = models.CharField(max_length=5000, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
+    is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     is_favourite = models.BooleanField(default=False)
 
@@ -215,6 +217,8 @@ class DamMedia(BaseModel):
         if str(self.media).endswith(".mp4"):
             self.thumbnail=self.media
             self.is_video= True
+            self.dam.is_video= True
+            self.dam.save()
             super(DamMedia, self).save()
         else:
             output_size = (250, 250)
