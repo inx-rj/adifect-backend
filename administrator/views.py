@@ -2053,8 +2053,6 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_update(serializer)
             if serializer.validated_data['status']:
-                print("jdfjkjkdfkjjkjkkjdvkfkl")
-                print(serializer.validated_data['status'])
                 if serializer.validated_data['status'] == 1:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
@@ -2062,7 +2060,6 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                    work_activity='approved', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
                 if serializer.validated_data['status'] == 2:
-                    print("hsdjhjh")
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
@@ -2167,6 +2164,68 @@ class JobWorkStatus(APIView):
                 return Response(context, status=status.HTTP_200_OK)
 
         context = {'message': 'Job And User Not Found',
+                   'error': True,
+                   'status': status.HTTP_400_BAD_REQUEST
+                   }
+        return Response(context)
+
+
+class JobCompletedStatus(APIView):
+    queryset = MemberApprovals.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+
+        if job :
+            if self.queryset.filter(job_work__job_applied__job_id=job, status=0,
+                                    workflow_stage__is_all_approval=True).exists():
+
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) &
+                    Q(workflow_stage__is_all_approval=False) & Q(
+                        Q(status=2))).exists():
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) &
+                    Q(status=1)).exists():
+                context = {'Completed': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) &
+                    Q(status=0)).exists():
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            else:
+                context = {'Completed': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+        context = {'message': 'Job  Not Found',
                    'error': True,
                    'status': status.HTTP_400_BAD_REQUEST
                    }

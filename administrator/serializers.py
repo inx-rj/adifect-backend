@@ -338,7 +338,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.filter(status=2):
+            if obj.job_applied.filter(Q(status=0) | Q(status=1)):
                 return False
             return True
         except Exception as e:
@@ -757,6 +757,7 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
     # approver = MemberApprovalsSerializer()
     approver_name = serializers.SerializerMethodField("get_approver_name")
     approver_image = serializers.SerializerMethodField("get_approver_image")
+    approver_message = serializers.SerializerMethodField("get_approver_message")
     workflow =  serializers.SerializerMethodField("get_workflow_stage")
     class Meta:
         model = JobWorkActivity
@@ -780,6 +781,15 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
             return ''
         except Exception as e:
             return ''
+
+    def get_approver_message(self, obj):
+        try:
+            if obj.approver is not None:
+                return obj.approver.message
+            return ''
+        except Exception as e:
+            return ''
+
 
 
 class customUserSerializer(serializers.ModelSerializer):
