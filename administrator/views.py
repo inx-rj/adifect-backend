@@ -1958,25 +1958,35 @@ class TestApi(APIView):
 # ---------------------------------------------------- end ------------------------------------------------ #
 # --------------------------------------------------------------- new Job Submit ------------------------------------------------------------#
 
-def JobWorkSubmitEmail(user):
+def JobWorkSubmitEmail(user, work):
     try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+            img_url += f'<img src={j.work_attachments.url}/>'
         subject = "Job Work Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px; border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px;color:#000000">Hello {user.get_full_name()},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Your Job is submitted.</div><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style= "padding: 20px 0px;font-size: 16px;color:#000000;"></div>Sincerely,<br />The Adifect Team</div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-        data = send_email( Email(SEND_GRID_FROM_EMAIL),user.email, subject, content)
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"><div style="padding: 15px 0px 0px 63px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div><div style="padding: 15px 0px 0px 30px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), user.email, subject, content)
     except Exception as e:
         print(e)
 
 
-def JobWorkApprovalEmail(approver,work):
+def JobWorkApprovalEmail(approver, work):
     try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
         img_url = ''
         for j in JobWorkAttachments.objects.filter(job_work=work):
-          print(j.work_attachments.url)
-          img_url +=f'<img src={j.work_attachments.url}/>'
+            img_url += f'<img src={j.work_attachments.url}/>'
         subject = "Job Work Approver Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img src="{work.job_applied.user.profile_img.url if  work.job_applied.user.profile_img is not  None else ""}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"><div style="padding: 15px 0px 0px 63px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div><div style="padding: 15px 0px 0px 30px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"><div style="padding: 15px 0px 0px 63px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div><div style="padding: 15px 0px 0px 30px"><img src="/img/VectorDownload.png" /><span style="color: #2472fc;font-size: 14px;">Docum...</span></div></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
     except Exception as e:
         print(e)
@@ -2011,12 +2021,11 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             job = serializer.validated_data['job_applied'].job
             self.perform_create(serializer)
             latest_work = SubmitJobWork.objects.latest('id')
-            JobWorkSubmitEmail(latest_work.job_applied.user)
             attachment = request.FILES.getlist('work_attachments')
             if attachment:
                 for i in attachment:
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
-
+            JobWorkSubmitEmail(latest_work.job_applied.user,latest_work)
             JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
             activity = JobActivity.objects.create(job=job, activity_status=2,
                                                   user=serializer.validated_data['job_applied'].user)
@@ -2105,23 +2114,30 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
                     if i.is_all_approval:
+                        print("enter in all approval")
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
                         if stage_clear == member_count:
+                            print("here all aproval clear")
                             stage_id_list.append(i.id)
                             # for j in i.approvals.all():
                             #     MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage=i)
-                        else:
-                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
-                                stage_id_list.append(i.id)
+                        # else:
+                        #     print("here no aproval clear")
+                        #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                        #         stage_id_list.append(i.id)
                     else:
+                        print("here enter at least")
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
                         if stage_clear:
+                            print("here enter at one least")
                             stage_id_list.append(i.id)
-                        else:
-                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
-                                stage_id_list.append(i.id)
+                        # else:
+                        #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                        #         print("here enter at not one least")
+                        #         stage_id_list.append(i.id)
+
                             # for j in i.approvals.all():
                 if stage_id_list:
                     new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(id__in=stage_id_list)

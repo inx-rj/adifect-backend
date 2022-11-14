@@ -605,7 +605,7 @@ class InviteMemberUserList(APIView):
     serializer_class = InviteMemberSerializer
 
     def get(self, request, *args, **kwargs):
-        company_id = kwargs.get('company_id', None)
+        company_id = request.GET.get('company',None)
         agency = request.user
         if agency.is_authenticated:
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
@@ -1245,7 +1245,7 @@ class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,status=0).values_list('job_work__job_applied__job_id', flat=True)
-        job_data = Job.objects.filter(id__in=list(job_id))
+        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)

@@ -126,6 +126,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     levels = serializers.IntegerField(write_only=True, required=True)
     level = SerializerMethodField("get_level")
     exclusive = serializers.BooleanField(write_only=True, default=False)
+    company_name = SerializerMethodField('get_company_name')
 
     class Meta:
         model = InviteMember
@@ -197,6 +198,15 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(obj)
+
+    def get_company_name(self, obj):
+        try:
+            if obj.company:
+                return obj.company.name
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 

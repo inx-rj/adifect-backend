@@ -179,7 +179,7 @@ class JobAttachments(BaseModel):
     job_images_thumbnail = models.FileField(upload_to="job_images_thumbnail", blank=True, null=True)
     work_sample_images = models.FileField(upload_to='work_sample_images', blank=True, null=True)
     work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
-    dam_media_id = models.ForeignKey("agency.DamMedia",on_delete=models.SET_NULL, null=True, blank=True)
+    dam_media_id = models.ForeignKey("agency.DamMedia", on_delete=models.SET_NULL, null=True, blank=True)
 
     def save(self, **kwargs):
         output_size = (250, 250)
@@ -191,8 +191,8 @@ class JobAttachments(BaseModel):
             img.save(output_thumb, format=img.format, quality=90)
 
             self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                            'image/jpeg',
-                                                            sys.getsizeof(output_thumb), None)
+                                                             'image/jpeg',
+                                                             sys.getsizeof(output_thumb), None)
         if self.work_sample_images:
             img_work_sample = Image.open(self.work_sample_images)
             img_name = self.work_sample_images.name.split('.')[0]
@@ -201,8 +201,8 @@ class JobAttachments(BaseModel):
             img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
 
             self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                            'image/jpeg',
-                                                            sys.getsizeof(output_thumb), None)
+                                                              'image/jpeg',
+                                                              sys.getsizeof(output_thumb), None)
 
         super(JobAttachments, self).save()
 
@@ -213,15 +213,12 @@ class JobAttachments(BaseModel):
         verbose_name_plural = 'Job Attachments'
 
 
-
-
 class JobActivity(BaseModel):
     class Status(models.IntegerChoices):
         Notification = 0
         Chat = 1
         JobWork = 2
         WorkStage = 3
-
 
     class Type(models.IntegerChoices):
         Create = 0
@@ -299,7 +296,6 @@ class JobWorkActivity(BaseModel):
         verbose_name_plural = 'Job Work Activity'
 
 
-
 class JobApplied(BaseModel):
     class Status(models.IntegerChoices):
         APPLIED = 0
@@ -328,6 +324,11 @@ class JobApplied(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Jobs Applied'
+
+    def save(self, *args, **kwargs):
+        if self.proposed_price is None:
+            self.proposed_price = self.job.price
+        super(JobApplied, self).save(*args, **kwargs)
 
 
 class JobAppliedAttachments(BaseModel):
@@ -532,6 +533,7 @@ class JobWorkAttachments(BaseModel):
     job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit_Work", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     work_attachments = models.FileField(upload_to='work_attachments', blank=True, null=True)
+
     class Meta:
         verbose_name_plural = 'Job Works Attachments'
 
