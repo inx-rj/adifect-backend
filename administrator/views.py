@@ -8,7 +8,8 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobAppliedAttachmentsSerializer, UserListSerializer, PreferredLanguageSerializer, JobTasksSerializer, \
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
-    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer
+    JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
+    JobsWithAttachmentsThumbnailSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -238,39 +239,61 @@ class UserListViewSet(viewsets.ModelViewSet):
 
 def dam_images_list(dam_images, job_id):
     if dam_images:
+        exceeded_files = []
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            if not JobAttachments.objects.filter(job=job_id,dam_media_id=dam_inital).exists():
+                dam_inital.job_count += 1
+                dam_inital.save()
+
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
                 else:
-                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media)
+                    JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media)
+                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
 
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 def dam_sample_images_list(dam_sample_images, job_id):
     if dam_sample_images:
+        exceeded_files = []
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            print(dam_inital)
+            print("yoooooooooooooooooooooooooooooo")
+            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
+                print("hahahahahahahahaha")
+                dam_inital.job_count += 1
+                dam_inital.save()
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
+                    exceeded_files.append(dam_inital)
                     print("limit exceeded")
                 else:
-                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media)
+                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
+                                                  dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media)
+                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
                 dam_inital.limit_used += 1
                 dam_inital.save()
+
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                dam_inital.usage_limit_reached = True
+                dam_inital.save()
+
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @permission_classes([IsAuthenticated])
@@ -288,7 +311,7 @@ class JobViewSet(viewsets.ModelViewSet):
         else:
             job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
-        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 
     def retrieve(self, request, pk=None):
@@ -769,7 +792,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['job']
+    filterset_fields = ['job', 'user', 'job__user', ]
 
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
@@ -894,39 +917,46 @@ class JobTasksViewSet(viewsets.ModelViewSet):
 
 
 def dam_images_templates(dam_images, job_template_id):
-    print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
     if dam_images:
-        print("dammmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm")
+        exceeded_files = []
         for i in dam_images:
-            print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             dam_inital = DamMedia.objects.get(id=i)
-            if type(dam_inital.limit_usage) == int:
+            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+                dam_inital.job_count += 1
+                dam_inital.save()
+
+            if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
+                    
                 else:
-                    print("elseeeeeeeeeeee11111111111111111111111")
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           job_template_images=dam_inital.media)
                     dam_inital.limit_used += 1
                     dam_inital.save()
             else:
-                print("elseeeeeeeeeeee2222222222222222222222222")
                 JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                       job_template_images=dam_inital.media)
                 dam_inital.limit_used += 1
                 dam_inital.save()
-            if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
+            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
-
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 def dam_sample_template_images_list(dam_sample_work, job_template_id):
     if dam_sample_work:
+        exceeded_files = []
         for i in dam_sample_work:
             dam_inital = DamMedia.objects.get(id=i)
+            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+                dam_inital.job_count += 1
+                dam_inital.save()
             if type(dam_inital.limit_usage) == int:
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
+                    exceeded_files.append(dam_inital)
                 else:
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           work_sample_images=dam_inital.media)
@@ -939,6 +969,7 @@ def dam_sample_template_images_list(dam_sample_work, job_template_id):
             if type(dam_inital.limit_usage) == int and dam_inital.limit_usage <= dam_inital.limit_used:
                 dam_inital.usage_limit_reached = True
                 dam_inital.save()
+        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @permission_classes([IsAuthenticated])
@@ -1239,8 +1270,7 @@ class JobProposal(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE).order_by(
-                '-modified')
+            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
@@ -1259,11 +1289,16 @@ class JobProposal(APIView):
             job_details = job_proposal.first()
             if initial_status == 2:
                 test_status = JobActivity.Type.Accept
+
             if initial_status == 1:
                 test_status = JobActivity.Type.Reject
+
+            if initial_status == 4:
+                test_status = JobActivity.Type.Completed
             if test_status:
                 JobActivity.objects.create(job=job_details.job, activity_type=test_status, user=job_details.user)
-
+            if not JobActivity.objects.filter(job=job_details.job, activity_type=JobActivity.Type.Accept):
+                JobActivity.objects.create(job=job_details.job, activity_type=5)
             # ------------------ EMAIL Section ---------------------------------------#
             if int(initial_status) == 2 and update_proposal:
                 from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -1921,7 +1956,45 @@ class TestApi(APIView):
 
 
 # ---------------------------------------------------- end ------------------------------------------------ #
-# --------------------------------- new Job Submit ------------------------------------------------------------#
+# --------------------------------------------------------------- new Job Submit ------------------------------------------------------------#
+
+def JobWorkSubmitEmail(user, work):
+    try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+            img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
+        subject = "Job Work Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have Submitted this work for Approval! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), user.email, subject, content)
+    except Exception as e:
+        print(e)
+
+
+def JobWorkApprovalEmail(approver, work):
+    try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+            img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
+        subject = "Job Work Approver Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
+    except Exception as e:
+        print(e)
+
+
+
+
+
 
 @permission_classes([IsAuthenticated])
 class JobWorkSubmitViewSet(viewsets.ModelViewSet):
@@ -1952,28 +2025,31 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             if attachment:
                 for i in attachment:
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
+            JobWorkSubmitEmail(latest_work.job_applied.user,latest_work)
+            JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
             activity = JobActivity.objects.create(job=job, activity_status=2,
                                                   user=serializer.validated_data['job_applied'].user)
             JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                            work_activity='submit_approval')
+
             if job.workflow:
                 workflow = job.workflow
                 # ----- stage 1 --------#
 
                 if workflow.stage_workflow.all():
                     first_stage = workflow.stage_workflow.all()[0]
-                    if MemberApprovals.objects.filter(workflow_stage=first_stage, status=2):
-                        return Response({'message': 'Your Work Is Rejected', 'error': True})
+                    # if MemberApprovals.objects.filter(workflow_stage=first_stage, status=2):
+                    #     return Response({'message': 'Your Work Is Rejected', 'error': True})
                     created = 0
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
+                        JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
                                                               user=serializer.validated_data['job_applied'].user)
                         JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                                        work_activity='moved', workflow_stage=first_stage)
-
                 # ------------ end -------#
             context = {
                 'message': 'Job Successfully Submitted',
@@ -1991,6 +2067,9 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
+
 @permission_classes([IsAuthenticated])
 class MemberApprovalViewSet(viewsets.ModelViewSet):
     serializer_class = MemberApprovalsSerializer
@@ -1998,7 +2077,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['approver', 'status', 'job_work__job_applied__job']
+    filterset_fields = ['approver__user__user', 'status', 'job_work__job_applied__job']
 
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
@@ -2041,17 +2120,20 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             stage_id_list.append(i.id)
                             # for j in i.approvals.all():
                             #     MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage=i)
-                        else:
-                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
-                                stage_id_list.append(i.id)
+                        # else:
+                        #     print("here no aproval clear")
+                        #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                        #         stage_id_list.append(i.id)
                     else:
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
                         if stage_clear:
                             stage_id_list.append(i.id)
-                        else:
-                            if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
-                                stage_id_list.append(i.id)
+                        # else:
+                        #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                        #         print("here enter at not one least")
+                        #         stage_id_list.append(i.id)
+
                             # for j in i.approvals.all():
                 if stage_id_list:
                     new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(id__in=stage_id_list)
@@ -2061,10 +2143,11 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                      workflow_stage=new_stage[0])
                         if created:
-                            activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
+                            activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                                                                  activity_status=3,
                                                                   user=instance.job_work.job_applied.user)
                             JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
-                                                       work_activity='moved', workflow_stage=new_stage[0])
+                                                           work_activity='moved', workflow_stage=new_stage[0])
 
             context = {
                 'message': 'Job Work Status Updated Succesfully',
@@ -2079,3 +2162,136 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
             'errors': serializer.errors,
         }
         return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+class JobWorkStatus(APIView):
+    queryset = MemberApprovals.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+
+        if job and user:
+            if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
+                                    workflow_stage__is_all_approval=True).exists():
+
+                context = {'Disable': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) & Q(
+                        Q(status=1) | Q(status=2))).exists():
+                context = {'Disable': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) &
+                    Q(status=0)).exists():
+                context = {'Disable': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            else:
+                context = {'Disable': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+        context = {'message': 'Job And User Not Found',
+                   'error': True,
+                   'status': status.HTTP_400_BAD_REQUEST
+                   }
+        return Response(context)
+
+
+class JobCompletedStatus(APIView):
+    queryset = MemberApprovals.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+
+        if job :
+            if self.queryset.filter(job_work__job_applied__job_id=job, status=0,
+                                    workflow_stage__is_all_approval=True).exists():
+
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) &
+                    Q(workflow_stage__is_all_approval=False) & Q(
+                        Q(status=2))).exists():
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) &
+                    Q(status=1)).exists():
+                context = {'Completed': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            elif self.queryset.filter(
+                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                    Q(workflow_stage__is_all_approval=False) &
+                    Q(status=0)).exists():
+                context = {'Completed': False,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+            else:
+                context = {'Completed': True,
+                           'error': False,
+                           'status': status.HTTP_200_OK
+                           }
+                return Response(context, status=status.HTTP_200_OK)
+
+        context = {'message': 'Job  Not Found',
+                   'error': True,
+                   'status': status.HTTP_400_BAD_REQUEST
+                   }
+        return Response(context)
+
+class JobActivityUserList(APIView):
+    def get(self, request, *args, **kwargs):
+        job_id = kwargs.get('job_id')
+        if job_id:
+            data = JobActivity.objects.filter(job_id=job_id).order_by('user_id').distinct('user_id').values('user_id','user__username','user__profile_img')
+            context = {
+                'message': "Data Found",
+                'status': status.HTTP_200_OK,
+                'data':data,
+                'error': False
+            }
+        else:
+            context = {
+                'message': "Job Not  Found",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'error': True
+            }
+        return Response(context)

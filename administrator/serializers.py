@@ -10,9 +10,10 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
+from agency.models import Workflow_Stages
 from langcodes import Language
 import datetime as dt
-
+from django.db.models import Q
 class userPortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUserPortfolio
@@ -135,6 +136,26 @@ class JobSerializer(serializers.ModelSerializer):
         return job
 
 
+class JobAttachmentsThumbnailSerializer(serializers.ModelSerializer):
+    job_image_name = SerializerMethodField("get_image_name")
+    work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+    class Meta:
+        model = JobAttachments
+        exclude = ('job_images', 'work_sample_images',)
+
+
+
+
+    def get_image_name(self, obj):
+        if obj.job_images:
+            return str(obj.job_images).split('/')[-1]
+        return None
+
+    def get_work_sample_image_name(self, obj):
+        if obj.work_sample_images:
+            return str(obj.work_sample_images).split('/')[-1]
+        return None
+
 class JobAttachmentsSerializer(serializers.ModelSerializer):
     job_image_name = SerializerMethodField("get_image_name")
     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
@@ -151,8 +172,6 @@ class JobAttachmentsSerializer(serializers.ModelSerializer):
         if obj.work_sample_images:
             return str(obj.work_sample_images).split('/')[-1]
         return None
-
-
 
 
 # class CompanySerializer(serializers.ModelSerializer):
@@ -173,6 +192,20 @@ class JobTasksSerializer(serializers.ModelSerializer):
         model = JobTasks
         fields = '__all__'
 
+class JobsWithAttachmentsThumbnailSerializer(serializers.ModelSerializer):
+    images = JobAttachmentsThumbnailSerializer(many=True)
+    # category = CategorySerializer()
+    # industry = IndustrySerializer()
+    jobtasks_job = JobTasksSerializer(many=True)
+    level = LevelSerializer()
+    skills = SkillsSerializer(many=True)
+
+    class Meta:
+        model = Job
+        fields = '__all__'
+        extra_kwargs = {
+            'expected_delivery_date': {'required': True},
+        }
 
 class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     images = JobAttachmentsSerializer(many=True)
@@ -191,7 +224,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     username = SerializerMethodField("get_username")
     job_applied_id = SerializerMethodField("get_job_applied_id")
     is_edit = SerializerMethodField("get_is_edit")
-    hired_users = SerializerMethodField("hired_users_list")
+    hired_users = SerializerMethodField("get_hired_users_list")
     job_applied_modified =  SerializerMethodField("get_applied_modified")
     is_expire =  SerializerMethodField("get_is_expire")
     flag = SerializerMethodField("flag_list")
@@ -305,16 +338,16 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.filter(status=2):
+            if obj.job_applied.filter(Q(status=0) | Q(status=1)):
                 return False
             return True
         except Exception as e:
             print(e)
             return ''
 
-    def hired_users_list(self, obj):
+    def get_hired_users_list(self, obj):
         request = self.context.get('request')
-        usersObj = JobApplied.objects.filter(job=obj.id, status=2)
+        usersObj = JobApplied.objects.filter(Q(job=obj.id) & Q(Q(status=2)|Q(status=3)))
         if usersObj:
             return usersObj.values('user__username','user_id')
         else:
@@ -723,6 +756,8 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer()
     # approver = MemberApprovalsSerializer()
     approver_name = serializers.SerializerMethodField("get_approver_name")
+    approver_image = serializers.SerializerMethodField("get_approver_image")
+    approver_message = serializers.SerializerMethodField("get_approver_message")
     workflow =  serializers.SerializerMethodField("get_workflow_stage")
     class Meta:
         model = JobWorkActivity
@@ -730,11 +765,31 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
 
     def get_workflow_stage(self,obj):
         if obj.workflow_stage is not None:
-            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name}
+            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name,'stage_count':Workflow_Stages.objects.filter(workflow=obj.workflow_stage.workflow).count()}
 
     def get_approver_name(self, obj):
-        if obj.approver is not None:
-            return obj.approver.approver.user.user.get_full_name()
+        try:
+            if obj.approver is not None:
+                return obj.approver.approver.user.user.get_full_name()
+        except Exception as e:
+            return ''
+
+    def get_approver_image(self, obj):
+        try:
+            if obj.approver is not None:
+                return obj.approver.approver.user.user.profile_img.url
+            return ''
+        except Exception as e:
+            return ''
+
+    def get_approver_message(self, obj):
+        try:
+            if obj.approver is not None:
+                return obj.approver.message
+            return ''
+        except Exception as e:
+            return ''
+
 
 
 class customUserSerializer(serializers.ModelSerializer):

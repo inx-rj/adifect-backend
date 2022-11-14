@@ -12,6 +12,10 @@ from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
 from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages
 from django.core.validators import MaxValueValidator, MinValueValidator
+from io import BytesIO
+from PIL import Image
+import sys
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
 def validate_attachment(value):
@@ -172,15 +176,35 @@ class Job(BaseModel):
 class JobAttachments(BaseModel):
     job = models.ForeignKey(Job, related_name="images", on_delete=models.SET_NULL, null=True, blank=True)
     job_images = models.FileField(upload_to='job_images', blank=True, null=True)
+    job_images_thumbnail = models.FileField(upload_to="job_images_thumbnail", blank=True, null=True)
     work_sample_images = models.FileField(upload_to='work_sample_images', blank=True, null=True)
+    work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
+    dam_media_id = models.ForeignKey("agency.DamMedia", on_delete=models.SET_NULL, null=True, blank=True)
 
-    # def delete(self, *args, **kwargs):
-    #     if self.job_images:
-    #         self.job_images.delete()
-    #     if self.work_sample_images:
-    #         self.work_sample_images.delete()
-    #
-    #     super().delete(*args, **kwargs)
+    def save(self, **kwargs):
+        output_size = (250, 250)
+        output_thumb = BytesIO()
+        if self.job_images:
+            img = Image.open(self.job_images)
+            img_name = self.job_images.name.split('.')[0]
+            img.thumbnail(output_size)
+            img.save(output_thumb, format=img.format, quality=90)
+
+            self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                             'image/jpeg',
+                                                             sys.getsizeof(output_thumb), None)
+        if self.work_sample_images:
+            img_work_sample = Image.open(self.work_sample_images)
+            img_name = self.work_sample_images.name.split('.')[0]
+            print(img_name)
+            img_work_sample.thumbnail(output_size)
+            img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
+
+            self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                              'image/jpeg',
+                                                              sys.getsizeof(output_thumb), None)
+
+        super(JobAttachments, self).save()
 
     def __str__(self) -> str:
         return f'{self.job}'
@@ -196,13 +220,14 @@ class JobActivity(BaseModel):
         JobWork = 2
         WorkStage = 3
 
-
     class Type(models.IntegerChoices):
         Create = 0
         Updated = 1
         Proposal = 2
         Accept = 3
         Reject = 4
+        Moved = 5
+        Completed = 6
 
     job = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
     activity_type = models.IntegerField(choices=Type.choices, null=True, blank=True)
@@ -271,7 +296,6 @@ class JobWorkActivity(BaseModel):
         verbose_name_plural = 'Job Work Activity'
 
 
-
 class JobApplied(BaseModel):
     class Status(models.IntegerChoices):
         APPLIED = 0
@@ -300,6 +324,11 @@ class JobApplied(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Jobs Applied'
+
+    def save(self, *args, **kwargs):
+        if self.proposed_price is None:
+            self.proposed_price = self.job.price
+        super(JobApplied, self).save(*args, **kwargs)
 
 
 class JobAppliedAttachments(BaseModel):
@@ -504,6 +533,7 @@ class JobWorkAttachments(BaseModel):
     job_work = models.ForeignKey(SubmitJobWork, related_name="job_submit_Work", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     work_attachments = models.FileField(upload_to='work_attachments', blank=True, null=True)
+
     class Meta:
         verbose_name_plural = 'Job Works Attachments'
 

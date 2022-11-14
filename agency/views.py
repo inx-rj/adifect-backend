@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied
-from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer
+from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals,JobActivity
+from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer,JobActivitySerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from authentication.models import CustomUser
 from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter,OrderingFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 from administrator.pagination import FiveRecordsPagination
 from django.db.models import Q
 from django.db.models import Count, Avg
@@ -19,11 +19,14 @@ from rest_framework import generics
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
-    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, DAMSerializer, DamMediaSerializer, DamWithMediaSerializer,MyProjectSerializer,TestModalSerializer, DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer
+    InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
+    DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
-from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, TWILIO_NUMBER,TWILIO_NUMBER_WHATSAPP,SEND_GRID_FROM_EMAIL
-from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email,send_whatsapp_message
+from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
+    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
+from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from django.db.models import Count
 from django.db.models import Subquery
 import base64
@@ -68,7 +71,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
         return Response(context)
 
 
-
 @permission_classes([IsAuthenticated])
 class AgencyJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
@@ -97,12 +99,11 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):
         id = pk
         if id is not None:
-            job_data = Job.objects.filter(id=id,user=request.user).first()
+            job_data = Job.objects.filter(id=id, user=request.user).first()
             if job_data:
-                serializer = JobsWithAttachmentsSerializer(job_data,context={'request': request})
+                serializer = JobsWithAttachmentsSerializer(job_data, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response({'message':'No Data Found','error':True}, status=status.HTTP_204_NO_CONTENT)
-
+            return Response({'message': 'No Data Found', 'error': True}, status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -114,14 +115,14 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                 for i in dam_images:
                     if i.limit_usage > i.limit_used:
                         context = {
-                                'message': 'Limit Exceeded',
-                                'status': status.HTTP_400_BAD_REQUEST,
-                                'errors': serializer.errors,
-                            }
+                            'message': 'Limit Exceeded',
+                            'status': status.HTTP_400_BAD_REQUEST,
+                            'errors': serializer.errors,
+                        }
                         return Response(context)
                     else:
                         self.perform_create(serializer)
-                        i.limit_usage+=1
+                        i.limit_usage += 1
                         job_id = Job.objects.latest('id')
                         JobAttachments.objects.create(job=job_id, job_images=i)
                         context = {
@@ -131,7 +132,6 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                             'data': serializer.data,
                         }
                         return Response(context)
-                                    
 
             serializer.fields.pop('image')
             self.perform_create(serializer)
@@ -215,7 +215,6 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-
     def create(self, request, *args, **kwargs):
         data = request.data
         try:
@@ -228,8 +227,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         name = i['stage_name']
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
-                                                    is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest,order=i['order'])
+                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest, order=i['order'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -277,7 +276,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                 if i['stage_id'] == '':
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
-                                                                workflow=instance,order=i['order'],is_all_approval=i['is_all_approval'])
+                                                                workflow=instance, order=i['order'],
+                                                                is_all_approval=i['is_all_approval'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -289,7 +289,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
-                                                              is_observer=i['is_observer'],is_all_approval=i['is_all_approval'],order=i['order'])
+                                                              is_observer=i['is_observer'],
+                                                              is_all_approval=i['is_all_approval'], order=i['order'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -346,6 +347,8 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
+
 @permission_classes([IsAuthenticated])
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
@@ -355,7 +358,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False, user__isnull=False, agency__is_account_closed=False).order_by('-modified')
+        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
+                                                                    user__isnull=False,
+                                                                    agency__is_account_closed=False).order_by(
+            '-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -391,14 +397,15 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 exclusive_decode = StringEncoder.encode(self, 0)
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__user__email=email, agency=agency,company=company).first()
+            invite = InviteMember.objects.filter(user__user__email=email, agency=agency, company=company).first()
             if not invite:
-                invite =  InviteMember.objects.filter(email=email,agency=agency,company=company).first()
+                invite = InviteMember.objects.filter(email=email, agency=agency, company=company).first()
             if not user:
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
                     agency_level = AgencyLevel.objects.create(levels=levels)
-                    invite = InviteMember.objects.create(agency=agency,email=email,user=agency_level, status=0, company=company)
+                    invite = InviteMember.objects.create(agency=agency, email=email, user=agency_level, status=0,
+                                                         company=company)
                     # invite_id = invite.pk
                 decodeId = StringEncoder.encode(self, invite.user.id)
                 try:
@@ -410,7 +417,8 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         return Response({'message': 'mail Send successfully, Please check your mail'},
                                         status=status.HTTP_200_OK)
                     else:
-                        return Response({'message': 'You are not authorized to send invitation.'}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({'message': 'You are not authorized to send invitation.'},
+                                        status=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     print(e)
                     return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -460,7 +468,8 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                             return Response({'message': 'mail Send successfully, Please check your mail'},
                                             status=status.HTTP_200_OK)
                         else:
-                            return Response({'message': 'You are not authorized to send invitation.'}, status=status.HTTP_400_BAD_REQUEST)
+                            return Response({'message': 'You are not authorized to send invitation.'},
+                                            status=status.HTTP_400_BAD_REQUEST)
 
                     except Exception as e:
                         print(e)
@@ -471,7 +480,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        level = request.data.get('levels',None)
+        level = request.data.get('levels', None)
         if level:
             is_update = AgencyLevel.objects.filter(id=instance.user.id).update(levels=int(level))
             if is_update:
@@ -481,8 +490,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 }
                 return Response(context)
         else:
-            return Response({'message': 'something went wrong','error':True}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({'message': 'something went wrong', 'error': True}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=['put'], detail=False, url_path='update_blocked/(?P<pk>[^/.]+)', url_name='update_blocked')
     def update_blocked(self, request, pk=None, *args, **kwargs):
@@ -497,7 +505,6 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message:'}, status=status.HTTP_200_OK)
 
-
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -508,6 +515,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
 
 class UpdateInviteMemberStatus(APIView):
 
@@ -585,24 +593,25 @@ class SignUpViewInvite(APIView):
                 agency_level = AgencyLevel.objects.filter(pk=encoded_id, is_trashed=False).update(user=user)
                 invite = InviteMember.objects.filter(user_id=encoded_id).update(status=1)
 
-
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @permission_classes([IsAuthenticated])
 class InviteMemberUserList(APIView):
     serializer_class = InviteMemberSerializer
 
     def get(self, request, *args, **kwargs):
-        company_id = kwargs.get('company_id', None)
+        company_id = request.GET.get('company',None)
         agency = request.user
         if agency.is_authenticated:
-            invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1, user__isnull=False)
+            invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
+                                                       user__user__isnull=False)
             if company_id:
-                invited_user = invited_user.filter(company_id=company_id)
+                invited_user = invited_user.filter(Q(company_id=company_id)|Q(user__user=agency))
             serializer = self.serializer_class(invited_user, many=True, context={'request': request})
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response(data={'error': 'You Are Not Authorized'}, status=status.HTTP_400_BAD_REQUEST)
@@ -619,7 +628,7 @@ class StageViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False, url_path='set_order/(?P<userId>[^/.]+)', url_name='set_order')
     def set_order(self, request, *args, **kwargs):
         try:
-            order_list = request.data.get('order_list',None)
+            order_list = request.data.get('order_list', None)
             if order_list:
                 order_list = order_list.split(",")
                 updated = False
@@ -636,46 +645,65 @@ class StageViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
 
 
-def copy_media_logic(id,parent_id=None):
+def copy_media_logic(id, parent_id=None):
     # try:
-        if id:
-            dam_old = DAM.objects.filter(pk=id).first()
-            dam_old.pk = None
-            dam_old.parent_id = parent_id
-            dam_new = dam_old.save()
-            new_id = None
-            print(id)
-            for j in DAM.objects.filter(parent=id,type=3):
-                for i in DamMedia.objects.filter(dam=j):
-                    i.pk = None
-                    i.dam = dam_new
-                    i.save()
-            for k in  DAM.objects.filter(parent=id,type=2):
-                for i in DamMedia.objects.filter(dam=k):
-                    i.pk = None
-                    i.dam = dam_new
-                    i.save()
-            for l in DAM.objects.filter(parent=id,type=1):
-                return copy_media_logic(l.id, dam_new.id)
-            return True
-    # except Exception as e:
-    #     print(e)
-    #     return False
+    if id:
+        dam_old = DAM.objects.filter(pk=id).first()
+        dam_old.pk = None
+        dam_old.parent_id = parent_id
+        dam_new = dam_old.save()
+        new_id = None
+        print(id)
+        for j in DAM.objects.filter(parent=id, type=3):
+            for i in DamMedia.objects.filter(dam=j):
+                i.pk = None
+                i.dam = dam_new
+                i.save()
+        for k in DAM.objects.filter(parent=id, type=2):
+            for i in DamMedia.objects.filter(dam=k):
+                i.pk = None
+                i.dam = dam_new
+                i.save()
+        for l in DAM.objects.filter(parent=id, type=1):
+            return copy_media_logic(l.id, dam_new.id)
+        return True
 
 
-
+# except Exception as e:
+#     print(e)
+#     return False
 
 
 @permission_classes([IsAuthenticated])
 class DAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter,OrderingFilter]
-    ordering_fields = ['modified','created']
-    ordering = ['modified','created']
-    filterset_fields = ['id','parent','type','name']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
     search_fields = ['name']
 
+    def get_queryset(self):
+        print("yoooooooooooooooooooooooooooo")
+        data = self.request.data
+        mixed_query = data.get('mixed',None)
+        
+        if not mixed_query:
+            return self.queryset
+        and_params = {}
+        for key in data:
+           if 'and_' in key:
+              and_params[key] = data[key]
+        
+        
+        queryset = DAM.objects.filter(**and_params)
+        for key in self.request.data:
+            print("hlooooooooooooooooooooooooooo")
+            if 'or_' in key:
+              queryset = queryset | DAM.objects.filter(key=data[key])
+
+        return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
@@ -691,14 +719,15 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        dam_files = request.FILES.getlist('dam_files',None)
-        dam_name = request.POST.getlist('dam_files_name',None)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
-            if serializer.validated_data['type']==3:
-                for index,i in enumerate(dam_files):
+            if serializer.validated_data['type'] == 3:
+                for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
-                    dam_id = DAM.objects.create(type=3,parent=serializer.validated_data.get('parent',None)  ,agency=serializer.validated_data['agency'])
-                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+                    dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
+                                                agency=serializer.validated_data['agency'])
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             # elif serializer.validated_data['type']==1:
             #     print("yesssssssssssssssssss")
             #     if request.data['parent'] is not None:
@@ -733,8 +762,8 @@ class DAMViewSet(viewsets.ModelViewSet):
             else:
                 self.perform_create(serializer)
                 dam_id = DAM.objects.latest('id')
-                for index,i in enumerate(dam_files):
-                    DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+                for index, i in enumerate(dam_files):
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             context = {
                 'message': 'Media Uploaded Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -786,7 +815,6 @@ class DAMViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-
     @action(methods=['post'], detail=False, url_path='copy_to', url_name='copy_to')
     def copy_to(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -797,17 +825,17 @@ class DAMViewSet(viewsets.ModelViewSet):
             type_id = serializer.validated_data.get('type')
             parent = serializer.validated_data.get('parent')
             type_new = int(request.data.get('type_new'))
-            #--- image copy from one folder to another -----#
+            # --- image copy from one folder to another -----#
             if type_id == 3 and type_new == 3:
                 dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
                 if dam_media_inital:
                     dam_intial = dam_media_inital.dam
-                    dam_intial.pk=None
-                    dam_intial.parent = parent                                                                                                                      
-                    dam_intial.type = type_new                  
+                    dam_intial.pk = None
+                    dam_intial.parent = parent
+                    dam_intial.type = type_new
                     dam_intial.save()
-                    dam_media_inital.pk=None
-                    dam_media_inital.dam=dam_intial
+                    dam_media_inital.pk = None
+                    dam_media_inital.dam = dam_intial
                     dam_media_inital.save()
                     context = {
                         'message': 'Media Uploaded Successfully',
@@ -817,16 +845,16 @@ class DAMViewSet(viewsets.ModelViewSet):
                     }
 
                 else:
-                     context = {
+                    context = {
                         'error': 'DAM id not found.',
                         'errors': serializer.errors,
                     }
 
                 return Response(context)
             # --- collection  copy from one  to collection or image copy into collection  -----#
-            if (type_id==2 and type_new ==2) or(type_id==3 and type_new ==2) :
+            if (type_id == 2 and type_new == 2) or (type_id == 3 and type_new == 2):
                 dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
-                dam_media_inital.pk=None
+                dam_media_inital.pk = None
                 dam_media_inital.dam = parent
                 dam_media_inital.save()
                 context = {
@@ -838,11 +866,11 @@ class DAMViewSet(viewsets.ModelViewSet):
                 return Response(context)
 
             # ---------------- image copy from collection --------#
-            if  type_id==2 and type_new == 3:
-                dam_new = DAM.objects.create(type=3,parent=parent,agency=request.user)
+            if type_id == 2 and type_new == 3:
+                dam_new = DAM.objects.create(type=3, parent=parent, agency=request.user)
                 dam_media = DamMedia.objects.filter(id=id).first()
-                dam_media.pk=None
-                dam_media.dam=dam_new
+                dam_media.pk = None
+                dam_media.dam = dam_new
                 dam_media.save()
                 context = {
                     'message': 'Media Uploaded Successfully',
@@ -866,6 +894,7 @@ class DAMViewSet(viewsets.ModelViewSet):
             'errors': False,
         }
         return Response(context)
+
     @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
     def create_collection(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -875,19 +904,18 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
 
-
         if serializer.is_valid():
             self.perform_create(serializer)
             dam_id = DAM.objects.latest('id')
             for i in data:
                 dam_inital = DamMedia.objects.get(id=i)
 
-                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title, description=dam_inital.description)
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title,
+                                        description=dam_inital.description)
                 dam_inital.delete()
                 if dam_files:
-                    for index,i in enumerate(dam_files):
-                        DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
-
+                    for index, i in enumerate(dam_files):
+                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
 
             context = {
                 'message': 'Media Uploaded Successfully',
@@ -902,8 +930,8 @@ class DAMViewSet(viewsets.ModelViewSet):
 
     @action(methods=['put'], detail=False, url_path='rename_folder/(?P<pk>[^/.]+)', url_name='rename_folder')
     def rename_folder(self, request, pk=None):
-        new_title = request.data.get('new_title',None)
-        dam_data=DamMedia.objects.filter(id=pk).update(title=new_title)
+        new_title = request.data.get('new_title', None)
+        dam_data = DamMedia.objects.filter(id=pk).update(title=new_title)
         return Response(dam_data.data, status=status.HTTP_200_OK)
 
     @action(methods=['put'], detail=False, url_path='move_to', url_name='move_to')
@@ -927,7 +955,7 @@ class DAMViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        
+
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -935,7 +963,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent','type']
+    filterset_fields = ['id', 'parent', 'type']
     search_fields = ['name']
     http_method_names = ['get']
 
@@ -951,11 +979,11 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['modified', 'created']
-    ordering = ['modified', 'created']
-    filterset_fields = ['dam_id', 'title','id']
+    ordering_fields = ['modified', 'created', 'limit_used']
+    ordering = ['modified', 'created', 'limit_used']
+    filterset_fields = ['dam_id', 'title', 'id','image_favourite','is_video']
     search_fields = ['title']
-    http_method_names = ['get','put','delete','post']
+    http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id)
@@ -969,7 +997,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             order_list = id_list.split(",")
             if order_list:
                 data = DamMedia.objects.filter(id__in=order_list)
-                serializer_data = self.serializer_class(data,many=True,context={'request':request})
+                serializer_data = self.serializer_class(data, many=True, context={'request': request})
                 return Response(serializer_data.data)
             context = {
                 'message': 'Data Not Found',
@@ -1000,12 +1028,11 @@ class DamMediaViewSet(viewsets.ModelViewSet):
                 'status': status.HTTP_400_BAD_REQUEST,
                 'errors': True,
             }
-            return Response(context,status=status.HTTP_400_BAD_REQUEST)
-
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        instance = self.get_object()
+        instance = self .get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
 
@@ -1020,10 +1047,12 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
-        queryset =DamMedia.objects.filter(Q(dam__agency=request.user) & (Q(dam__parent__is_trashed=False)|Q(dam__parent__isnull=True))).order_by('-created')[:4]
+        queryset = DamMedia.objects.filter(
+            Q(dam__agency=request.user) & (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
+            '-created')[:4]
         serializer = DamMediaThumbnailSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1032,22 +1061,24 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         data = request.POST.get('dam_images', None)
         dam_intial = 0
         for i in data.split(','):
-           print(request.data)
-           if not request.data.get('parent',None) == 'null':
-                dam_id =  DAM.objects.create(type=3,parent_id=request.data.get('parent',None),agency_id=request.data.get('user'))
+            print(request.data)
+            if not request.data.get('parent', None) == 'null':
+                dam_id = DAM.objects.create(type=3, parent_id=request.data.get('parent', None),
+                                            agency_id=request.data.get('user'))
                 dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
                 dam_intial += 1
-           else:
-                dam_id =  DAM.objects.create(type=3,agency_id=request.data.get('user'))
+            else:
+                dam_id = DAM.objects.create(type=3, agency_id=request.data.get('user'))
                 dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
                 dam_intial += 1
-           if dam_intial:
-            context = {
-                'message': 'Media Uploaded Successfully',
-                'status': status.HTTP_201_CREATED,
-            }
-            return Response(context)
-           return Response({"message":"Unable to move"},status=status.HTTP_404_NOT_FOUND)
+            if dam_intial:
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                }
+                return Response(context)
+            return Response({"message": "Unable to move"}, status=status.HTTP_404_NOT_FOUND)
+
 
 @permission_classes([IsAuthenticated])
 class DamDuplicateViewSet(viewsets.ModelViewSet):
@@ -1056,19 +1087,19 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id','parent','type']
+    filterset_fields = ['id', 'parent', 'type']
     search_fields = ['=name']
     http_method_names = ['get']
-
 
     def list(self, request, *args, **kwargs):
         user = request.user
         if request.GET.get('root'):
-             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user,parent=None)
-        else:     
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, parent=None)
+        else:
             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
 
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):
@@ -1078,25 +1109,35 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     filterset_fields = ['company']
     search_fields = ['=company']
 
-
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         draft_data = queryset.filter(user=request.user)
         serializer = self.serializer_class(draft_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
-        
+
+
 class MemberJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Workflow_Stages.objects.all()
+    pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        workflow_id = self.queryset.filter(approvals__user__user=user,workflow__is_trashed=False,workflow__isnull=False,is_trashed=False).values_list('workflow_id', flat=True)
-        print(workflow_id)
-        job_data = Job.objects.filter(workflow_id__in=list(workflow_id))
-        serializer = self.serializer_class(job_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        workflow_id = self.queryset.filter(approvals__user__user=user, workflow__is_trashed=False,
+                                           workflow__isnull=False, is_trashed=False).values_list('workflow_id',
+                                                                                                 flat=True)
+        job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).order_by('-modified')
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+        # return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+    def retrieve(self, request, pk=None):
+        if pk:
+            job_data = Job.objects.filter(id=pk).first()
+            serializer = self.serializer_class(job_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #
@@ -1105,23 +1146,25 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 class MyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
-    filter_backends = [DjangoFilterBackend,SearchFilter]
-    ordering_fields = ['modified','job__job_due_date','job__created','job__modified','created']
-    ordering = ['job__job_due_date','job__created','job__modified','modified','created']
-    filterset_fields = ['status','job__company']
-    search_fields = ['=status',]
+    filter_backends = [DjangoFilterBackend, SearchFilter, ]
+    filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
+    ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
+    ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
+    search_fields = ['=status', ]
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
-        ordering = request.GET.get('ordering',None)
-        filter_data =queryset.filter(
+        ordering = request.GET.get('ordering', None)
+        filter_data = queryset.filter(
             pk__in=Subquery(
-                queryset.filter(job__user=user,job__is_active=True).order_by('job_id').distinct('job_id').values('pk')
+                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
             )
         ).order_by(ordering)
+        if request.GET.get('job__is_active', None) == 'true':
+            filter_data = filter_data.filter(job__is_active=True)
         paginated_data = self.paginate_queryset(filter_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -1133,68 +1176,102 @@ class TestModalViewSet(viewsets.ModelViewSet):
     queryset = TestModal.objects.all()
 
 
-
 @permission_classes([IsAuthenticated])
 class DamMediaFilterViewSet(viewsets.ModelViewSet):
     serializer_class = DamMediaSerializer
     queryset = DamMedia.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['modified', 'created']
+    ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created']
-    filterset_fields = ['dam_id', 'title','id']
+    filterset_fields = ['dam_id', 'title', 'id']
     search_fields = ['title']
 
-
-
     @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
-    def favourites(self, request,pk=None, *args, **kwargs):
-         id = request.GET.get('id', None)
-         if id:
-            print("iffffffffffffffffffffffffffffff")
-            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
-            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
-            fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
-            fav_collection_data = DamMediaThumbnailSerializer(fav_collection,many=True,context={'request':request})
-            fav_images = DAM.objects.filter(parent=id,type=3,agency=request.user,is_favourite=True)
-            fav_images_data = DamWithMediaThumbnailSerializer(fav_images,many=True,context={'request':request})
-         else:
-            print("elseeeeeeeeeeeeeeeeeeeeeeeeee")
-            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id)
-            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder,many=True,context={'request':request})
-            fav_collection = DamMedia.objects.filter(dam__parent=id,image_favourite=True,dam__agency=request.user)
-            fav_collection_data = DamMediaThumbnailSerializer(fav_collection,many=True,context={'request':request})
-            fav_images = DAM.objects.filter(parent=id,type=3,agency=request.user,is_favourite=True)
-            fav_images_data = DamWithMediaThumbnailSerializer(fav_images,many=True,context={'request':request})
-            
-         context = {
-            'fav_folder':fav_folder_data.data,
-            'fav_collection':fav_collection_data.data,
-            'fav_images':fav_images_data.data
-            }
-         return Response(context,status=status.HTTP_200_OK)
+    def favourites(self, request, pk=None, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True, parent=id)
+            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder, many=True, context={'request': request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=request.user)
+            fav_collection_data = DamMediaThumbnailSerializer(fav_collection, many=True, context={'request': request})
+            fav_images = DAM.objects.filter(parent=id, type=3, agency=request.user, is_favourite=True)
+            fav_images_data = DamWithMediaThumbnailSerializer(fav_images, many=True, context={'request': request})
+        else:
+            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True, parent=id)
+            fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder, many=True, context={'request': request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=request.user)
+            fav_collection_data = DamMediaThumbnailSerializer(fav_collection, many=True, context={'request': request})
+            fav_images = DAM.objects.filter(parent=id, type=3, agency=request.user, is_favourite=True)
+            fav_images_data = DamWithMediaThumbnailSerializer(fav_images, many=True, context={'request': request})
+
+        context = {
+            'fav_folder': fav_folder_data.data,
+            'fav_collection': fav_collection_data.data,
+            'fav_images': fav_images_data.data
+        }
+        return Response(context, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=False, url_path='count', url_name='count')
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True,parent=id,is_trashed=False).count()
-            total_image = DAM.objects.filter(type=3,agency=request.user,parent=id,is_trashed=False).count()
-            total_collection =  DAM.objects.filter(type=2,agency=request.user,parent=id,is_trashed=False).count()
-            context = {'fav_folder':fav_folder,
-                    'total_image':total_image,
-                    'total_collection':total_collection
-            }
+            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user, parent=id, is_trashed=False).count()
         else:
-            fav_folder = DAM.objects.filter(type=1,agency=request.user,is_favourite=True).count()
-            total_image = DAM.objects.filter(type=3,agency=request.user).count()
-            total_collection =  DAM.objects.filter(type=2,agency=request.user).count()
-            context = {'fav_folder':fav_folder,
-                    'total_image':total_image,
-                    'total_collection':total_collection
-            
-            }
-        return Response(context,status=status.HTTP_200_OK)
+            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
+                                                  is_video=False).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
+                                                  is_video=True).count()
+
+        context = {'fav_folder': fav_folder,
+                   'total_image': total_image,
+                   'total_collection': total_collection,
+                   'total_video': total_video
+                   }
+        return Response(context, status=status.HTTP_200_OK)
 
 
+class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsSerializer
+    queryset = MemberApprovals.objects.all()
+    pagination_class = FiveRecordsPagination
+
+    def list(self, request, *args, **kwargs):
+        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,status=0).values_list('job_work__job_applied__job_id', flat=True)
+        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+        # return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, pk=None):
+        if pk:
+            job_data = Job.objects.filter(id=pk).first()
+            serializer = self.serializer_class(job_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
 
+@permission_classes([IsAuthenticated])
+class JobActivityMemberViewSet(viewsets.ModelViewSet):
+    serializer_class = JobActivitySerializer
+    queryset = JobActivity.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)

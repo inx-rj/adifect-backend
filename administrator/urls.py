@@ -64,7 +64,9 @@ urlpatterns = [
     path('job-share-details/', views.JobShareDetails.as_view(), name='job_share_details'),
     path('job-block/', views.JobBlock.as_view(), name='job_block'),
     path('admin-company-block/', views.AdminCompanyBlock.as_view(), name='admin_company_block'),
-
+    path('job-work-status/', views.JobWorkStatus.as_view(), name='job_work_status'),
+    path('job-completed-status/', views.JobCompletedStatus.as_view(), name='job_completed_status'),
+    path('job-activity-users/<int:job_id>/', views.JobActivityUserList.as_view(), name='job_activity_users'),
 
 ]
 urlpatterns += router.urls

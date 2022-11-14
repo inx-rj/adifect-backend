@@ -18,7 +18,9 @@ router.register(r'test-api', views.TestModalViewSet, basename='test_api')
 router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
 router.register(r'my-project',views.MyProjectViewSet, basename='my_project')
 router.register(r'member-job-list', views.MemberJobListViewSet, basename='member_job_list')
+router.register(r'member-approval-job-list', views.MemberApprovalJobListViewSet, basename='member_approval_job_list')
 router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter')
+router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename='job_activity_member')
 
 
 
