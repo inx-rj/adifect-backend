@@ -256,8 +256,8 @@ class JobActivityCreaterViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=request.user) | Q(user__isnull=True))
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})  
         return Response(data=serializer.data)
 
 

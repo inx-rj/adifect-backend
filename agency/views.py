@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals
-from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer
+from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals,JobActivity
+from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer,JobActivitySerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -611,7 +611,7 @@ class InviteMemberUserList(APIView):
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
                                                        user__user__isnull=False)
             if company_id:
-                invited_user = invited_user.filter(company_id=company_id)
+                invited_user = invited_user.filter(Q(company_id=company_id)|Q(user__user=agency))
             serializer = self.serializer_class(invited_user, many=True, context={'request': request})
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response(data={'error': 'You Are Not Authorized'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1257,3 +1257,21 @@ class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
             serializer = self.serializer_class(job_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@permission_classes([IsAuthenticated])
+class JobActivityMemberViewSet(viewsets.ModelViewSet):
+    serializer_class = JobActivitySerializer
+    queryset = JobActivity.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job']
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
