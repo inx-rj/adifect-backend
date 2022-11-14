@@ -14,9 +14,11 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
+from dotenv import load_dotenv
+load_dotenv()  # loads the configs from .env
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
@@ -29,7 +31,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,7 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
-    
+
+    'storages',
     'rest_framework',
     'corsheaders',
     'authentication',
@@ -48,21 +50,23 @@ INSTALLED_APPS = [
     'creator',
     'agency',
 
-    # 'category'    
+    # 'category'
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',   
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware'  
+    'django.middleware.common.CommonMiddleware'
 ]
 
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.245:8001']
+
+# CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
+CSRF_TRUSTED_ORIGINS = [os.environ.get('BACKEND_SITE_URL')]
 
 ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
@@ -84,25 +88,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adifect.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-
+#
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
-
+# #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator','agency': 'migrations.agency','creator':'migrations.creator'}
+#
+#
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'adifect',
-        'USER': 'postgres',
-        'PASSWORD': 'studio45#',
-        'HOST': '192.168.1.245',
-        'port':'5432',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'port': os.environ.get('DB_PORT'),
     }
 }
 
@@ -124,7 +129,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
@@ -138,16 +142,16 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
 # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR,'media') 
-STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ] 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -155,21 +159,21 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'authentication.CustomUser'
 
+# CORS_ALLOWED_ORIGINS = ['*']
+# CORS_ALLOWED_ORIGINS = ['https://'+os.environ.get('FRONTEND_SITE_URL')]
 
+SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
+SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 
-CORS_ALLOWED_ORIGINS = [
-    'http://192.168.1.245:3001',
-    'http://122.160.74.251:3001',
-    'http://localhost:3001'
+FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
+BACKEND_SITE_URL = f"https://{os.environ.get('BACKEND_SITE_URL')}"
 
-]
+CORS_ORIGIN_ALLOW_ALL = True
 
-SEND_GRID_API_key = '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'
-FRONTEND_SITE_URL = 'http://122.160.74.251:3001'
-BACKEND_SITE_URL = 'http://122.160.74.251:8001'
-# LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.svg'
-LOGO_122_SERVER_PATH = 'http://122.160.74.251/studio45creations-dev/adifect/logo/logo.png'
-
+# CORS_ORIGIN_WHITELIST = (
+#     os.environ.get('FRONTEND_SITE_URL'),
+# )
+LOGO_122_SERVER_PATH = f'{FRONTEND_SITE_URL}/img/logo.png'
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -180,7 +184,6 @@ REST_FRAMEWORK = {
 
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
 }
-
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
@@ -209,19 +212,30 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-
-AWS_ACCESS_KEY_ID = 'AKIA4TDB7U23RT7PE3MR'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'testing-sndright-dev'
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = 'ap-south-1'
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# Moov API Details
+MOOV_APPKEY = os.environ.get('MOOV_APPKEY')
+MOOV_LOGIN = os.environ.get('MOOV_LOGIN')
+MOOV_PASSWORD = os.environ.get('MOOV_PASSWORD')
+MOOV_LOGIN_TAX_API_URL = os.environ.get('MOOV_LOGIN_TAX_API_URL')
+MOOV_SAVE_PAYER_URL_2 = os.environ.get('MOOV_SAVE_PAYER_URL_2')
+SKYPE_USERNAME = os.environ.get('SKYPE_USERNAME')
+SKYPE_PASSWORD = os.environ.get('SKYPE_PASSWORD')
+TWILIO_NUMBER = os.environ.get('TWILIO_NUMBER') 
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+#---------- 2nd twillio -----------------------------#
+TWILIO_NUMBER_WHATSAPP = ''
+TWILIO_ACCOUNT_SID2 = ''
+TWILIO_AUTH_TOKEN2 = ''
+#----------------- end ------------------------------#
 
-# WS_ACCESS_KEY = 'AKIA4TDB7U23RT7PE3MR'
-# AWS_SECRET_KEY = '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'
-# AWS_BUCKET_NAME = 'sndright-public-mms-uploadss'
-# AWS_REGION_NAME='ap-south-1

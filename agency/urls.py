@@ -1,21 +1,34 @@
 from django.urls import path
 from rest_framework import routers
-from .import views
-  
-router = routers.DefaultRouter()
+from . import views
 
+router = routers.DefaultRouter()
+router.register(r'industries', views.IndustryViewSet, basename='industries')
+router.register(r'company', views.CompanyViewSet, basename='company')
 router.register(r'agency-jobs', views.AgencyJobsViewSet, basename='agency-jobs')
 router.register(r'get-agency-unapplied-jobs', views.GetAgencyUnappliedJobs, basename='get_agency_unapplied_jobs')
-router.register(r'stages', views.StagesViewSet, basename='stages')
-router.register(r'levels', views.WorkFlowLevelsViewSet, basename='workflow-levels')
-router.register(r'workflow', views.WorkFlowViewSet, basename='workflow')
+router.register(r'works-flow', views.WorksFlowViewSet, basename='works_flow')
+router.register(r'works-flow-stages', views.StageViewSet, basename='works_flow_stages')
+router.register(r'dam', views.DAMViewSet, basename='dam')
+router.register(r'dam-root', views.DamRootViewSet, basename='dam_root')
+router.register(r'dam-media', views.DamMediaViewSet, basename='dam_media')
+router.register(r'dam-duplicate', views.DamDuplicateViewSet, basename='dam_duplicate')
+router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
+router.register(r'test-api', views.TestModalViewSet, basename='test_api')
+router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
+router.register(r'my-project',views.MyProjectViewSet, basename='my_project')
+router.register(r'member-job-list', views.MemberJobListViewSet, basename='member_job_list')
+router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter')
+
+
 
 urlpatterns = [
-    # path('job-hired/', views.JobHiredApi.as_view(), name='job_hired'),
-    # path('workflow/', views.WorkFlowLevelsViewSet.as_view({'get': 'list'}), name='workflow'),
-    path('invite-member/', views.InviteMemberApi.as_view(), name='invite_member'),
-    path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(), name='update_invite_member'),
-    path('register-view-invite/<str:invite_id>/<str:exculsive>', views.SignUpViewInvite.as_view(), name='register_view_invite'),
+    path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
+         name='update_invite_member'),
+    path('register-view-invite/<str:invite_id>/<str:exculsive>', views.SignUpViewInvite.as_view(),
+       name='register_view_invite'),
+    # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
+
 ]
 urlpatterns += router.urls

@@ -2,9 +2,10 @@
 import json
 from rest_framework import serializers
 from authentication.models import CustomUser
-from .models import Category, Job, JobAttachments, JobApplied, Industry, Level, Skills, Company, JobHired
+from administrator.models import Category, Job, JobAttachments, JobApplied, Industry, Level, Skills, Company
 from rest_framework.fields import SerializerMethodField
 from administrator.validators import validate_file_extension
+from administrator.serializers import SkillsSerializer
 
 
 class JobAttachmentsSerializer(serializers.ModelSerializer):
@@ -40,18 +41,18 @@ class LevelSerializer(serializers.ModelSerializer):
 class SkillsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skills
-        fields = ('id','skill_name', 'slug', 'is_active', 'created_at', 'updated_at')
+        fields = ('id','skill_name', 'slug', 'is_active', 'created', 'modified')
 
-
-class JobSerializer(serializers.ModelSerializer):
-    image = serializers.FileField(write_only=True,allow_empty_file=True,required=False, validators=[validate_file_extension])
-
-    class Meta:
-        model = Job
-        fields = '__all__'
-        extra_kwargs = {
-            'expected_delivery_date': {'required': True},
-        }
+#
+# class JobSerializer(serializers.ModelSerializer):
+#     image = serializers.FileField(write_only=True,allow_empty_file=True,required=False, validators=[validate_file_extension])
+#
+#     class Meta:
+#         model = Job
+#         fields = '__all__'
+#         extra_kwargs = {
+#             'expected_delivery_date': {'required': True},
+#         }
 
 
 class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
@@ -75,5 +76,11 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         elif obj.job_type == '1':
             return 'Hourly'
 
+
  
     
+class PublicJobViewSerializer(serializers.ModelSerializer):
+    skills = SkillsSerializer(many=True)
+    class Meta:
+        model = Job
+        fields = ['id','title','created','description','skills','tags']
