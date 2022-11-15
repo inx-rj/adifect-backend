@@ -27,7 +27,7 @@ class EditProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id','availability','Portfolio_user','user_level','sub_title']
+                  'preferred_communication_id','availability','Portfolio_user','user_level','sub_title','Language','website']
 
         extra_kwargs = {
             'email': {'read_only': True},

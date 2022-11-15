@@ -55,6 +55,8 @@ class CustomUser(AbstractUser):
     is_blocked = models.BooleanField(default=False)
     is_account_closed = models.BooleanField(default=False)
     sub_title = models.CharField(max_length=200, null=True, blank=True)
+    Language = models.CharField(max_length=20, null=True, blank=True)
+    website = models.CharField(max_length=50, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         try:

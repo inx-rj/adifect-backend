@@ -98,6 +98,8 @@ class ProfileEdit(APIView):
         user.first_name = request.data.get('first_name', None)
         user.last_name = request.data.get('last_name', None)
         user.sub_title = request.data.get('sub_title', None)
+        user.Language = request.data.get('Language', None)
+        user.website = request.data.get('website', None)
         video = request.data.get('video', None)
         user.preferred_communication_mode = request.data.get('preferred_communication_mode', None)
         user.preferred_communication_id = request.data.get('preferred_communication_id', None)
@@ -242,7 +244,7 @@ def dam_images_list(dam_images, job_id):
         exceeded_files = []
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if not JobAttachments.objects.filter(job=job_id,dam_media_id=dam_inital).exists():
+            if not JobAttachments.objects.filter(job=job_id, dam_media_id=dam_inital).exists():
                 dam_inital.job_count += 1
                 dam_inital.save()
 
@@ -263,6 +265,7 @@ def dam_images_list(dam_images, job_id):
                 dam_inital.save()
 
         return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
+
 
 def dam_sample_images_list(dam_sample_images, job_id):
     if dam_sample_images:
@@ -912,8 +915,8 @@ class JobTasksViewSet(viewsets.ModelViewSet):
     queryset = JobTasks.objects.all()
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['job']
-    search_fields = ['=job', ]
+    filterset_fields = ['job', 'is_complete']
+    search_fields = ['=job', 'title']
 
 
 def dam_images_templates(dam_images, job_template_id):
@@ -921,7 +924,7 @@ def dam_images_templates(dam_images, job_template_id):
         exceeded_files = []
         for i in dam_images:
             dam_inital = DamMedia.objects.get(id=i)
-            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+            if not JobAttachments.objects.filter(job=job_template_id, dam_media_id=dam_inital).exists():
                 dam_inital.job_count += 1
                 dam_inital.save()
 
@@ -929,7 +932,7 @@ def dam_images_templates(dam_images, job_template_id):
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     print("limit exceeded")
                     exceeded_files.append(dam_inital)
-                    
+
                 else:
                     JobTemplateAttachments.objects.create(job_template=job_template_id,
                                                           job_template_images=dam_inital.media)
@@ -945,12 +948,13 @@ def dam_images_templates(dam_images, job_template_id):
                 dam_inital.save()
         return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
+
 def dam_sample_template_images_list(dam_sample_work, job_template_id):
     if dam_sample_work:
         exceeded_files = []
         for i in dam_sample_work:
             dam_inital = DamMedia.objects.get(id=i)
-            if not JobAttachments.objects.filter(job=job_template_id,dam_media_id=dam_inital).exists():
+            if not JobAttachments.objects.filter(job=job_template_id, dam_media_id=dam_inital).exists():
                 dam_inital.job_count += 1
                 dam_inital.save()
             if type(dam_inital.limit_usage) == int:
@@ -1885,6 +1889,12 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
     search_fields = ['id', 'user']
     http_method_names = ['get']
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginated_data = self.paginate_queryset(queryset)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
 
 class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
@@ -1992,10 +2002,6 @@ def JobWorkApprovalEmail(approver, work):
         print(e)
 
 
-
-
-
-
 @permission_classes([IsAuthenticated])
 class JobWorkSubmitViewSet(viewsets.ModelViewSet):
     serializer_class = SubmitJobWorkSerializer
@@ -2025,7 +2031,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             if attachment:
                 for i in attachment:
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
-            JobWorkSubmitEmail(latest_work.job_applied.user,latest_work)
+            JobWorkSubmitEmail(latest_work.job_applied.user, latest_work)
             JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
             activity = JobActivity.objects.create(job=job, activity_status=2,
                                                   user=serializer.validated_data['job_applied'].user)
@@ -2037,7 +2043,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 # ----- stage 1 --------#
 
                 if workflow.stage_workflow.all():
-                    first_stage = workflow.stage_workflow.all()[0]
+                    first_stage = workflow.stage_workflow.all().order_by('order')[0]
                     # if MemberApprovals.objects.filter(workflow_stage=first_stage, status=2):
                     #     return Response({'message': 'Your Work Is Rejected', 'error': True})
                     created = 0
@@ -2066,8 +2072,47 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            attachment = request.FILES.getlist('work_attachments')
+            JobWorkAttachments.objects.filter(job_work=instance).delete()
+            if attachment:
+                for i in attachment:
+                    JobWorkAttachments.objects.create(job_work=instance, work_attachments=i)
+            JobWorkSubmitEmail(instance.job_applied.user, instance)
 
+            stages_id_list = set(MemberApprovals.objects.filter(job_work=instance, workflow_stage__is_approval=True).values_list('workflow_stage',flat=True))
+            if stages_id_list:
+                revision_stage = Workflow_Stages.objects.filter(id__in=stages_id_list).order_by('order').first()
+                revision_member = MemberApprovals.objects.filter(job_work=instance,workflow_stage=revision_stage)
+                for i in revision_member:
+                    JobWorkApprovalEmail(i.user.user,instance)
+                revision_member.update(status=0)
+            else:
+              rejected_member =  MemberApprovals.objects.filter(job_work=instance,status=2).first()
+              for i in rejected_member.workflow_stage.approvals.all():
+                  JobWorkApprovalEmail(i.user.user, instance)
+              MemberApprovals.objects.filter(job_work=instance,workflow_stage=rejected_member.workflow_stage).update(status=0)
 
+            context = {
+                'message': 'Job Successfully Submitted',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
 @permission_classes([IsAuthenticated])
@@ -2097,58 +2142,70 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
             self.perform_update(serializer)
             if serializer.validated_data['status']:
                 if serializer.validated_data['status'] == 1:
+                    print("hiitt")
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                    work_activity='approved', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
+                    SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
+
                 if serializer.validated_data['status'] == 2:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                    work_activity='rejected', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
-
+                    SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
             stage_id_list = []
             if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2):
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
+                    print("indside loop")
                     if i.is_all_approval:
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
                         if stage_clear == member_count:
+                            print("clear")
                             stage_id_list.append(i.id)
                             # for j in i.approvals.all():
                             #     MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage=i)
-                        # else:
-                        #     print("here no aproval clear")
-                        #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
-                        #         stage_id_list.append(i.id)
+                            # else:
+                            #     # print("here no aproval clear")
+                            #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
+                            #         stage_id_list.append(i.id)
                     else:
+                        print("here .......")
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
+                        print("stage clear ...")
                         if stage_clear:
+                            print("hit jiii")
                             stage_id_list.append(i.id)
                         # else:
                         #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
                         #         print("here enter at not one least")
                         #         stage_id_list.append(i.id)
-
-                            # for j in i.approvals.all():
+                        # for j in i.approvals.all():
                 if stage_id_list:
-                    new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(id__in=stage_id_list)
+                    new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(
+                        id__in=stage_id_list).order_by('order')
                     if new_stage:
-                        created = 0
-                        for j in new_stage[0].approvals.all():
-                            created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
-                                                                     workflow_stage=new_stage[0])
-                        if created:
-                            activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
-                                                                  activity_status=3,
-                                                                  user=instance.job_work.job_applied.user)
-                            JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
-                                                           work_activity='moved', workflow_stage=new_stage[0])
+                        if not MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=new_stage[0],
+                                                              status=0):
+                            print("here")
+                            created = 0
+                            for j in new_stage[0].approvals.all():
+                                created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
+                                                                         workflow_stage=new_stage[0])
+                                JobWorkApprovalEmail(j.user.user, instance.job_work)
 
+                            if created:
+                                activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                                                                      activity_status=3,
+                                                                      user=instance.job_work.job_applied.user)
+                                JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                                                               work_activity='moved', workflow_stage=new_stage[0])
             context = {
                 'message': 'Job Work Status Updated Succesfully',
                 'status': status.HTTP_200_OK,
@@ -2223,7 +2280,7 @@ class JobCompletedStatus(APIView):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
 
-        if job :
+        if job:
             if self.queryset.filter(job_work__job_applied__job_id=job, status=0,
                                     workflow_stage__is_all_approval=True).exists():
 
@@ -2277,20 +2334,23 @@ class JobCompletedStatus(APIView):
                    }
         return Response(context)
 
+
 class JobActivityUserList(APIView):
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('job_id')
         if job_id:
-            data = JobActivity.objects.filter(job_id=job_id).order_by('user_id').distinct('user_id').values('user_id','user__username','user__profile_img')
+            data = JobActivity.objects.filter(job_id=job_id).order_by('user_id').distinct('user_id').values('user_id',
+                                                                                                            'user__username',
+                                                                                                            'user__profile_img')
             context = {
                 'message': "Data Found",
                 'status': status.HTTP_200_OK,
-                'data':data,
+                'data': data,
                 'error': False
             }
         else:
             context = {
-                'message': "Job Not  Found",
+                'message': "Job Not Found",
                 'status': status.HTTP_400_BAD_REQUEST,
                 'error': True
             }

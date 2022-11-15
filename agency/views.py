@@ -52,6 +52,23 @@ class CompanyViewSet(viewsets.ModelViewSet):
         queryset = Company.objects.filter(agency=user, agency__is_account_closed=False).order_by('-modified')
         return queryset
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid(raise_exception=True):
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         data = self.serializer_class(instance)
@@ -411,7 +428,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 try:
                     subject = "Invitation link to Join Team"
                     content = Content("text/html",
-                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! for <b>{invite.user.get_levels_display()}</b> Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}</b> Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
                     data = send_email(from_email, to_email, subject, content)
                     if data:
                         return Response({'message': 'mail Send successfully, Please check your mail'},
@@ -461,7 +478,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     try:
                         subject = "Invitation link to Join Team"
                         content = Content("text/html",
-                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font:24px;color: #000;">Hello, {user.first_name} {user.last_name}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! for <b>{invite.user.get_levels_display()}</b> Please click the  below links.</div><div style="padding: 20px 0px;font-size: 16px color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="display: flex"><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={BACKEND_SITE_URL}/agency/update-invite-member/{decodeId}/{accept_invite_encode}/{exclusive_decode}><button style="height: 56px;cursor: pointer;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Accept</button></a></div><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={BACKEND_SITE_URL}/agency/update-invite-member/{decodeId}/{reject_invite_encode}/{exclusive_decode}><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Reject</button></a></div></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect </div></div></div></td></tr></tbody></table></div>')
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font:24px;color: #000;">Hello, {user.first_name} {user.last_name}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect! for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}</b> Please click the  below links.</div><div style="padding: 20px 0px;font-size: 16px color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="display: flex"><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{accept_invite_encode}/{exclusive_decode}><button style="height: 56px;cursor: pointer;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Accept</button></a></div><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{reject_invite_encode}/{exclusive_decode}><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Reject</button></a></div></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect </div></div></div></td></tr></tbody></table></div>')
 
                         data = send_email(from_email, to_email, subject, content)
                         if data:
@@ -683,27 +700,6 @@ class DAMViewSet(viewsets.ModelViewSet):
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
     search_fields = ['name']
-
-    def get_queryset(self):
-        print("yoooooooooooooooooooooooooooo")
-        data = self.request.data
-        mixed_query = data.get('mixed',None)
-        
-        if not mixed_query:
-            return self.queryset
-        and_params = {}
-        for key in data:
-           if 'and_' in key:
-              and_params[key] = data[key]
-        
-        
-        queryset = DAM.objects.filter(**and_params)
-        for key in self.request.data:
-            print("hlooooooooooooooooooooooooooo")
-            if 'or_' in key:
-              queryset = queryset | DAM.objects.filter(key=data[key])
-
-        return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
@@ -1190,14 +1186,14 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def favourites(self, request, pk=None, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True, parent=id)
+            fav_folder = DAM.objects.filter(type=1,agency=request.user, is_favourite=True, parent=id)
             fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder, many=True, context={'request': request})
             fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=request.user)
             fav_collection_data = DamMediaThumbnailSerializer(fav_collection, many=True, context={'request': request})
             fav_images = DAM.objects.filter(parent=id, type=3, agency=request.user, is_favourite=True)
             fav_images_data = DamWithMediaThumbnailSerializer(fav_images, many=True, context={'request': request})
         else:
-            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True, parent=id)
+            fav_folder = DAM.objects.filter(type=1,agency=request.user, is_favourite=True, parent=id)
             fav_folder_data = DamWithMediaThumbnailSerializer(fav_folder, many=True, context={'request': request})
             fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=request.user)
             fav_collection_data = DamMediaThumbnailSerializer(fav_collection, many=True, context={'request': request})
@@ -1223,7 +1219,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent=id, is_trashed=False).count()
         else:
-            fav_folder = DAM.objects.filter(type=1, agency=request.user, is_favourite=True).count()
+            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user).count()
@@ -1275,3 +1271,50 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+
+@permission_classes([IsAuthenticated])
+class DAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
+    search_fields = ['name']
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        is_favourite = request.GET.get('is_favourite', None)
+        photo = None
+        video = None
+        collection = None
+        favourite = None
+        if photos:
+            data = self.filter_queryset(self.get_queryset()).filter(type=3,is_video=False,is_trashed=False)
+            photos_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
+            photo =  photos_data.data
+
+        if videos:
+            data = self.filter_queryset(self.get_queryset()).filter(type=3,is_video=True,is_trashed=False)
+            videos_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
+            video =  videos_data.data
+        if collections:
+            data = self.filter_queryset(self.get_queryset()).filter(type=2,is_trashed=False)
+            collections_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
+            collection = collections_data.data
+        if is_favourite:
+            data =self.filter_queryset(self.get_queryset()).filter(is_favourite=True,is_trashed=False)
+            favourite_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
+            favourite = favourite_data.data
+
+        context = {
+            'photos': photo,
+            'videos': video,
+            'collections': collection,
+            'is_favourite':favourite
+        }  
+        return Response(context, status=status.HTTP_200_OK)
+   

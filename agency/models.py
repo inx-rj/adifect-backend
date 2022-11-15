@@ -1,7 +1,7 @@
 from email.policy import default
 from django.db import models
 from autoslug import AutoSlugField
-from authentication.models import CustomUser
+from authentication.models import CustomUser, validate_image
 import os
 from authentication.manager import SoftDeleteManager
 from django.db.models import CharField
@@ -66,6 +66,11 @@ class Company(BaseModel):
     company_type = models.IntegerField(choices=Type.choices, default=Type.agency)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='company_agency', blank=True,
                                null=True)
+    company_email = models.EmailField(max_length=30, null=True, blank=True)
+    company_phone_number = models.CharField(blank=True, null=True, max_length=15, help_text='Enter valid phone number.')
+    company_website = models.CharField(max_length=30, null=True, blank=True)
+    company_profile_img = models.ImageField(upload_to='company_image/', null=True, blank=True,
+                                            validators=[validate_image])
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
 
