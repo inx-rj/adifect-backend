@@ -395,6 +395,7 @@ class JobTasks(BaseModel):
     title = models.CharField(max_length=3000, null=False, blank=False)
     due_date = models.DateField(auto_now_add=False)
     is_active = models.BooleanField(default=True)
+    is_complete = models.BooleanField(default=False)
 
     def __str__(self) -> CharField:
         return self.title
