@@ -1211,7 +1211,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
+            fav_folder = DAM.objects.filter(type=3,agency=request.user, is_favourite=True, parent=id,
                                             is_trashed=False).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
