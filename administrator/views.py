@@ -2175,6 +2175,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                    work_activity='rejected', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
+                    MemberApprovals.objects.filter(job_work=instance.job_work,workflow_stage=instance.workflow_stage).update(status=2)
+
             stage_id_list = []
 
             # --- checking for stages and move to next stage if conditions met -----#
@@ -2256,48 +2258,70 @@ class JobWorkStatus(APIView):
         user = request.data.get('user', None)
 
         if job and user:
-            if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
-                                    workflow_stage__is_all_approval=True).exists():
-
+            if SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=user,status=0):
+                print("hiii hit")
                 context = {'Disable': True,
                            'error': False,
                            'status': status.HTTP_200_OK
                            }
                 return Response(context, status=status.HTTP_200_OK)
-
-            elif self.queryset.filter(
-                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) & Q(
-                        Q(status=1) | Q(status=2))).exists():
-                context = {'Disable': False,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-
-                return Response(context, status=status.HTTP_200_OK)
-
-            elif self.queryset.filter(
-                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) &
-                    Q(status=0)).exists():
-                context = {'Disable': True,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-                return Response(context, status=status.HTTP_200_OK)
-
             else:
+                print("not")
                 context = {'Disable': False,
                            'error': False,
                            'status': status.HTTP_200_OK
                            }
                 return Response(context, status=status.HTTP_200_OK)
-
-        context = {'message': 'Job And User Not Found',
-                   'error': True,
-                   'status': status.HTTP_400_BAD_REQUEST
+        context = {'Disable': False,
+                   'error': False,
+                   'status': status.HTTP_200_OK
                    }
-        return Response(context)
+        return Response(context, status=status.HTTP_200_OK)
+
+        '''
+        if self.queryset.filter(job_work__job_applied__job_id=job, status=0, job_work__job_applied__user_id=user,
+                                workflow_stage__is_all_approval=True).exists():
+
+            context = {'Disable': True,
+                       'error': False,
+                       'status': status.HTTP_200_OK
+                       }
+            return Response(context, status=status.HTTP_200_OK)
+
+        elif self.queryset.filter(
+                Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                Q(workflow_stage__is_all_approval=False) & Q(
+                    Q(status=1) | Q(status=2))).exists():
+            context = {'Disable': False,
+                       'error': False,
+                       'status': status.HTTP_200_OK
+                       }
+
+            return Response(context, status=status.HTTP_200_OK)
+
+        elif self.queryset.filter(
+                Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
+                Q(workflow_stage__is_all_approval=False) &
+                Q(status=0)).exists():
+            context = {'Disable': True,
+                       'error': False,
+                       'status': status.HTTP_200_OK
+                       }
+            return Response(context, status=status.HTTP_200_OK)
+
+        else:
+            context = {'Disable': False,
+                       'error': False,
+                       'status': status.HTTP_200_OK
+                       }
+            return Response(context, status=status.HTTP_200_OK)
+
+    context = {'message': 'Job And User Not Found',
+               'error': True,
+               'status': status.HTTP_400_BAD_REQUEST
+               }
+    return Response(context)
+    '''
 
 
 class JobCompletedStatus(APIView):
@@ -2305,12 +2329,43 @@ class JobCompletedStatus(APIView):
 
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
-        user_list = JobApplied.objects.filter(job_id=job, status=0)
         if job:
-            task_id = JobTasks.objects.filter(job_id=job).values_list('id')
-            # if task_id:
-            #     work = SubmitJobWork.objects.filter(task_id__in=task_id,status=1)
-            #     if work :
+                user_list = JobApplied.objects.filter(Q(job_id=job) & Q(Q(status=2) | Q(status=3))).values_list('user')
+                completed_user_list = []
+                task_id = JobTasks.objects.filter(job_id=job).values_list('id')
+                for i in list(user_list):
+                    if task_id:
+                        work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
+                        if len(list(work.values_list('task_id'))) == len(task_id):
+                            completed_user_list.append({'user_id':work.first().job_applied.user,'username':work.first().job_applied.user.username})
+                    else:
+                        work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
+                        if work:
+                            completed_user_list.append({'user_id':work.first().job_applied.user,'username':work.first().job_applied.user.username})
+
+                context = {'message': 'Completed Job Task User List',
+                           'error': False,
+                           'status': status.HTTP_200_OK,
+                           'Data':completed_user_list
+                           }
+                return Response(context)
+        else:
+            context = {'message': 'No Job Found',
+                      'error': True,
+                      'status': status.HTTP_404_NOT_FOUND,
+                      }
+            return Response(context)
+
+
+
+
+
+
+
+
+
+
+
 
             # for i in work:
             #

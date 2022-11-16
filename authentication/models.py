@@ -160,8 +160,8 @@ class UserCommunicationMode(BaseModel):
     mode_value = models.CharField(max_length=1000, null=True, blank=True)
     is_preferred = models.BooleanField(default=False)
 
-    def __str__(self):
-        return self.user.first_name
+    # def __str__(self) -> str:
+    #     return self.user.email
 
     class Meta:
         verbose_name_plural = 'User Communication Mode'
