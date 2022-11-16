@@ -9,7 +9,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer
+    JobsWithAttachmentsThumbnailSerializer,JobActivityUserSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -1979,7 +1979,7 @@ def JobWorkSubmitEmail(user, work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
         subject = "Job Work Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have Submitted this work for Approval! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have Submitted this work for Approval! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), user.email, subject, content)
     except Exception as e:
         print(e)
@@ -1996,7 +1996,7 @@ def JobWorkApprovalEmail(approver, work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
         subject = "Job Work Approver Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
     except Exception as e:
         print(e)
@@ -2086,18 +2086,34 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     JobWorkAttachments.objects.create(job_work=instance, work_attachments=i)
             JobWorkSubmitEmail(instance.job_applied.user, instance)
 
-            stages_id_list = set(MemberApprovals.objects.filter(job_work=instance, workflow_stage__is_approval=True).values_list('workflow_stage',flat=True))
+            stages_id_list = set(
+                MemberApprovals.objects.filter(job_work=instance, workflow_stage__is_approval=True).values_list(
+                    'workflow_stage', flat=True))
             if stages_id_list:
                 revision_stage = Workflow_Stages.objects.filter(id__in=stages_id_list).order_by('order').first()
-                revision_member = MemberApprovals.objects.filter(job_work=instance,workflow_stage=revision_stage)
+                revision_member = MemberApprovals.objects.filter(job_work=instance, workflow_stage=revision_stage)
                 for i in revision_member:
-                    JobWorkApprovalEmail(i.user.user,instance)
-                revision_member.update(status=0)
+                    JobWorkApprovalEmail(i.approver.user.user, instance)
+                update = revision_member.update(status=0)
+                if update:
+                    activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                                                          activity_status=3,
+                                                          user=instance.job_work.job_applied.user)
+                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                                                   work_activity='moved', workflow_stage=revision_stage)
+
             else:
-              rejected_member =  MemberApprovals.objects.filter(job_work=instance,status=2).first()
-              for i in rejected_member.workflow_stage.approvals.all():
-                  JobWorkApprovalEmail(i.user.user, instance)
-              MemberApprovals.objects.filter(job_work=instance,workflow_stage=rejected_member.workflow_stage).update(status=0)
+                rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
+                for i in rejected_member.workflow_stage.approvals.all():
+                    JobWorkApprovalEmail(i.approver.user.user, instance)
+                update = MemberApprovals.objects.filter(job_work=instance, workflow_stage=rejected_member.workflow_stage).update(
+                    status=0)
+                if update:
+                    activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                                                          activity_status=3,
+                                                          user=instance.job_work.job_applied.user)
+                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                                                   work_activity='moved', workflow_stage=rejected_member.workflow_stage)
 
             context = {
                 'message': 'Job Successfully Submitted',
@@ -2139,7 +2155,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid():
-        #------------- response by member -----#
+            # ------------- response by member -----#
             self.perform_update(serializer)
             if serializer.validated_data['status']:
                 # ----------------- create activity ------------------#
@@ -2161,7 +2177,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
             stage_id_list = []
 
-            #--- checking for stages and move to next stage if conditions met -----#
+            # --- checking for stages and move to next stage if conditions met -----#
             if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2):
                 total_stage_count = instance.job_work.job_applied.job.workflow.stage_workflow.all().count()
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
@@ -2192,7 +2208,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                         #         print("here enter at not one least")
                         #         stage_id_list.append(i.id)
                         # for j in i.approvals.all():
-                #----- move to next stage -------#
+                # ----- move to next stage -------#
                 if stage_id_list:
                     new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(
                         id__in=stage_id_list).order_by('order')
@@ -2211,7 +2227,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                                       user=instance.job_work.job_applied.user)
                                 JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                                work_activity='moved', workflow_stage=new_stage[0])
-                #------------- update task status if complete -------#
+                # ------------- update task status if complete -------#
                 if len(stage_id_list) == total_stage_count:
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
                     if instance.job_work.task is not None:
@@ -2289,13 +2305,16 @@ class JobCompletedStatus(APIView):
 
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
+        user_list = JobApplied.objects.filter(job_id=job, status=0)
         if job:
-            task_id = JobTasks.objects.filter(job_id=Job).values_list('id')
-            if task_id:
-                work = SubmitJobWork.objects.filter(task_id__in=task_id,status=1)
-                # for i in work:
-                #
-                # if len(list(task_id)) ==
+            task_id = JobTasks.objects.filter(job_id=job).values_list('id')
+            # if task_id:
+            #     work = SubmitJobWork.objects.filter(task_id__in=task_id,status=1)
+            #     if work :
+
+            # for i in work:
+            #
+            # if len(list(task_id)) ==
 
         return Response(context)
 
@@ -2304,13 +2323,12 @@ class JobActivityUserList(APIView):
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('job_id')
         if job_id:
-            data = JobActivity.objects.filter(job_id=job_id).order_by('user_id').distinct('user_id').values('user_id',
-                                                                                                            'user__username',
-                                                                                                            'user__profile_img')
+            data = JobActivity.objects.filter(job_id=job_id,user__isnull=False)
+            data_serilizer = JobActivityUserSerializer(data,many=True,context={'request':request})
             context = {
                 'message': "Data Found",
                 'status': status.HTTP_200_OK,
-                'data': data,
+                'data': data_serilizer.data,
                 'error': False
             }
         else:

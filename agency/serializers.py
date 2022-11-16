@@ -328,6 +328,7 @@ class DamMediaThumbnailSerializer(serializers.ModelSerializer):
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
+    file_type = SerializerMethodField("get_file_type")
     class Meta:
         model = DamMedia
         exclude = ('media',)
@@ -359,6 +360,12 @@ class DamMediaThumbnailSerializer(serializers.ModelSerializer):
         if obj.dam is not None:
                 return obj.dam.is_favourite
         return False
+    
+    def get_file_type(self, obj):
+        if obj:
+             return obj.dam.type
+            
+        return True
 
 
 #-------------------------------------------- dam ---------------------------------------------#

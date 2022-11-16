@@ -869,7 +869,44 @@ class JobActivitySerializer(serializers.ModelSerializer):
             return ''
 
 
+class JobActivityUserSerializer(serializers.ModelSerializer):
+    # activity = serializers.SerializerMethodField("get_activity")
+    user_image = serializers.SerializerMethodField("get_user_img")
+    user_name =  serializers.SerializerMethodField("get_user_name")
+    user_full_name = serializers.SerializerMethodField("get_user_full_name")
 
+    class Meta:
+        model = JobActivity
+        fields = ('user_image','user_name','user_full_name','user')
+
+    def get_user_img(self, obj):
+        try:
+            if obj.user:
+                profile = obj.user.profile_img.url
+                return profile
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_user_name(self, obj):
+        try:
+            if obj.user:
+                return obj.user.username
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_user_full_name(self, obj):
+        try:
+            if obj.user:
+                profile = obj.user.get_full_name()
+                return profile
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 #--------------------------------                        end             -------------------------------------------- #
