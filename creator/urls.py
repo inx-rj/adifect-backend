@@ -17,5 +17,6 @@ router.register(r'job-activity', views.JobActivityCreaterViewSet, basename='job_
 urlpatterns = [
     path('my-project-all/', views.MyProjectAllJob.as_view(), name='my_project_all'),
     path('creator-company-list', views.CreatorCompanyList.as_view(), name='creator_company_list'),
+    path('get-resubmit-work/', views.GetRejectedWork.as_view(), name='get_resubmit_work'),
 ]
 urlpatterns += router.urls

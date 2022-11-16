@@ -2139,8 +2139,10 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid():
+        #------------- response by member -----#
             self.perform_update(serializer)
             if serializer.validated_data['status']:
+                # ----------------- create activity ------------------#
                 if serializer.validated_data['status'] == 1:
                     print("hiitt")
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
@@ -2148,7 +2150,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                    work_activity='approved', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
-                    SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
+                    # SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
 
                 if serializer.validated_data['status'] == 2:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
@@ -2158,7 +2160,10 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                    workflow_stage=instance.workflow_stage)
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
             stage_id_list = []
+
+            #--- checking for stages and move to next stage if conditions met -----#
             if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2):
+                total_stage_count = instance.job_work.job_applied.job.workflow.stage_workflow.all().count()
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
                     print("indside loop")
@@ -2187,6 +2192,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                         #         print("here enter at not one least")
                         #         stage_id_list.append(i.id)
                         # for j in i.approvals.all():
+                #----- move to next stage -------#
                 if stage_id_list:
                     new_stage = instance.job_work.job_applied.job.workflow.stage_workflow.exclude(
                         id__in=stage_id_list).order_by('order')
@@ -2199,13 +2205,18 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                 created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                          workflow_stage=new_stage[0])
                                 JobWorkApprovalEmail(j.user.user, instance.job_work)
-
                             if created:
                                 activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
                                                                       activity_status=3,
                                                                       user=instance.job_work.job_applied.user)
                                 JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                                work_activity='moved', workflow_stage=new_stage[0])
+                #------------- update task status if complete -------#
+                if len(stage_id_list) == total_stage_count:
+                    SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
+                    if instance.job_work.task is not None:
+                        JobTasks.objects.filter(pk=instance.job_work.task).update(is_complete=True)
+
             context = {
                 'message': 'Job Work Status Updated Succesfully',
                 'status': status.HTTP_200_OK,
@@ -2278,60 +2289,14 @@ class JobCompletedStatus(APIView):
 
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
-        user = request.data.get('user', None)
-
         if job:
-            if self.queryset.filter(job_work__job_applied__job_id=job, status=0,
-                                    workflow_stage__is_all_approval=True).exists():
+            task_id = JobTasks.objects.filter(job_id=Job).values_list('id')
+            if task_id:
+                work = SubmitJobWork.objects.filter(task_id__in=task_id,status=1)
+                # for i in work:
+                #
+                # if len(list(task_id)) ==
 
-                context = {'Completed': False,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-                return Response(context, status=status.HTTP_200_OK)
-
-            elif self.queryset.filter(
-                    Q(job_work__job_applied__job_id=job) &
-                    Q(workflow_stage__is_all_approval=False) & Q(
-                        Q(status=2))).exists():
-                context = {'Completed': False,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-
-                return Response(context, status=status.HTTP_200_OK)
-
-            elif self.queryset.filter(
-                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) &
-                    Q(status=1)).exists():
-                context = {'Completed': True,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-                return Response(context, status=status.HTTP_200_OK)
-
-            elif self.queryset.filter(
-                    Q(job_work__job_applied__job_id=job) & Q(job_work__job_applied__user_id=user) &
-                    Q(workflow_stage__is_all_approval=False) &
-                    Q(status=0)).exists():
-                context = {'Completed': False,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-                return Response(context, status=status.HTTP_200_OK)
-
-            else:
-                context = {'Completed': True,
-                           'error': False,
-                           'status': status.HTTP_200_OK
-                           }
-                return Response(context, status=status.HTTP_200_OK)
-
-        context = {'message': 'Job  Not Found',
-                   'error': True,
-                   'status': status.HTTP_400_BAD_REQUEST
-                   }
         return Response(context)
 
 

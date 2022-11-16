@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied,JobActivity
-from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, JobActivitySerializer
+from administrator.models import Job, JobAttachments, JobApplied,JobActivity,SubmitJobWork
+from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, JobActivitySerializer, SubmitJobWorkSerializer
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -259,5 +259,35 @@ class JobActivityCreaterViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=request.user) | Q(user__isnull=True))
         serializer = self.serializer_class(queryset, many=True, context={'request': request})  
         return Response(data=serializer.data)
+
+@permission_classes([IsAuthenticated])
+class GetRejectedWork(APIView):
+    queryset = SubmitJobWork.objects.all()
+    serializer_class = SubmitJobWorkSerializer
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+        if job and user:
+            get_rejected = self.queryset.filter(job_applied__job__id=job,job_applied__user_id=user,status=2)
+            get_rejected_data = self.serializer_class(get_rejected,many=True,context={'request': request})
+            context = {
+                'message': 'Please Edit Your Request',
+                'status': status.HTTP_200_OK,
+                'error': False,
+                'data': get_rejected_data.data
+            }
+            return Response(context,status=status.HTTP_200_OK)
+        else:
+            context = {
+                'message': 'Job Or User Not Found',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'error': True
+            }
+            return Response(context,status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
 
 
