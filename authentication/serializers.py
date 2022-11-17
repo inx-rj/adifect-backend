@@ -13,6 +13,8 @@ from django.db.models import Q
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -129,3 +131,10 @@ class UserCommunicationSerializer(serializers.ModelSerializer):
         model = UserCommunicationMode
         fields = '__all__'
 
+    def validate(self, data):
+        try:
+            if data['mode_value'] and data['communication_mode'] == 0:
+                validate_email(data['mode_value'])
+        except ValidationError:
+            raise serializers.ValidationError('Please Enter valid Email.')
+        return data

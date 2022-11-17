@@ -1278,16 +1278,26 @@ class DAMFilter(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
     queryset = DAM.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['modified', 'created','dam_media__job_count']
-    ordering = ['modified', 'created','dam_media__job_count']
+    ordering_fields = ['created','dam_media__job_count']
+    ordering = ['created','dam_media__job_count']
     filterset_fields = ['id', 'parent', 'type', 'name','is_video']
     search_fields = ['name']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('parent', None)
+        if not  is_parent:
+            return DAM.objects.filter(parent__isnull=True)
+
+        return self.queryset
 
     def list(self, request, *args, **kwargs):
         photos = request.GET.get('photos', None)
         videos = request.GET.get('videos', None)
         collections = request.GET.get('collections', None)
         is_favourite = request.GET.get('is_favourite', None)
+        is_parent = request.GET.get('parent', None)
+
+
         id = request.GET.get('id', None)
         photo = None
         video = None

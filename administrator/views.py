@@ -2096,10 +2096,10 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     JobWorkApprovalEmail(i.approver.user.user, instance)
                 update = revision_member.update(status=0)
                 if update:
-                    activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                    activity = JobActivity.objects.create(job=instance.job_applied.job,
                                                           activity_status=3,
-                                                          user=instance.job_work.job_applied.user)
-                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                                                          user=instance.job_applied.user)
+                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
                                                    work_activity='moved', workflow_stage=revision_stage)
 
             else:
@@ -2109,10 +2109,10 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 update = MemberApprovals.objects.filter(job_work=instance, workflow_stage=rejected_member.workflow_stage).update(
                     status=0)
                 if update:
-                    activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
+                    activity = JobActivity.objects.create(job=instance.job_applied.job,
                                                           activity_status=3,
-                                                          user=instance.job_work.job_applied.user)
-                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                                                          user=instance.job_applied.user)
+                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
                                                    work_activity='moved', workflow_stage=rejected_member.workflow_stage)
 
             context = {
