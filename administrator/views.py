@@ -2337,12 +2337,14 @@ class JobCompletedStatus(APIView):
                     if task_id:
                         work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
                         if len(list(work.values_list('task_id'))) == len(task_id):
-                            completed_user_list.append({'user_id':work.first().job_applied.user,'username':work.first().job_applied.user.username})
+                            completed_user_list.append({'user_id':work.first().job_applied.user.id,'username':work.first().job_applied.user.username})
                     else:
                         work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
                         if work:
-                            completed_user_list.append({'user_id':work.first().job_applied.user,'username':work.first().job_applied.user.username})
+                            completed_user_list.append({'user_id':work.first().job_applied.user.id,'username':work.first().job_applied.user.username})
 
+
+                print(completed_user_list)
                 context = {'message': 'Completed Job Task User List',
                            'error': False,
                            'status': status.HTTP_200_OK,
@@ -2356,22 +2358,6 @@ class JobCompletedStatus(APIView):
                       }
             return Response(context)
 
-
-
-
-
-
-
-
-
-
-
-
-            # for i in work:
-            #
-            # if len(list(task_id)) ==
-
-        return Response(context)
 
 
 class JobActivityUserList(APIView):
