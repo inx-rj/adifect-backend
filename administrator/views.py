@@ -2105,7 +2105,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             else:
                 rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
                 for i in rejected_member.workflow_stage.approvals.all():
-                    JobWorkApprovalEmail(i.approver.user.user, instance)
+                    JobWorkApprovalEmail(i.user.user, instance)
                 update = MemberApprovals.objects.filter(job_work=instance, workflow_stage=rejected_member.workflow_stage).update(
                     status=0)
                 if update:
