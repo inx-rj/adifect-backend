@@ -1219,9 +1219,9 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent=id, is_trashed=False).count()
         else:
-            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True).count()
+            fav_folder = DAM.objects.filter(type=3,agency=request.user, is_favourite=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
-                                                  is_video=False).count()
+                                                  is_video=False,dam__parent__isnull=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=True).count()
@@ -1262,7 +1262,7 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['job']
+    filterset_fields = ['job','user','job__user']
     # search_fields = ['=status', ]
     # pagination_class = FiveRecordsPagination
     http_method_names = ['get']
@@ -1280,7 +1280,7 @@ class DAMFilter(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created','dam_media__job_count']
     ordering = ['modified', 'created','dam_media__job_count']
-    filterset_fields = ['id', 'parent', 'type', 'name','is_favourite','is_video']
+    filterset_fields = ['id', 'parent', 'type', 'name','is_video']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -1294,44 +1294,39 @@ class DAMFilter(viewsets.ModelViewSet):
         collection = None
         favourite = None
         if photos:
-            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=False,is_trashed=False)
+            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=False,is_trashed=False).exclude(is_favourite=True)
             photos_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
             photo =  photos_data.data
 
         if videos:
-            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=True,is_trashed=False)
+            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=True,is_trashed=False).exclude(is_favourite=True)
             videos_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
             video =  videos_data.data
 
         if collections:
-            ordering = request.GET.get('ordering', None)
-            filter_data = DAM.objects.filter(
-            pk__in=Subquery(
-                DAM.objects.filter(agency=request.user).order_by('id').distinct('pk').values('pk')
-            )
-        )
+            data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=2,is_trashed=False).values_list('pk',flat=True))
+            collections = set(list(data))
+            filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaThumbnailSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
         if is_favourite:
-            data =self.filter_queryset(self.get_queryset()).filter((Q(type=2) | Q(type=3)) & Q(is_favourite=True) & Q(is_trashed=False) & Q(agency=self.request.user))
+            data =self.filter_queryset(self.get_queryset()).filter((Q(type=1) | Q(type=3)) & Q(is_favourite=True) & Q(is_trashed=False) & Q(agency=self.request.user))
             favourite_data = DamWithMediaThumbnailSerializer(data, many=True, context={'request': request})
             favourite = favourite_data.data
         if not photos and not videos and not collections and not is_favourite:
             data1 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=False,is_trashed=False).exclude(is_favourite=True)
             photos_data = DamWithMediaThumbnailSerializer(data1, many=True, context={'request': request})
             photo =  photos_data.data
-            data2 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=True,is_trashed=False).exclude(is_favourite=True)
+            data2 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=3,is_video=True,is_trashed=False).exclude(is_favourite=True).exclude(is_favourite=True)
             videos_data = DamWithMediaThumbnailSerializer(data2, many=True, context={'request': request})
             video =  videos_data.data
-            ordering = request.GET.get('ordering', None)
-            data3 = DAM.objects.filter(
-            pk__in=Subquery(
-                DAM.objects.filter(agency=request.user).order_by('id').distinct('pk').values('pk')
-            )
-        )
-            collections_data = DamWithMediaThumbnailSerializer(data3, many=True, context={'request': request})
+            data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,type=2,is_trashed=False).values_list('pk',flat=True))
+            collections = set(list(data))
+            filter_data = DAM.objects.filter(id__in=data)
+            collections_data = DamWithMediaThumbnailSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 =self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,is_favourite=True,is_trashed=False)
+            collection = collections_data.data
+            data4 =self.filter_queryset(self.get_queryset()).filter((Q(type=1) | Q(type=3)) & Q(is_favourite=True) & Q(is_trashed=False) & Q(agency=self.request.user))
             favourite_data = DamWithMediaThumbnailSerializer(data4, many=True, context={'request': request})
             favourite = favourite_data.data
 

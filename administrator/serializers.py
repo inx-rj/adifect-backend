@@ -338,7 +338,8 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.filter(Q(status=0) | Q(status=1)):
+            if obj.job_applied.filter(Q(status=2) | Q(status=3)):
+
                 return False
             return True
         except Exception as e:
@@ -715,11 +716,20 @@ class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
 class SubmitJobWorkSerializer(serializers.ModelSerializer):
     job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
     attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,validators=[validate_file_extension])
-
+    user_details = serializers.SerializerMethodField("get_user_details")
     class Meta:
         model = SubmitJobWork
         fields = '__all__'
 
+    def get_user_details(self, obj):
+        if obj.job_applied.user is not None:
+            try:
+                profile_pic = obj.job_applied.user.profile_pic.url
+            except Exception as e:
+                print(e)
+                profile_pic = ''
+            return {'user_id':obj.job_applied.user.id,'user_pic':profile_pic,'user_name':obj.job_applied.user.get_full_name()}
+        return {}
 
 class MemberApprovalsSerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer(required=False)

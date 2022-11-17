@@ -802,7 +802,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(Q(job__user=request.user) | Q(user=request.user))
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__user=request.user)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
