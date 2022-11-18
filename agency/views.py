@@ -627,15 +627,12 @@ class InviteMemberUserList(APIView):
         company_id = request.GET.get('company', None)
         level = request.GET.get('level', None)
         agency = request.user
-        print('hittt')
-        print(level)
-        print(type(level))
         if level == '3':
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
                                                        user__user__isnull=False,user__levels=3)
         else:
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
-                                                       user__user__isnull=False).exclude(user__levels=3)
+                                                       user__user__isnull=False)
         if company_id:
             invited_user = invited_user.filter(Q(company_id=company_id) | Q(user__user=agency))
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
