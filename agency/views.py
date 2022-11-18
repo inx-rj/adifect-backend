@@ -1355,17 +1355,19 @@ class MemberApprovedJobViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def list(self, request, *args, **kwargs):
-        queryset = JobApplied.objects.filter(status=4,
+        queryset = JobApplied.objects.filter(
                                              job__workflow__stage_workflow__approvals__user__user=request.user)
         job_count = queryset.count()
         print(job_count, 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         job_review = queryset.filter(status=3).count()
         job_progress = queryset.filter(status=2).count()
+        job_completed = queryset.filter(status=4).count()
         serializer = self.serializer_class(queryset, many=True, context={request: request})
         context = {
             'Total_Job_count': job_count,
             'In_progress_jobs': job_progress,
-            'in_review': job_review,
+            'In_review_jobs': job_review,
+            'completed_jobs':job_completed,
             'data': serializer.data,
         }
         return Response(context, status=status.HTTP_200_OK)

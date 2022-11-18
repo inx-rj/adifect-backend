@@ -2180,7 +2180,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
             stage_id_list = []
 
             # --- checking for stages and move to next stage if conditions met -----#
-            if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2):
+            if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2,workflow_stage=instance.workflow_stage):
                 total_stage_count = instance.job_work.job_applied.job.workflow.stage_workflow.all().count()
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
