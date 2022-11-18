@@ -627,7 +627,10 @@ class InviteMemberUserList(APIView):
         company_id = request.GET.get('company', None)
         level = request.GET.get('level', None)
         agency = request.user
-        if level == 3:
+        print('hittt')
+        print(level)
+        print(type(level))
+        if level == '3':
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
                                                        user__user__isnull=False,user__levels=3)
         else:
