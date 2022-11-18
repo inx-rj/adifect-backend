@@ -9,7 +9,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer,JobActivityUserSerializer
+    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -683,6 +683,8 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = JobActivity.Type.Accept
             if status_job == 1:
                 test_status = JobActivity.Type.Reject
+            if status_job == 4:
+                test_status = JobActivity.Type.Completed
             if test_status:
                 JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
             proposed_price = request.data.get('proposed_price', None)
@@ -2022,7 +2024,10 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
+        print(request.data)
+        print("hiiiiii")
         if serializer.is_valid():
+            print(serializer.validated_data)
             # ----- work flow for approvals detail -----#
             job = serializer.validated_data['job_applied'].job
             self.perform_create(serializer)
@@ -2086,6 +2091,11 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     JobWorkAttachments.objects.create(job_work=instance, work_attachments=i)
             JobWorkSubmitEmail(instance.job_applied.user, instance)
 
+            activity = JobActivity.objects.create(job=instance.job_applied.job, activity_status=2,
+                                                  user=instance.job_applied.user)
+            JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
+                                           work_activity='submit_approval')
+
             stages_id_list = set(
                 MemberApprovals.objects.filter(job_work=instance, workflow_stage__is_approval=True).values_list(
                     'workflow_stage', flat=True))
@@ -2106,7 +2116,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
                 for i in rejected_member.workflow_stage.approvals.all():
                     JobWorkApprovalEmail(i.user.user, instance)
-                update = MemberApprovals.objects.filter(job_work=instance, workflow_stage=rejected_member.workflow_stage).update(
+                update = MemberApprovals.objects.filter(job_work=instance,
+                                                        workflow_stage=rejected_member.workflow_stage).update(
                     status=0)
                 if update:
                     activity = JobActivity.objects.create(job=instance.job_applied.job,
@@ -2175,12 +2186,14 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                    work_activity='rejected', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
-                    MemberApprovals.objects.filter(job_work=instance.job_work,workflow_stage=instance.workflow_stage).update(status=2)
+                    MemberApprovals.objects.filter(job_work=instance.job_work,
+                                                   workflow_stage=instance.workflow_stage).update(status=2)
 
             stage_id_list = []
 
             # --- checking for stages and move to next stage if conditions met -----#
-            if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2,workflow_stage=instance.workflow_stage):
+            if not MemberApprovals.objects.filter(job_work=instance.job_work, status=2,
+                                                  workflow_stage=instance.workflow_stage):
                 total_stage_count = instance.job_work.job_applied.job.workflow.stage_workflow.all().count()
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
@@ -2258,7 +2271,7 @@ class JobWorkStatus(APIView):
         user = request.data.get('user', None)
 
         if job and user:
-            if SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=user,status=0):
+            if SubmitJobWork.objects.filter(job_applied__job_id=job, job_applied__user_id=user, status=0):
                 print("hiii hit")
                 context = {'Disable': True,
                            'error': False,
@@ -2330,42 +2343,43 @@ class JobCompletedStatus(APIView):
     def post(self, request, *args, **kwargs):
         job = request.data.get('job', None)
         if job:
-                user_list = JobApplied.objects.filter(Q(job_id=job) & Q(Q(status=2) | Q(status=3))).values_list('user')
-                completed_user_list = []
-                task_id = JobTasks.objects.filter(job_id=job).values_list('id')
-                for i in list(user_list):
-                    if task_id:
-                        work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
-                        if len(list(work.values_list('task_id'))) == len(task_id):
-                            completed_user_list.append({'user_id':work.first().job_applied.user.id,'username':work.first().job_applied.user.username})
-                    else:
-                        work = SubmitJobWork.objects.filter(job_applied__job_id=job,job_applied__user_id=i,status=1)
-                        if work:
-                            completed_user_list.append({'user_id':work.first().job_applied.user.id,'username':work.first().job_applied.user.username})
+            user_list = JobApplied.objects.filter(Q(job_id=job) & Q(Q(status=2) | Q(status=3))).values_list('user')
+            completed_user_list = []
+            task_id = JobTasks.objects.filter(job_id=job).values_list('id')
+            for i in list(user_list):
+                if task_id:
+                    work = SubmitJobWork.objects.filter(job_applied__job_id=job, job_applied__user_id=i, status=1)
+                    if len(list(work.values_list('task_id'))) == len(task_id):
+                        completed_user_list.append({'user_id': work.first().job_applied.user.id,
+                                                    'username': work.first().job_applied.user.get_full_name(),
+                                                    'job_applied': work.first().job_applied.id})
+                else:
+                    work = SubmitJobWork.objects.filter(job_applied__job_id=job, job_applied__user_id=i, status=1)
+                    if work:
+                        completed_user_list.append({'user_id': work.first().job_applied.user.id,
+                                                    'username': work.first().job_applied.user.get_full_name(),
+                                                    'job_applied': work.first().job_applied.id})
 
-
-                print(completed_user_list)
-                context = {'message': 'Completed Job Task User List',
-                           'error': False,
-                           'status': status.HTTP_200_OK,
-                           'Data':completed_user_list
-                           }
-                return Response(context)
+            context = {'message': 'Completed Job Task User List',
+                       'error': False,
+                       'status': status.HTTP_200_OK,
+                       'Data': completed_user_list
+                       }
+            return Response(context)
         else:
             context = {'message': 'No Job Found',
-                      'error': True,
-                      'status': status.HTTP_404_NOT_FOUND,
-                      }
+                       'error': True,
+                       'status': status.HTTP_404_NOT_FOUND,
+                       }
             return Response(context)
-
 
 
 class JobActivityUserList(APIView):
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('job_id')
         if job_id:
-            data = JobActivity.objects.filter(job_id=job_id,user__isnull=False)
-            data_serilizer = JobActivityUserSerializer(data,many=True,context={'request':request})
+            data = JobActivity.objects.filter(job_id=job_id, user__isnull=False)
+            data_serilizer = JobActivityUserSerializer(data, many=True, context={'request': request})
             context = {
                 'message': "Data Found",
                 'status': status.HTTP_200_OK,
