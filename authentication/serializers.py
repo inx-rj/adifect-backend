@@ -130,12 +130,13 @@ class UserCommunicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserCommunicationMode
         fields = '__all__'
+        extra_kwargs = {'mode_value': {'required': True}}
 
     def validate(self, data):
         try:
             if data['mode_value'] and data['communication_mode'] == 0:
                 validate_email(data['mode_value'])
-            elif data['mode_value'] and data['communication_mode'] == 1 or 2:
+            elif data['mode_value'] and (data['communication_mode'] == 1 or data['communication_mode'] ==2):
                 if not data['mode_value'].isnumeric():
                     raise serializers.ValidationError('Please Enter valid phone number.')
         except ValidationError:

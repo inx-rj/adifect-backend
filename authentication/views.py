@@ -743,16 +743,16 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
             if serializer.validated_data['is_preferred'] is True:
                 self.get_queryset().filter(user=instance.user, is_preferred=True).update(is_preferred=False)
             self.perform_update(serializer)
-        context = {
-            'message': 'Updated Succesfully',
-            'status': status.HTTP_200_OK,
-            'errors': serializer.errors,
-            'data': serializer.data,
-        }
+            context = {
+                    'message': 'Updated Succesfully',
+                    'status': status.HTTP_200_OK,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+            }
+        else:
+           return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         return Response(context)
-
-
-
+        
 
 
 

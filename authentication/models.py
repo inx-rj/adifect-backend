@@ -157,7 +157,7 @@ class UserCommunicationMode(BaseModel):
     communication_mode = models.IntegerField(choices=Modes.choices, default=Modes.Email)
     user = models.ForeignKey(CustomUser, related_name="user_communication_mode", on_delete=models.SET_NULL, blank=True,
                              null=True)
-    mode_value = models.CharField(max_length=1000, null=True, blank=True)
+    mode_value = models.CharField(max_length=1000,default=None)
     is_preferred = models.BooleanField(default=False)
 
     # def __str__(self) -> str:

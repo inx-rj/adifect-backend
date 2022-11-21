@@ -5,8 +5,9 @@ from statistics import mode
 from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
-     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
-    JobTemplateAttachments, Question, Answer,UserSkills,JobActivity,JobActivityChat,JobTemplateTasks,JobActivityAttachments,SubmitJobWork,JobWorkAttachments,MemberApprovals,JobWorkActivity
+    JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
+    JobTemplateAttachments, Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, \
+    JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
@@ -14,6 +15,8 @@ from agency.models import Workflow_Stages
 from langcodes import Language
 import datetime as dt
 from django.db.models import Q
+
+
 class userPortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUserPortfolio
@@ -21,13 +24,15 @@ class userPortfolioSerializer(serializers.ModelSerializer):
 
 
 class EditProfileSerializer(serializers.ModelSerializer):
-    Portfolio_user = userPortfolioSerializer(many=True,required=False)
+    Portfolio_user = userPortfolioSerializer(many=True, required=False)
     user_level = SerializerMethodField("get_user_level")
+
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_title', 'profile_description', 'role', 'video',
                   'profile_img', 'profile_status', 'profile_status', 'preferred_communication_mode',
-                  'preferred_communication_id','availability','Portfolio_user','user_level','sub_title','Language','website']
+                  'preferred_communication_id', 'availability', 'Portfolio_user', 'user_level', 'sub_title', 'Language',
+                  'website']
 
         extra_kwargs = {
             'email': {'read_only': True},
@@ -54,17 +59,20 @@ class EditProfileSerializer(serializers.ModelSerializer):
 
 class UserListSerializer(serializers.ModelSerializer):
     user_rating = SerializerMethodField("get_user_rating")
+
     # agency_company = SerializerMethodField("get_company_list")
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', "username", "first_name", "last_name","role" ,"date_joined","is_blocked","profile_img","profile_status","user_rating"]
+        fields = ['id', 'email', "username", "first_name", "last_name", "role", "date_joined", "is_blocked",
+                  "profile_img", "profile_status", "user_rating"]
 
-    def get_user_rating(self,obj):
+    def get_user_rating(self, obj):
         return obj.skills_user.all().values('skill_rating')
 
     # def get_company_list(self, obj):
     #     return obj.company_agency.all().values()
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -131,7 +139,6 @@ class JobSerializer(serializers.ModelSerializer):
             for i in skills_data:
                 job.skills.add(i)
 
-
         job.save()
         return job
 
@@ -139,12 +146,10 @@ class JobSerializer(serializers.ModelSerializer):
 class JobAttachmentsThumbnailSerializer(serializers.ModelSerializer):
     job_image_name = SerializerMethodField("get_image_name")
     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+
     class Meta:
         model = JobAttachments
         exclude = ('job_images', 'work_sample_images',)
-
-
-
 
     def get_image_name(self, obj):
         if obj.job_images:
@@ -156,9 +161,11 @@ class JobAttachmentsThumbnailSerializer(serializers.ModelSerializer):
             return str(obj.work_sample_images).split('/')[-1]
         return None
 
+
 class JobAttachmentsSerializer(serializers.ModelSerializer):
     job_image_name = SerializerMethodField("get_image_name")
     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+
     class Meta:
         model = JobAttachments
         fields = '__all__'
@@ -192,6 +199,7 @@ class JobTasksSerializer(serializers.ModelSerializer):
         model = JobTasks
         fields = '__all__'
 
+
 class JobsWithAttachmentsThumbnailSerializer(serializers.ModelSerializer):
     images = JobAttachmentsThumbnailSerializer(many=True)
     # category = CategorySerializer()
@@ -206,6 +214,7 @@ class JobsWithAttachmentsThumbnailSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
+
 
 class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     images = JobAttachmentsSerializer(many=True)
@@ -225,9 +234,10 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
     job_applied_id = SerializerMethodField("get_job_applied_id")
     is_edit = SerializerMethodField("get_is_edit")
     hired_users = SerializerMethodField("get_hired_users_list")
-    job_applied_modified =  SerializerMethodField("get_applied_modified")
-    is_expire =  SerializerMethodField("get_is_expire")
+    job_applied_modified = SerializerMethodField("get_applied_modified")
+    is_expire = SerializerMethodField("get_is_expire")
     flag = SerializerMethodField("flag_list")
+    users_applied_status = SerializerMethodField("get_users_applied_status")
 
     class Meta:
         model = Job
@@ -264,7 +274,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-    def get_company_name(self,obj):
+    def get_company_name(self, obj):
         try:
             if obj.company:
                 return obj.company.name
@@ -273,7 +283,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-    def get_industry_name(self,obj):
+    def get_industry_name(self, obj):
         try:
             if obj.industry:
                 return obj.industry.industry_name
@@ -281,8 +291,8 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
-    
-    def get_username(self,obj):
+
+    def get_username(self, obj):
         try:
             if obj.user:
                 return obj.user.username
@@ -327,19 +337,18 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return ''
         except:
             return ''
-    
+
     def get_job_applied_id(self, obj):
         request = self.context.get('request')
         jobAppliedObj = JobApplied.objects.filter(job=obj.id, user=request.user).first()
         if jobAppliedObj:
-           return jobAppliedObj.id
+            return jobAppliedObj.id
         else:
             return "False"
 
     def get_is_edit(self, obj):
         try:
             if obj.job_applied.filter(Q(status=2) | Q(status=3)):
-
                 return False
             return True
         except Exception as e:
@@ -348,39 +357,46 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_hired_users_list(self, obj):
         request = self.context.get('request')
-        usersObj = JobApplied.objects.filter(Q(job=obj.id) & Q(Q(status=2)|Q(status=3)))
+        usersObj = JobApplied.objects.filter(Q(job=obj.id) & Q(Q(status=2) | Q(status=3) | Q(status=4)))
         if usersObj:
-            return usersObj.values('user__username','user_id')
+            return usersObj.values('user__username', 'user_id')
         else:
             return ""
 
     def get_applied_modified(self, obj):
         if obj:
             # obj.job_applied.filter(user=self.context['request'].user,is_modified=True,status=1):
-           # applied = JobApplied.objects.filter(job=obj,user=self.context['request'].user,is_modified=True).first()
-           applied =  obj.job_applied.filter(user=self.context['request'].user,is_modified=True,status=0)
-           if applied:
-               return True
-           return False
+            # applied = JobApplied.objects.filter(job=obj,user=self.context['request'].user,is_modified=True).first()
+            applied = obj.job_applied.filter(user=self.context['request'].user, is_modified=True, status=0)
+            if applied:
+                return True
+            return False
         else:
             return False
 
-    def get_is_expire(self,obj):
-       if obj.job_due_date is not None:
+    def get_is_expire(self, obj):
+        if obj.job_due_date is not None:
             if obj.job_due_date < dt.datetime.today().date():
                 return True
             return False
-       return False
-    
+        return False
 
     def flag_list(self, obj):
         request = self.context.get('request')
         if obj.job_due_date is not None:
-            if obj.job_due_date<dt.datetime.today().date():
+            if obj.job_due_date < dt.datetime.today().date():
                 return "time up"
             else:
                 return ""
         return False
+
+    def get_users_applied_status(self, obj):
+        request = self.context.get('request')
+        usersObj = JobApplied.objects.filter(job=obj.id)
+        if usersObj:
+            return usersObj.values('user__username', 'user_id','status')
+        else:
+            return ""
 
 
 #
@@ -418,6 +434,7 @@ class JobAppliedAttachmentsSerializer(serializers.ModelSerializer):
         model = JobAppliedAttachments
         fields = '__all__'
 
+
 class JobAppliedSerializer(serializers.ModelSerializer):
     full_name = SerializerMethodField("get_fullname")
     profile_img = serializers.SerializerMethodField("get_profile_img")
@@ -425,6 +442,7 @@ class JobAppliedSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplied
         fields = '__all__'
+
     def get_fullname(self, obj):
         try:
             if obj.user:
@@ -442,7 +460,7 @@ class JobAppliedSerializer(serializers.ModelSerializer):
             else:
                 return ''
         except Exception as err:
-            return ''        
+            return ''
 
     def create(self, validated_data):
         job_applied = JobApplied.objects.create(**validated_data)
@@ -463,12 +481,11 @@ class JobAppliedSerializer(serializers.ModelSerializer):
         return response
 
 
-
-
 class JobFilterSerializer(serializers.Serializer):
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     skills = serializers.CharField(max_length=200, required=False)
     tags = serializers.CharField(max_length=100, required=False)
+
 
 #
 # class JobHiredSerializer(serializers.ModelSerializer):
@@ -498,8 +515,6 @@ class PreferredLanguageSerializer(serializers.ModelSerializer):
             return ''
 
 
-
-
 class JobTemplateSerializer(serializers.ModelSerializer):
     image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
                                   validators=[validate_file_extension])
@@ -513,7 +528,8 @@ class JobTemplateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
-    def get_job_type(self,obj):
+
+    def get_job_type(self, obj):
         if obj.job_type:
             return str(obj.job_type)
         return ''
@@ -543,6 +559,7 @@ class JobTemplateSerializer(serializers.ModelSerializer):
 class JobTemplateAttachmentsSerializer(serializers.ModelSerializer):
     job_image_name = SerializerMethodField("get_image_name")
     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+
     class Meta:
         model = JobTemplateAttachments
         fields = '__all__'
@@ -556,7 +573,6 @@ class JobTemplateAttachmentsSerializer(serializers.ModelSerializer):
         if obj.work_sample_images:
             return str(obj.work_sample_images).split('/')[-1]
         return None
-
 
 
 class JobTemplateTasksSerializer(serializers.ModelSerializer):
@@ -579,14 +595,12 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
 
-
     class Meta:
         model = JobTemplate
         fields = '__all__'
         extra_kwargs = {
             'expected_delivery_date': {'required': True},
         }
-
 
     def get_job_type(self, obj):
         if obj.job_type:
@@ -635,10 +649,10 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
             return obj.workflow.name
         return ''
 
-    def get_status(self,obj):
+    def get_status(self, obj):
         return obj.get_status_display()
 
-    def get_company_name(self,obj):
+    def get_company_name(self, obj):
         try:
             if obj.company:
                 return obj.company.name
@@ -647,7 +661,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
-    def get_industry_name(self,obj):
+    def get_industry_name(self, obj):
         try:
             if obj.industry:
                 return obj.industry.industry_name
@@ -657,9 +671,6 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
             return ''
 
 
-
-
-
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")
 
@@ -667,43 +678,47 @@ class AnswerSerializer(serializers.ModelSerializer):
         model = Answer
         fields = '__all__'
 
-
     def getUsername(self, obj):
         if obj.agency is not None:
             return obj.agency.username
-        if  obj.job_applied is not None:
+        if obj.job_applied is not None:
             return obj.job_applied.user.username
         return ''
 
+
 class QuestionSerializer(serializers.ModelSerializer):
-    answer_question = AnswerSerializer(many=True,required=False)
+    answer_question = AnswerSerializer(many=True, required=False)
+
     def getUsername(self, obj):
         return obj.user.username
 
     username = serializers.SerializerMethodField("getUsername")
+
     class Meta:
         model = Question
         fields = '__all__'
 
 
-
 class UserSkillsSerializer(serializers.ModelSerializer):
     # skills = SkillsSerializer(required=False)
     skill_name = serializers.SerializerMethodField("get_skill_name")
+
     class Meta:
         model = UserSkills
         fields = '__all__'
 
-    def get_skill_name(self,obj):
+    def get_skill_name(self, obj):
         if obj.skills is not None:
             return obj.skills.skill_name
         return ''
+
 
 # --------------                           job activity                      -----------------#
 
 
 class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
     work_attachments_name = serializers.SerializerMethodField("get_work_attachments_name")
+
     class Meta:
         model = JobWorkAttachments
         fields = '__all__'
@@ -713,11 +728,14 @@ class JobWorkAttachmentsSerializer(serializers.ModelSerializer):
             return str(obj.work_attachments.name).split('/')[-1]
         return
 
+
 class SubmitJobWorkSerializer(serializers.ModelSerializer):
-    job_submit_Work = JobWorkAttachmentsSerializer(many=True,required=False)
-    attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,validators=[validate_file_extension])
+    job_submit_Work = JobWorkAttachmentsSerializer(many=True, required=False)
+    attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
+                                        validators=[validate_file_extension])
     user_details = serializers.SerializerMethodField("get_user_details")
-    task =  serializers.SerializerMethodField("get_task")
+    task = serializers.SerializerMethodField("get_task")
+
     class Meta:
         model = SubmitJobWork
         fields = '__all__'
@@ -729,25 +747,27 @@ class SubmitJobWorkSerializer(serializers.ModelSerializer):
             except Exception as e:
                 print(e)
                 profile_pic = ''
-            return {'user_id':obj.job_applied.user.id,'user_pic':profile_pic,'user_name':obj.job_applied.user.get_full_name()}
+            return {'user_id': obj.job_applied.user.id, 'user_pic': profile_pic,
+                    'user_name': obj.job_applied.user.get_full_name()}
         return {}
 
-    def get_task(self,obj):
+    def get_task(self, obj):
         if obj.task is not None:
-            return {'id':obj.task.id,'title':obj.task.title,'due_date':obj.task.due_date}
+            return {'id': obj.task.id, 'title': obj.task.title, 'due_date': obj.task.due_date}
         return {}
+
 
 class MemberApprovalsSerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer(required=False)
+
     class Meta:
         model = MemberApprovals
         fields = '__all__'
 
 
-
-
 class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
     image_name = serializers.SerializerMethodField("get_image_name")
+
     class Meta:
         model = JobActivityAttachments
         fields = '__all__'
@@ -757,16 +777,20 @@ class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
             return str(obj.chat_attachment.name).split('/')[-1]
         return ''
 
+
 class JobActivityChatSerializer(serializers.ModelSerializer):
-    activity_job_attachments = JobActivityAttachmentsSerializer(many=True,required=False)
+    activity_job_attachments = JobActivityAttachmentsSerializer(many=True, required=False)
+
     class Meta:
         model = JobActivityChat
         fields = '__all__'
+
 
 class JobApplied_serializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplied
         fields = '__all__'
+
 
 class JobWorkActivitySerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer()
@@ -774,14 +798,17 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
     approver_name = serializers.SerializerMethodField("get_approver_name")
     approver_image = serializers.SerializerMethodField("get_approver_image")
     approver_message = serializers.SerializerMethodField("get_approver_message")
-    workflow =  serializers.SerializerMethodField("get_workflow_stage")
+    workflow = serializers.SerializerMethodField("get_workflow_stage")
+
     class Meta:
         model = JobWorkActivity
         fields = '__all__'
 
-    def get_workflow_stage(self,obj):
+    def get_workflow_stage(self, obj):
         if obj.workflow_stage is not None:
-            return {'workflow_name':obj.workflow_stage.workflow.name,'workflow_stage':obj.workflow_stage.order,'stage_id':obj.workflow_stage.id,'stage_name':obj.workflow_stage.name,'stage_count':Workflow_Stages.objects.filter(workflow=obj.workflow_stage.workflow).count()}
+            return {'workflow_name': obj.workflow_stage.workflow.name, 'workflow_stage': obj.workflow_stage.order,
+                    'stage_id': obj.workflow_stage.id, 'stage_name': obj.workflow_stage.name,
+                    'stage_count': Workflow_Stages.objects.filter(workflow=obj.workflow_stage.workflow).count()}
 
     def get_approver_name(self, obj):
         try:
@@ -807,7 +834,6 @@ class JobWorkActivitySerializer(serializers.ModelSerializer):
             return ''
 
 
-
 class customUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
@@ -816,13 +842,14 @@ class customUserSerializer(serializers.ModelSerializer):
 
 class JobActivitySerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
-    agency_name  = serializers.SerializerMethodField("get_agency_name")
-    agency_img  = serializers.SerializerMethodField("get_agency_img")
+    agency_name = serializers.SerializerMethodField("get_agency_name")
+    agency_img = serializers.SerializerMethodField("get_agency_img")
     user_full_name = serializers.SerializerMethodField("get_user_name")
-    user_img  = serializers.SerializerMethodField("get_user_img")
-    activity_job_chat = JobActivityChatSerializer(many=True,required=False)
-    activity_job_work = JobWorkActivitySerializer(many=True,required=False)
+    user_img = serializers.SerializerMethodField("get_user_img")
+    activity_job_chat = JobActivityChatSerializer(many=True, required=False)
+    activity_job_work = JobWorkActivitySerializer(many=True, required=False)
     job_applied_data = serializers.SerializerMethodField("get_job_applied_data")
+
     class Meta:
         model = JobActivity
         fields = '__all__'
@@ -833,9 +860,8 @@ class JobActivitySerializer(serializers.ModelSerializer):
             chat = validated_data.pop('activity_job_chat')
         activity_create = JobActivity.objects.create(**validated_data)
         if chat and activity_create:
-            JobActivityChat.objects.create(job_activity=activity_create,**chat[0])
+            JobActivityChat.objects.create(job_activity=activity_create, **chat[0])
         return activity_create
-
 
     # def get_activity(self, obj):
     #     if obj.activity_type:
@@ -844,21 +870,20 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
     def get_user_name(self, obj):
         if obj.user is not None:
-            return {'user_name':obj.user.get_full_name(),'id':obj.user.id}
+            return {'user_name': obj.user.get_full_name(), 'id': obj.user.id}
         return ''
 
     def get_job_applied_data(self, obj):
-        if obj.activity_type==3 and obj.activity_status==0:
+        if obj.activity_type == 3 and obj.activity_status == 0:
             # JobAppliedSerializer
             # return obj.job.job_applied.filter(user=obj.user).values()
-            return JobAppliedSerializer(obj.job.job_applied.filter(user=obj.user),many=True).data
+            return JobAppliedSerializer(obj.job.job_applied.filter(user=obj.user), many=True).data
         else:
             return ''
 
-
     def get_agency_name(self, obj):
         if obj.job.user is not None:
-            return  {'agency_name':obj.job.user.get_full_name(),'id':obj.job.user.id}
+            return {'agency_name': obj.job.user.get_full_name(), 'id': obj.job.user.id}
 
     def get_agency_img(self, obj):
         try:
@@ -888,12 +913,12 @@ class JobActivitySerializer(serializers.ModelSerializer):
 class JobActivityUserSerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
     user_image = serializers.SerializerMethodField("get_user_img")
-    user_name =  serializers.SerializerMethodField("get_user_name")
+    user_name = serializers.SerializerMethodField("get_user_name")
     user_full_name = serializers.SerializerMethodField("get_user_full_name")
 
     class Meta:
         model = JobActivity
-        fields = ('user_image','user_name','user_full_name','user')
+        fields = ('user_image', 'user_name', 'user_full_name', 'user')
 
     def get_user_img(self, obj):
         try:
@@ -925,9 +950,10 @@ class JobActivityUserSerializer(serializers.ModelSerializer):
             return ''
 
 
-#--------------------------------                        end             -------------------------------------------- #
+# --------------------------------                        end             -------------------------------------------- #
 class UserPortfolioSerializer(serializers.ModelSerializer):
     portfolio_name = serializers.SerializerMethodField("get_portfolio_name")
+
     class Meta:
         model = CustomUserPortfolio
         fields = '__all__'
@@ -940,5 +966,3 @@ class UserPortfolioSerializer(serializers.ModelSerializer):
 
 class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
-
-
