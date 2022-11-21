@@ -176,7 +176,9 @@ class DAM(BaseModel):
     type = models.IntegerField(choices=Type.choices, default=None)
     is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
-    is_favourite = models.BooleanField(default=False)
+    is_favourite = models.BooleanField(default=False) 
+    applied_creator = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_creator")
+
 
     class Meta:
         verbose_name_plural = 'DAM'
@@ -211,6 +213,7 @@ class DamMedia(BaseModel):
     skills = models.ManyToManyField('administrator.skills',blank=True)
     tags = models.CharField(max_length=10000,null=True, blank=True)
     job_count = models.IntegerField(default=0)
+
 
 
     class Meta:

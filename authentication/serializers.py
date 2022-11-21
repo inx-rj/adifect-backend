@@ -135,6 +135,9 @@ class UserCommunicationSerializer(serializers.ModelSerializer):
         try:
             if data['mode_value'] and data['communication_mode'] == 0:
                 validate_email(data['mode_value'])
+            elif data['mode_value'] and data['communication_mode'] == 1 or 2:
+                if not data['mode_value'].isnumeric():
+                    raise serializers.ValidationError('Please Enter valid phone number.')
         except ValidationError:
             raise serializers.ValidationError('Please Enter valid Email.')
         return data

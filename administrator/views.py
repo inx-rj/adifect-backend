@@ -35,7 +35,7 @@ from authentication.serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 import json
-from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia
+from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia,DAM
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer, \
     InviteMemberSerializer, MyProjectSerializer
 from rest_framework.decorators import action
@@ -2003,6 +2003,22 @@ def JobWorkApprovalEmail(approver, work):
     except Exception as e:
         print(e)
 
+def JobWorkEditEmail(user, work):
+    try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+            img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
+        subject = "Job Work Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have request for edit this work. Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 0px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), user.email, subject, content)
+    except Exception as e:
+        print(e)
+
 
 @permission_classes([IsAuthenticated])
 class JobWorkSubmitViewSet(viewsets.ModelViewSet):
@@ -2188,6 +2204,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
                     MemberApprovals.objects.filter(job_work=instance.job_work,
                                                    workflow_stage=instance.workflow_stage).update(status=2)
+                    JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
 
@@ -2393,3 +2410,48 @@ class JobActivityUserList(APIView):
                 'error': True
             }
         return Response(context)
+
+
+
+@permission_classes([IsAuthenticated])
+class JobCompletedViewSet(viewsets.ModelViewSet):
+    serializer_class = JobAppliedSerializer
+    queryset = JobApplied.objects.filter(is_trashed=False)
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+   
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        data = request.data
+        print(request.data)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            status_job = serializer.validated_data.get('status', None)
+            test_status = None
+            if status_job == 4:
+                test_status = JobActivity.Type.Completed
+            if test_status:
+                JobActivity.objects.create(job=instance.job, activity_type=test_status, user=request.user)
+            work_attachment = JobWorkAttachments.objects.filter(job_work__job_applied=instance, job_work__status=1)
+            if work_attachment:
+                for i in work_attachment:
+                    dam = DAM.objects.create(agency=instance.job.user,type=3,applied_creator=instance.user)
+                    try:
+                        dam_media = DamMedia.objects.create(dam=dam, title=str(i.work_attachments.name).split('/')[-1], media=i.work_attachments)
+                    except Exception as e :
+                        print(e)
+            context = {
+                'message': 'Job Completed',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+        else:
+            context = {
+                'message': 'You cannot update the proposal',
+                'errors': serializer.errors,
+            }
+        return Response(context)
+

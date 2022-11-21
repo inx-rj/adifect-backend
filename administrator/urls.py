@@ -47,6 +47,8 @@ router.register(r'user-portfolio', views.UserPortfolioViewset, basename='user_po
 router.register(r'agency-job-details', views.AgencyJobDetailsViewSet, basename='agency_job_details')
 router.register(r'submit-job-work', views.JobWorkSubmitViewSet, basename='submit_job_work')
 router.register(r'member-work-approval', views.MemberApprovalViewSet, basename='member_work_approval')
+router.register(r'completed-job', views.JobCompletedViewSet, basename='completed_job')
+
 
 #-------------------------------------  END  ---------------------------------------------#
 
