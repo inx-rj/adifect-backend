@@ -8,6 +8,7 @@ router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename
 router.register(r'member-job-list', views.MemberJobListViewSet, basename='member_job_list')
 router.register(r'member-approval-job-list', views.MemberApprovalJobListViewSet, basename='member_approval_job_list')
 router.register(r'invited-user-company-list', views.InviteUserCompanyListViewSet, basename='member_approval_job_list')
+router.register(r'member-marketer-job', views.MemberMarketerJobViewSet, basename='member_marketer_job')
 
 urlpatterns = [
 

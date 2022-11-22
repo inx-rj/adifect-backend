@@ -290,3 +290,47 @@ class GetRejectedWork(APIView):
                 'error': True
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+@permission_classes([IsAuthenticated])
+class GetTaskList(APIView):
+    queryset = SubmitJobWork.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        job = request.data.get('job', None)
+        user = request.data.get('user', None)
+        if job and user:
+            get_task = self.queryset.filter(job_applied__job__id=job, job_applied__user_id=user, status=1).values('task__title','task')
+            context = {
+                'message': 'Success',
+                'Data':get_task,
+                'status': status.HTTP_200_OK,
+                'error': True
+            }
+            return Response(context, status=status.HTTP_200_OK)
+        else:
+            context = {
+                'message': 'Job Or User Not Found',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'error': True
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class CreatorJobsCountViewSet(viewsets.ModelViewSet):
+    serializer_class = JobAppliedSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    pagination_class = FiveRecordsPagination
+    queryset = JobApplied.objects.filter(is_trashed=False)
+
+    def list(self, request, *args, **kwargs):
+        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,
+                                                                    user__is_account_closed=False).order_by("-modified")
+        job_count = job_data.count()
+        in_review = job_data.filter(status=2)
+        in_review_count = in_review.count()
+        context = {
+            'Total_Job_count': job_count,
+            'In_progress_jobs': in_review_count,
+        }
+        return Response(context)

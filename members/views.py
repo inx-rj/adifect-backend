@@ -14,10 +14,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from agency.models import Workflow_Stages, InviteMember
+from authentication.manager import IsAdminMember, IsMarketerMember, IsApproverMember
 from agency.serializers import InviteMemberSerializer
 
 
 # Create your views here.
+@permission_classes([IsAuthenticated])
 class MemberApprovedJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
     queryset = JobApplied.objects.filter(is_trashed=False)
@@ -58,6 +60,7 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
+@permission_classes([IsAuthenticated])
 class MemberJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Workflow_Stages.objects.all()
@@ -82,6 +85,7 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
 
+@permission_classes([IsAuthenticated])
 class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = MemberApprovals.objects.all()
@@ -104,6 +108,8 @@ class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
+
+@permission_classes([IsAdminMember | IsApproverMember | IsMarketerMember])
 class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all()
@@ -112,3 +118,27 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsAuthenticated])
+class MemberMarketerJobViewSet(viewsets.ModelViewSet):
+    serializer_class = JobAppliedSerializer
+    queryset = JobApplied.objects.filter(is_trashed=False)
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def list(self, request, *args, **kwargs):
+        jobs = Job.objects.filter(workflow__stage_workflow__observer__user__user=request.user)
+        queryset = JobApplied.objects.filter(job__workflow__stage_workflow__observer__user__user=request.user)
+        job_count = jobs.count()
+        job_review = queryset.filter(status=3).count()
+        job_progress = queryset.filter(status=2).count()
+        job_completed = queryset.filter(status=4).count()
+        serializer = self.serializer_class(queryset, many=True, context={request: request})
+        context = {
+            'Total_Job_count': job_count,
+            'In_progress_jobs': job_progress,
+            'In_review': job_review,
+            'completed_jobs': job_completed,
+            'data': serializer.data,
+        }
+        return Response(context, status=status.HTTP_200_OK)

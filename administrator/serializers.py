@@ -735,7 +735,7 @@ class SubmitJobWorkSerializer(serializers.ModelSerializer):
     attach_file = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
                                         validators=[validate_file_extension])
     user_details = serializers.SerializerMethodField("get_user_details")
-    task = serializers.SerializerMethodField("get_task")
+    task_details = serializers.SerializerMethodField("get_task")
 
     class Meta:
         model = SubmitJobWork
