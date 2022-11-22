@@ -71,6 +71,7 @@ class Company(BaseModel):
     company_website = models.CharField(max_length=30, null=True, blank=True)
     company_profile_img = models.ImageField(upload_to='company_image/', null=True, blank=True,
                                             validators=[validate_image])
+    industry = models.ForeignKey(Industry,null=True,blank=True,on_delete=models.SET_NULL,related_name='company_industry')
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
 

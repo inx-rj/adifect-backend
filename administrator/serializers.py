@@ -7,7 +7,8 @@ from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
     JobTemplateAttachments, Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, \
-    JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity
+    JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity, \
+    JobWorkActivityAttachments
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
@@ -394,7 +395,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         usersObj = JobApplied.objects.filter(job=obj.id)
         if usersObj:
-            return usersObj.values('user__username', 'user_id','status')
+            return usersObj.values('user__username', 'user_id', 'status')
         else:
             return ""
 
@@ -792,8 +793,23 @@ class JobApplied_serializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class JobWorkActivityAttachmentsSerializer(serializers.ModelSerializer):
+    attachment_name = serializers.SerializerMethodField("get_attachment_name")
+
+    class Meta:
+        model = JobWorkActivityAttachments
+        fields = '__all__'
+
+    def get_attachment_name(self, obj):
+        if obj.work_attachment is not None:
+            return str(obj.work_attachment.name).split('/')[-1]
+        return ''
+
+
 class JobWorkActivitySerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer()
+    job_work_activity_attachments = JobWorkActivityAttachmentsSerializer(many=True, required=False)
+
     # approver = MemberApprovalsSerializer()
     approver_name = serializers.SerializerMethodField("get_approver_name")
     approver_image = serializers.SerializerMethodField("get_approver_image")

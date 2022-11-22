@@ -32,6 +32,7 @@ class IndustrySerializer(serializers.ModelSerializer):
 class CompanySerializer(serializers.ModelSerializer):
     is_assigned_workflow = SerializerMethodField("get_assigned_workflow")
     agency_name = SerializerMethodField("get_agency_name")
+    industry = SerializerMethodField("get_industry_name")
 
     class Meta:
         model = Company
@@ -67,6 +68,11 @@ class CompanySerializer(serializers.ModelSerializer):
             if obj.agency is not None:
                     return obj.agency.username
             return ''
+
+    def get_industry_name(self, obj):
+        if obj.industry is not None:
+                return obj.industry.industry_name
+        return ''
 
 
 class WorksFlowSerializer(serializers.ModelSerializer):

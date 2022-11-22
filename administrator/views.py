@@ -20,7 +20,7 @@ from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
-    JobWorkAttachments, MemberApprovals, JobWorkActivity
+    JobWorkAttachments, MemberApprovals, JobWorkActivity,JobWorkActivityAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -1981,7 +1981,7 @@ def JobWorkSubmitEmail(user, work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
         subject = "Job Work Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have Submitted this work for Approval! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {user.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have Submitted this work for Approval! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), user.email, subject, content)
     except Exception as e:
         print(e)
@@ -1998,7 +1998,7 @@ def JobWorkApprovalEmail(approver, work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
         subject = "Job Work Approver Submit"
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">Here I`m delivering the work with changes.<br />I hope you like it.</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
     except Exception as e:
         print(e)
@@ -2040,24 +2040,24 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        print(request.data)
-        print("hiiiiii")
         if serializer.is_valid():
-            print(serializer.validated_data)
             # ----- work flow for approvals detail -----#
             job = serializer.validated_data['job_applied'].job
             self.perform_create(serializer)
             latest_work = SubmitJobWork.objects.latest('id')
             attachment = request.FILES.getlist('work_attachments')
-            if attachment:
-                for i in attachment:
-                    JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
-            JobWorkSubmitEmail(latest_work.job_applied.user, latest_work)
-            JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
+            activity_attachment = request.FILES.getlist('work_activity_attachments')
             activity = JobActivity.objects.create(job=job, activity_status=2,
                                                   user=serializer.validated_data['job_applied'].user)
-            JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
-                                           work_activity='submit_approval')
+            work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
+                                                           work_activity='submit_approval',
+                                                           message_work=latest_work.message)
+            if attachment:
+                for ind,i in enumerate(attachment):
+                    JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
+                    JobWorkActivityAttachments.objects.create(work_activity=work_activity,work_attachment=activity_attachment[ind])
+            JobWorkSubmitEmail(latest_work.job_applied.user, latest_work)
+            JobApplied.objects.filter(pk=serializer.validated_data['job_applied'].id).update(status=3)
 
             if job.workflow:
                 workflow = job.workflow
@@ -2101,16 +2101,19 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_update(serializer)
             attachment = request.FILES.getlist('work_attachments')
+            activity_attachment = request.FILES.getlist('work_activity_attachments')
             JobWorkAttachments.objects.filter(job_work=instance).delete()
-            if attachment:
-                for i in attachment:
-                    JobWorkAttachments.objects.create(job_work=instance, work_attachments=i)
-            JobWorkSubmitEmail(instance.job_applied.user, instance)
-
             activity = JobActivity.objects.create(job=instance.job_applied.job, activity_status=2,
                                                   user=instance.job_applied.user)
-            JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
+            work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
                                            work_activity='submit_approval')
+            for ind, i in enumerate(attachment):
+                JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
+                JobWorkActivityAttachments.objects.create(work_activity=work_activity,
+                                                          work_attachment=activity_attachment[ind])
+            JobWorkSubmitEmail(instance.job_applied.user, instance)
+
+
 
             stages_id_list = set(
                 MemberApprovals.objects.filter(job_work=instance, workflow_stage__is_approval=True).values_list(
@@ -2187,7 +2190,6 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
             if serializer.validated_data['status']:
                 # ----------------- create activity ------------------#
                 if serializer.validated_data['status'] == 1:
-                    print("hiitt")
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
                     JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
@@ -2214,12 +2216,10 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                 total_stage_count = instance.job_work.job_applied.job.workflow.stage_workflow.all().count()
                 for i in instance.job_work.job_applied.job.workflow.stage_workflow.all():
                     member_count = i.approvals.all().count()
-                    print("indside loop")
                     if i.is_all_approval:
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
                         if stage_clear == member_count:
-                            print("clear")
                             stage_id_list.append(i.id)
                             # for j in i.approvals.all():
                             #     MemberApprovals.objects.create(job_work=instance.job_work, approver=j, workflow_stage=i)
@@ -2228,12 +2228,9 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
                             #         stage_id_list.append(i.id)
                     else:
-                        print("here .......")
                         stage_clear = MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i,
                                                                      status=1).count()
-                        print("stage clear ...")
                         if stage_clear:
-                            print("hit jiii")
                             stage_id_list.append(i.id)
                         # else:
                         #     if MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=i):
@@ -2247,7 +2244,6 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                     if new_stage:
                         if not MemberApprovals.objects.filter(job_work=instance.job_work, workflow_stage=new_stage[0],
                                                               status=0):
-                            print("here")
                             created = 0
                             for j in new_stage[0].approvals.all():
                                 created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,

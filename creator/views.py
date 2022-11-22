@@ -54,12 +54,16 @@ class CreatorJobsViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = Job.objects.filter(is_trashed=False, is_blocked=False)
 
+
+
     def retrieve(self, request, pk=None):
         id = pk
         if id is not None:
             job_data = self.queryset.get(id=id)
             serializer = JobsWithAttachmentsSerializer(job_data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    
 
     def create(self, request, *args, **kwargs):
         # ------ create not allowed ----#
