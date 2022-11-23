@@ -158,6 +158,17 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(company, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+    def retrieve(self, request, pk=None):
+        queryset = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(queryset, context={'request': request})
+        job_count = queryset.job_company.all().count()
+        context = {
+        'Total_Job_count': job_count,
+        'data': serializer.data
+
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
 
 
 @permission_classes([IsAdminMember])
