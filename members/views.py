@@ -13,9 +13,9 @@ from administrator.serializers import JobAppliedSerializer, JobActivitySerialize
 from rest_framework.response import Response
 from rest_framework import status
 
-from agency.models import Workflow_Stages, InviteMember
+from agency.models import Workflow_Stages, InviteMember, Company,WorksFlow
 from authentication.manager import IsAdminMember, IsMarketerMember, IsApproverMember
-from agency.serializers import InviteMemberSerializer
+from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer
 
 
 # Create your views here.
@@ -133,7 +133,7 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
         job_review = queryset.filter(status=3).count()
         job_progress = queryset.filter(status=2).count()
         job_completed = queryset.filter(status=4).count()
-        serializer = self.serializer_class(queryset, many=True, context={request: request})
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         context = {
             'Total_Job_count': job_count,
             'In_progress_jobs': job_progress,
@@ -142,3 +142,35 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
             'data': serializer.data,
         }
         return Response(context, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsApproverMember])
+class CompanyViewSet(viewsets.ModelViewSet):
+    serializer_class = CompanySerializer
+    queryset = Company.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['is_active', 'agency', 'is_blocked','name']
+    search_fields = ['=is_active']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        company = queryset.filter(invite_company_list__user__user=request.user)
+        serializer = self.serializer_class(company, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+
+@permission_classes([IsAdminMember])
+class WorksFlowViewSet(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company', 'is_blocked','agency']
+    search_fields = ['=company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        workflow_data = queryset.filter(stage_workflow__approvals__user__user=request.user)
+        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+

@@ -982,7 +982,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
     filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
-    search_fields = ['title']
+    search_fields = ['title','tags','skills__skill_name','dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
@@ -1373,7 +1373,7 @@ class MemberApprovedJobViewSet(viewsets.ModelViewSet):
         job_review = queryset.filter(status=3).count()
         job_progress = queryset.filter(status=2).count()
         job_completed = queryset.filter(status=4).count()
-        serializer = self.serializer_class(queryset, many=True, context={request: request})
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         context = {
             'Total_Job_count': job_count,
             'In_progress_jobs': job_progress,
