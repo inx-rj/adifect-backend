@@ -98,9 +98,10 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
-# #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator','agency': 'migrations.agency','creator':'migrations.creator'}
+# #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator',
+# 'agency': 'migrations.agency','creator':'migrations.creator'}
 #
-#
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
