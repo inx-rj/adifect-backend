@@ -11,6 +11,9 @@ router.register(r'invited-user-company-list', views.InviteUserCompanyListViewSet
 router.register(r'member-marketer-job', views.MemberMarketerJobViewSet, basename='member_marketer_job')
 router.register(r'company', views.CompanyViewSet, basename='company')
 router.register(r'workflow', views.WorksFlowViewSet, basename='workflow')
+router.register(r'admin-workflow-stages', views.MemberStageViewSet, basename='admin-workflow-stages')
+router.register(r'admin-my-project', views.MemberMyProjectViewSet, basename='admin_my_project')
+router.register(r'invite-member', views.InviteMemberViewSet, basename='invite_member')
 
 urlpatterns = [
 

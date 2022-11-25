@@ -32,6 +32,7 @@ from django.db.models import Count
 from django.db.models import Subquery
 import base64
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+import datetime as dt
 
 
 # Create your views here.
@@ -96,12 +97,17 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.filter(is_trashed=False).exclude(status=0)
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company']
+    filterset_fields = ['company','is_active','job_applied__status']
     search_fields = ['=company', '=name']
 
     def list(self, request, *args, **kwargs):
-        job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user, is_active=True,
-                                                                    user__is_account_closed=False).order_by("-modified")
+        if request.GET.get('expire'):
+            job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,
+                                                                        job_due_date__lt=dt.datetime.today(),
+                                                                        user__is_account_closed=False).order_by(
+                "-modified")
+        else:
+            job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,user__is_account_closed=False).order_by("-modified")
         job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -247,7 +253,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest, order=i['order'])
+                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -296,7 +302,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
-                                                                is_all_approval=i['is_all_approval'])
+                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -309,7 +315,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
-                                                              is_all_approval=i['is_all_approval'], order=i['order'])
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -1382,3 +1388,4 @@ class MemberApprovedJobViewSet(viewsets.ModelViewSet):
             'data': serializer.data,
         }
         return Response(context, status=status.HTTP_200_OK)
+

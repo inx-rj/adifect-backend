@@ -15,8 +15,9 @@ from rest_framework import status
 
 from agency.models import Workflow_Stages, InviteMember, Company,WorksFlow
 from authentication.manager import IsAdminMember, IsMarketerMember, IsApproverMember
-from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer
-
+from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer, MyProjectSerializer, StageSerializer
+from django.db.models import Subquery
+from rest_framework.decorators import action
 
 # Create your views here.
 @permission_classes([IsAuthenticated])
@@ -115,9 +116,9 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
     queryset = InviteMember.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user)
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency')
+        # serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=queryset, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -144,7 +145,7 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-@permission_classes([IsApproverMember])
+@permission_classes([IsApproverMember | IsAdminMember])
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
@@ -181,7 +182,77 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        workflow_data = queryset.filter(stage_workflow__approvals__user__user=request.user)
-        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
+@permission_classes([IsAdminMember])
+class MemberStageViewSet(viewsets.ModelViewSet):
+    serializer_class = StageSerializer
+    queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('order')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['workflow']
+    search_fields = ['=workflow', ]
+
+    @action(methods=['post'], detail=False, url_path='set_order/(?P<userId>[^/.]+)', url_name='set_order')
+    def set_order(self, request, *args, **kwargs):
+        try:
+            order_list = request.data.get('order_list', None)
+            if order_list:
+                order_list = order_list.split(",")
+                updated = False
+                for index, id in enumerate(order_list):
+                    updated = self.queryset.filter(pk=id).update(order=index)
+                if updated:
+                    return Response({"message": "Order Set Successfully", "error": False}, status=status.HTTP_200_OK)
+                else:
+                    return Response({"message": "Something Went Wrong", "error": True},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={'Error': str(e)})
+
+
+
+@permission_classes([IsAdminMember])
+class MemberMyProjectViewSet(viewsets.ModelViewSet):
+    serializer_class = MyProjectSerializer
+    queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
+    filter_backends = [DjangoFilterBackend, SearchFilter, ]
+    filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
+    ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
+    ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
+    search_fields = ['=status', ]
+    pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset())
+        ordering = request.GET.get('ordering', None)
+        filter_data = queryset.filter(
+            pk__in=Subquery(
+                queryset.order_by('job_id').distinct('job_id').values('pk')
+            )).order_by(ordering)
+        if request.GET.get('job__is_active', None) == 'true':
+            filter_data = filter_data.filter(job__is_active=True)
+        paginated_data = self.paginate_queryset(filter_data)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)        
+
+@permission_classes([IsMarketerMember | IsAdminMember])
+class InviteMemberViewSet(viewsets.ModelViewSet):
+    serializer_class = InviteMemberSerializer
+    queryset = InviteMember.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(is_trashed=False,
+                                                                    user__isnull=False,
+                                                                    agency__is_account_closed=False).order_by(
+            '-modified')
+        serializer = InviteMemberSerializer(queryset, many=True)
+        return Response(serializer.data)

@@ -26,6 +26,7 @@ router.register(r'member-approver-job-list', views.MemberApprovedJobViewSet, bas
 
 
 
+
 urlpatterns = [
     path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
          name='update_invite_member'),
