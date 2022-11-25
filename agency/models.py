@@ -212,7 +212,7 @@ class DamMedia(BaseModel):
     limit_usage_toggle = models.BooleanField(default=False)
     limit_usage = models.IntegerField(default=0)
     limit_used = models.IntegerField(default=0)
-    usage = models.IntegerField(choices=Type.choices, default=0)
+    usage = models.IntegerField(choices=Type.choices, default=1)
     usage_limit_reached = models.BooleanField(default=False)
     skills = models.ManyToManyField('administrator.skills',blank=True)
     tags = models.CharField(max_length=10000,null=True, blank=True)
