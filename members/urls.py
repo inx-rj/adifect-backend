@@ -14,8 +14,10 @@ router.register(r'workflow', views.WorksFlowViewSet, basename='workflow')
 router.register(r'admin-workflow-stages', views.MemberStageViewSet, basename='admin-workflow-stages')
 router.register(r'admin-my-project', views.MemberMyProjectViewSet, basename='admin_my_project')
 router.register(r'invite-member', views.InviteMemberViewSet, basename='invite_member')
+router.register(r'member-jobs', views.JobViewSet, basename='member_jobs')
+router.register(r'members-job-template', views.MemberJobTemplatesViewSet, basename='job_template')
 
 urlpatterns = [
-
+        path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
 ]
 urlpatterns += router.urls
