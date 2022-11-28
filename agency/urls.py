@@ -22,6 +22,8 @@ router.register(r'member-approval-job-list', views.MemberApprovalJobListViewSet,
 router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter')
 router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename='job_activity_member')
 router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
+router.register(r'member-approver-job-list', views.MemberApprovedJobViewSet, basename='member_approver_job_list')
+
 
 
 

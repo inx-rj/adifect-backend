@@ -13,6 +13,8 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from io import BytesIO
 from PIL import Image
 import sys
+import datetime
+
 # from administrator.models import Skills
 
 # Create your models here.
@@ -71,6 +73,7 @@ class Company(BaseModel):
     company_website = models.CharField(max_length=30, null=True, blank=True)
     company_profile_img = models.ImageField(upload_to='company_image/', null=True, blank=True,
                                             validators=[validate_image])
+    industry = models.ForeignKey(Industry,null=True,blank=True,on_delete=models.SET_NULL,related_name='company_industry')
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
 
@@ -158,6 +161,7 @@ class Workflow_Stages(BaseModel):
     workflow = models.ForeignKey(WorksFlow,  related_name="stage_workflow",on_delete=models.SET_NULL, null=True,
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
+    approval_time = models.IntegerField(default=36)
 
     class Meta:
         verbose_name_plural = 'Workflow Stages'
@@ -176,7 +180,9 @@ class DAM(BaseModel):
     type = models.IntegerField(choices=Type.choices, default=None)
     is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
-    is_favourite = models.BooleanField(default=False)
+    is_favourite = models.BooleanField(default=False) 
+    applied_creator = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_creator")
+
 
     class Meta:
         verbose_name_plural = 'DAM'
@@ -206,11 +212,12 @@ class DamMedia(BaseModel):
     limit_usage_toggle = models.BooleanField(default=False)
     limit_usage = models.IntegerField(default=0)
     limit_used = models.IntegerField(default=0)
-    usage = models.IntegerField(choices=Type.choices, default=0)
+    usage = models.IntegerField(choices=Type.choices, default=1)
     usage_limit_reached = models.BooleanField(default=False)
     skills = models.ManyToManyField('administrator.skills',blank=True)
     tags = models.CharField(max_length=10000,null=True, blank=True)
     job_count = models.IntegerField(default=0)
+
 
 
     class Meta:

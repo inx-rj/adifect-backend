@@ -15,6 +15,7 @@ import os
 from datetime import timedelta
 
 from dotenv import load_dotenv
+
 load_dotenv()  # loads the configs from .env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     'administrator',
     'creator',
     'agency',
+    'members',
 
     # 'category'
 ]
@@ -63,7 +65,6 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware'
 ]
-
 
 # CSRF_TRUSTED_ORIGINS = ['https://dev-api.adifect.com']
 CSRF_TRUSTED_ORIGINS = [os.environ.get('BACKEND_SITE_URL')]
@@ -97,9 +98,10 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
-# #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator','agency': 'migrations.agency','creator':'migrations.creator'}
+# #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator',
+# 'agency': 'migrations.agency','creator':'migrations.creator'}
 #
-#
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -150,7 +152,7 @@ STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
+# STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 # STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'), ]
 
 # Default primary key field type
@@ -222,6 +224,10 @@ AWS_DEFAULT_ACL = None
 AWS_S3_VERIFY = True
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# ---- cloud front ---#
+CLOUDFRONT_DOMAIN = os.environ.get('CDN_DOMAIN')
+AWS_S3_CUSTOM_DOMAIN = os.environ.get('CDN_DOMAIN')
+
 # Moov API Details
 MOOV_APPKEY = os.environ.get('MOOV_APPKEY')
 MOOV_LOGIN = os.environ.get('MOOV_LOGIN')
@@ -230,12 +236,11 @@ MOOV_LOGIN_TAX_API_URL = os.environ.get('MOOV_LOGIN_TAX_API_URL')
 MOOV_SAVE_PAYER_URL_2 = os.environ.get('MOOV_SAVE_PAYER_URL_2')
 SKYPE_USERNAME = os.environ.get('SKYPE_USERNAME')
 SKYPE_PASSWORD = os.environ.get('SKYPE_PASSWORD')
-TWILIO_NUMBER = os.environ.get('TWILIO_NUMBER') 
+TWILIO_NUMBER = os.environ.get('TWILIO_NUMBER')
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-#---------- 2nd twillio -----------------------------#
+# ---------- 2nd twillio -----------------------------#
 TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
-#----------------- end ------------------------------#
-
+# ----------------- end ------------------------------#

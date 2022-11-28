@@ -711,8 +711,48 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = self.queryset.filter(user=request.user, is_preferred=True)
+            if serializer.validated_data['is_preferred'] is True:
+                user.update(is_preferred=False)
+            self.perform_create(serializer)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
-
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            if serializer.validated_data['is_preferred'] is True:
+                self.get_queryset().filter(user=instance.user, is_preferred=True).update(is_preferred=False)
+            self.perform_update(serializer)
+            context = {
+                    'message': 'Updated Succesfully',
+                    'status': status.HTTP_200_OK,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+            }
+        else:
+           return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(context)
+        
 
 
 

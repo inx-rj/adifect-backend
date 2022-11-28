@@ -285,15 +285,24 @@ class JobWorkActivity(BaseModel):
                                  null=True, blank=True)
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_activity_stages", on_delete=models.SET_NULL,
                                        null=True, blank=True)
-
     work_activity = models.CharField(
         max_length=30,
         choices=Activity_choice,
         null=True, blank=True
     )
-
+    message_work = models.CharField(max_length=2000, blank=True, null=True)
     class Meta:
         verbose_name_plural = 'Job Work Activity'
+
+class JobWorkActivityAttachments(BaseModel):
+    work_activity = models.ForeignKey(JobWorkActivity, related_name='job_work_activity_attachments',
+                                          on_delete=models.SET_NULL, null=True, blank=True)
+    work_attachment = models.FileField(upload_to='activity_job_work_attachments', default=None, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Work Activity Attachments'
+
+
 
 
 class JobApplied(BaseModel):

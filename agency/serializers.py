@@ -32,6 +32,7 @@ class IndustrySerializer(serializers.ModelSerializer):
 class CompanySerializer(serializers.ModelSerializer):
     is_assigned_workflow = SerializerMethodField("get_assigned_workflow")
     agency_name = SerializerMethodField("get_agency_name")
+    industry_name = SerializerMethodField("get_industry_name")
 
     class Meta:
         model = Company
@@ -67,6 +68,11 @@ class CompanySerializer(serializers.ModelSerializer):
             if obj.agency is not None:
                     return obj.agency.username
             return ''
+
+    def get_industry_name(self, obj):
+        if obj.industry:
+            return obj.industry.industry_name
+        return ''
 
 
 class WorksFlowSerializer(serializers.ModelSerializer):
@@ -127,6 +133,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     level = SerializerMethodField("get_level")
     exclusive = serializers.BooleanField(write_only=True, default=False)
     company_name = SerializerMethodField('get_company_name')
+    user_full_name = SerializerMethodField("get_user_full_name")
 
     class Meta:
         model = InviteMember
@@ -208,6 +215,14 @@ class InviteMemberSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
+    def get_user_full_name(self, obj):
+        try:
+            if obj.user:
+                return obj.user.user.get_full_name()
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 class InviteMemberRegisterSerializer(serializers.ModelSerializer):
@@ -292,6 +307,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
+    # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia
         fields = '__all__'
@@ -322,12 +338,18 @@ class DamMediaSerializer(serializers.ModelSerializer):
         if obj.dam is not None:
                 return obj.dam.is_favourite
         return False
+    # def get_description(self,obj):
+    #     if obj.description is not None:
+    #         return obj.description
+    #     else:
+    #         return ""
 
 class DamMediaThumbnailSerializer(serializers.ModelSerializer):
     files_name = SerializerMethodField("get_files_name")
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
+    file_type = SerializerMethodField("get_file_type")
     class Meta:
         model = DamMedia
         exclude = ('media',)
@@ -359,6 +381,12 @@ class DamMediaThumbnailSerializer(serializers.ModelSerializer):
         if obj.dam is not None:
                 return obj.dam.is_favourite
         return False
+    
+    def get_file_type(self, obj):
+        if obj:
+             return obj.dam.type
+            
+        return True
 
 
 #-------------------------------------------- dam ---------------------------------------------#
