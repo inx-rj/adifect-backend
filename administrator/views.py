@@ -178,10 +178,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(is_trashed=False).order_by('-modified')
 
 
-#
-# class IndustryViewSet(viewsets.ModelViewSet):
-#     serializer_class = IndustrySerializer
-#     queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
+
+class IndustryViewSet(viewsets.ModelViewSet):
+    serializer_class = IndustrySerializer
+    queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
 
 # @permission_classes([IsAdmin | IsApproverMember])
 @permission_classes([IsAuthenticated])

@@ -133,6 +133,7 @@ class InviteMemberSerializer(serializers.ModelSerializer):
     level = SerializerMethodField("get_level")
     exclusive = serializers.BooleanField(write_only=True, default=False)
     company_name = SerializerMethodField('get_company_name')
+    user_full_name = SerializerMethodField("get_user_full_name")
 
     class Meta:
         model = InviteMember
@@ -214,6 +215,14 @@ class InviteMemberSerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
+    def get_user_full_name(self, obj):
+        try:
+            if obj.user:
+                return obj.user.user.get_full_name()
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 class InviteMemberRegisterSerializer(serializers.ModelSerializer):

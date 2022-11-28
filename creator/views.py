@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork
+from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork, JobTasks
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, \
-    JobActivitySerializer, SubmitJobWorkSerializer
+    JobActivitySerializer, SubmitJobWorkSerializer, JobTasksSerializer
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -18,7 +18,7 @@ from authentication.manager import IsAdmin, IsAgency, IsCreator
 from django.db.models import Count
 import datetime as dt
 from django.db.models import Q
-
+from rest_framework.decorators import action
 
 @permission_classes([IsAuthenticated])
 class LatestsJobsViewSet(viewsets.ModelViewSet):
@@ -299,7 +299,7 @@ class GetTaskList(APIView):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
         if job and user:
-            get_task = self.queryset.filter(job_applied__job__id=job, job_applied__user_id=user, status=1).values('task__title','task')
+            get_task = self.queryset.filter(job_applied__job__id=job, job_applied__user_id=user).exclude(status=2).values('task__title','task')
             context = {
                 'message': 'Success',
                 'Data':get_task,
@@ -334,3 +334,6 @@ class CreatorJobsCountViewSet(viewsets.ModelViewSet):
             'In_progress_jobs': in_review_count,
         }
         return Response(context)
+    
+
+
