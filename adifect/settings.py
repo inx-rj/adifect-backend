@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'administrator',
     'creator',
     'agency',
+    'members',
 
     # 'category'
 ]

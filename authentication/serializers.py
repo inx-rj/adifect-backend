@@ -13,6 +13,8 @@ from django.db.models import Q
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -128,4 +130,15 @@ class UserCommunicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserCommunicationMode
         fields = '__all__'
+        extra_kwargs = {'mode_value': {'required': True}}
 
+    def validate(self, data):
+        try:
+            if data['mode_value'] and data['communication_mode'] == 0:
+                validate_email(data['mode_value'])
+            elif data['mode_value'] and (data['communication_mode'] == 1 or data['communication_mode'] ==2):
+                if not data['mode_value'].isnumeric():
+                    raise serializers.ValidationError('Please Enter valid phone number.')
+        except ValidationError:
+            raise serializers.ValidationError('Please Enter valid Email.')
+        return data
