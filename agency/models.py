@@ -161,7 +161,7 @@ class Workflow_Stages(BaseModel):
     workflow = models.ForeignKey(WorksFlow,  related_name="stage_workflow",on_delete=models.SET_NULL, null=True,
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
-    approval_times = models.IntegerField(default=36)
+    approval_time = models.IntegerField(default=36)
 
     class Meta:
         verbose_name_plural = 'Workflow Stages'
