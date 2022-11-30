@@ -40,6 +40,8 @@ class BaseModel(models.Model):
 
 class Industry(BaseModel):
     industry_name = models.CharField(max_length=50)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='Industry_user', blank=True,
+                               null=True)
     slug = AutoSlugField(populate_from='industry_name')
     description = models.TextField(default=None, blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -121,6 +123,7 @@ class AgencyLevel(BaseModel):
         Agency_admin = 1
         Agency_Marketer = 2
         Agency_Approver = 3
+        Creator_In_House = 4
 
     user = models.ForeignKey(CustomUser,related_name='agency_level',on_delete=models.SET_NULL, null=True, blank=True)
     levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
@@ -162,6 +165,8 @@ class Workflow_Stages(BaseModel):
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
     approval_time = models.IntegerField(default=36)
+    is_nudge = models.BooleanField(default=False)
+    nudge_time = models.IntegerField(default=None,null=True,blank=True)
 
     class Meta:
         verbose_name_plural = 'Workflow Stages'

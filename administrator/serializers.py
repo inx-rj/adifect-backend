@@ -674,6 +674,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
 
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")
+    user_profile_pic = SerializerMethodField("get_user_profile_pic")
 
     class Meta:
         model = Answer
@@ -685,10 +686,23 @@ class AnswerSerializer(serializers.ModelSerializer):
         if obj.job_applied is not None:
             return obj.job_applied.user.username
         return ''
+    
+    def get_user_profile_pic(self, obj):
+        try:
+            if obj.user:
+                if obj.user.profile_img:
+                    return obj.user.profile_img.url
+                else:
+                    ''
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 
 class QuestionSerializer(serializers.ModelSerializer):
     answer_question = AnswerSerializer(many=True, required=False)
+    profile_pic = SerializerMethodField("get_profile_pic")
 
     def getUsername(self, obj):
         return obj.user.username
@@ -698,7 +712,18 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = '__all__'
-
+    
+    def get_profile_pic(self, obj):
+        try:
+            if obj.user:
+                if obj.user.profile_img:
+                    return obj.user.profile_img.url
+                else:
+                    ''
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 class UserSkillsSerializer(serializers.ModelSerializer):
     # skills = SkillsSerializer(required=False)

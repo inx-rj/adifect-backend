@@ -17,12 +17,10 @@ router.register(r'draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 router.register(r'test-api', views.TestModalViewSet, basename='test_api')
 router.register(r'invite-member',views.InviteMemberViewSet, basename='invite_member')
 router.register(r'my-project',views.MyProjectViewSet, basename='my_project')
-router.register(r'member-job-list', views.MemberJobListViewSet, basename='member_job_list')
-router.register(r'member-approval-job-list', views.MemberApprovalJobListViewSet, basename='member_approval_job_list')
 router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter')
 router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename='job_activity_member')
 router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
-router.register(r'member-approver-job-list', views.MemberApprovedJobViewSet, basename='member_approver_job_list')
+
 
 
 
@@ -34,6 +32,7 @@ urlpatterns = [
        name='register_view_invite'),
     # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
+    path('share-media-link/', views.ShareMediaUrl.as_view(), name='share_media_link'),
 
 ]
 urlpatterns += router.urls

@@ -40,8 +40,15 @@ import datetime as dt
 class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['user']
 
-
+    def list(self, request, *args, **kwargs):
+        user = self.request.user
+        queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=None) | Q(user=user))
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    
 @permission_classes([IsAuthenticated])
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
@@ -253,7 +260,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'])
+                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -302,7 +309,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
-                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'])
+                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -315,7 +322,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
-                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'])
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -1118,32 +1125,9 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         draft_data = queryset.filter(user=request.user)
-        serializer = self.serializer_class(draft_data, many=True, context={'request':  request})
+        serializer = self.serializer_class(draft_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-
-class MemberJobListViewSet(viewsets.ModelViewSet):
-    serializer_class = JobsWithAttachmentsSerializer
-    queryset = Workflow_Stages.objects.all()
-    pagination_class = FiveRecordsPagination
-
-    def list(self, request, *args, **kwargs):
-        user = request.user
-        workflow_id = self.queryset.filter(approvals__user__user=user, workflow__is_trashed=False,
-                                           workflow__isnull=False, is_trashed=False).values_list('workflow_id',
-                                                                                                 flat=True)
-        job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, pk=None):
-        if pk:
-            job_data = Job.objects.filter(id=pk).first()
-            serializer = self.serializer_class(job_data, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #
@@ -1242,29 +1226,6 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                    'total_video': total_video
                    }
         return Response(context, status=status.HTTP_200_OK)
-
-
-class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
-    serializer_class = JobsWithAttachmentsSerializer
-    queryset = MemberApprovals.objects.all()
-    pagination_class = FiveRecordsPagination
-
-    def list(self, request, *args, **kwargs):
-        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,
-                                                                  status=0).values_list('job_work__job_applied__job_id',
-                                                                                        flat=True)
-        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, pk=None):
-        if pk:
-            job_data = Job.objects.filter(id=pk).first()
-            serializer = self.serializer_class(job_data, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 @permission_classes([IsAuthenticated])
@@ -1367,25 +1328,58 @@ class DAMFilter(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-class MemberApprovedJobViewSet(viewsets.ModelViewSet):
-    serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
-    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
-    def list(self, request, *args, **kwargs):
-        queryset = JobApplied.objects.filter(
-                                             job__workflow__stage_workflow__approvals__user__user=request.user)
-        job_count = queryset.count()
-        job_review = queryset.filter(status=3).count()
-        job_progress = queryset.filter(status=2).count()
-        job_completed = queryset.filter(status=4).count()
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        context = {
-            'Total_Job_count': job_count,
-            'In_progress_jobs': job_progress,
-            'In_review_jobs': job_review,
-            'completed_jobs':job_completed,
-            'data': serializer.data,
-        }
-        return Response(context, status=status.HTTP_200_OK)
+class ShareMediaUrl(APIView):
+    def post(self, request, *args, **kwargs):
+        media = request.data.getlist('media',None)
+        email = request.data.get('email',None)
+        from_email = Email(SEND_GRID_FROM_EMAIL)
+        to_email = To(email)
+        try:
+            img_url = ''
+            for j in media:
+                img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j}"/>'
+            subject = "image link"
+            content = Content("text/html",
+                                f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{img_url}</b> </div>')
+            send_email(from_email, to_email, subject, content)
+            return Response({'message': 'mail Send successfully, Please check your mail'},
+                                status=status.HTTP_200_OK)
+    
+                
+        except Exception as e:
+            print(e)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+
+
+# from_email = Email(SEND_GRID_FROM_EMAIL)
+# to_email = To(email)
+# invite = InviteMember.objects.filter(user__user__email=email, agency=agency, company=company).first()
+# if not invite:
+# invite = InviteMember.objects.filter(email=email, agency=agency, company=company).first()
+# if not user:
+# email_decode = StringEncoder.encode(self, email)
+# if not invite:
+#     agency_level = AgencyLevel.objects.create(levels=levels)
+#     invite = InviteMember.objects.create(agency=agency, email=email, user=agency_level, status=0,
+#                                             company=company)
+#     # invite_id = invite.pk
+# decodeId = StringEncoder.encode(self, invite.user.id)
+# try:
+#     subject = "Invitation link to Join Team"
+#     content = Content("text/html",
+#                         f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}</b> Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+#     data = send_email(from_email, to_email, subject, content)
+#     if data:
+#         return Response({'message': 'mail Send successfully, Please check your mail'},
+#                         status=status.HTTP_200_OK)
+#     else:
+#         return Response({'message': 'You are not authorized to send invitation.'},
+#                         status=status.HTTP_400_BAD_REQUEST)
+# except Exception as e:
+#     print(e)
+#     return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)

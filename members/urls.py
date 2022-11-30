@@ -16,7 +16,7 @@ router.register(r'admin-my-project', views.MemberMyProjectViewSet, basename='adm
 router.register(r'invite-member', views.InviteMemberViewSet, basename='invite_member')
 router.register(r'member-jobs', views.JobViewSet, basename='member_jobs')
 router.register(r'members-job-template', views.MemberJobTemplatesViewSet, basename='job_template')
-
+router.register(r'members-draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
 urlpatterns = [
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
 ]

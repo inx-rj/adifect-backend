@@ -63,3 +63,8 @@ class IsApproverMember(permissions.BasePermission):
                 return True
 
 
+class InHouseMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            if request.user.role == 3 and request.user.agency_level.filter(levels=4):
+                return True
