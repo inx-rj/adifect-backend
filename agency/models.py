@@ -125,7 +125,6 @@ class AgencyLevel(BaseModel):
     user = models.ForeignKey(CustomUser,related_name='agency_level',on_delete=models.SET_NULL, null=True, blank=True)
     levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
     is_active = models.BooleanField(default=True)
-    is_test = models.BooleanField(default=True)
 
         
 
