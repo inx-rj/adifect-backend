@@ -1118,7 +1118,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         draft_data = queryset.filter(user=request.user)
-        serializer = self.serializer_class(draft_data, many=True, context={'request': request})
+        serializer = self.serializer_class(draft_data, many=True, context={'request':  request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
