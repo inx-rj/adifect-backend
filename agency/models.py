@@ -164,7 +164,7 @@ class Workflow_Stages(BaseModel):
     workflow = models.ForeignKey(WorksFlow,  related_name="stage_workflow",on_delete=models.SET_NULL, null=True,
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
-    approval_time = models.IntegerField(default=None,null=True,blank=True)
+    # approval_time = models.IntegerField(default=None,null=True,blank=True)
     is_nudge = models.BooleanField(default=False)
     nudge_time = models.IntegerField(default=None,null=True,blank=True)
 

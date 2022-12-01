@@ -260,49 +260,49 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        # try:
-        serializer = self.serializer_class(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            workflow_latest = WorksFlow.objects.latest('id')
-            if request.data.get('stage', None):
-                for i in request.data['stage']:
-                    name = i['stage_name']
-                    if name:
-                        stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
-                                                is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
-                        stage.save()
-                        if i['approvals']:
-                            approvals = i['approvals']
-                            stage.approvals.add(*approvals)
-                        if i['is_observer']:
-                            observer = i['observer']
-                            stage.observer.add(*observer)
-            context = {
-                'message': "Workflow Created Successfully",
-                'status': status.HTTP_201_CREATED,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
+        try:
+            serializer = self.serializer_class(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                workflow_latest = WorksFlow.objects.latest('id')
+                if request.data.get('stage', None):
+                    for i in request.data['stage']:
+                        name = i['stage_name']
+                        if name:
+                            stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
+                            stage.save()
+                            if i['approvals']:
+                                approvals = i['approvals']
+                                stage.approvals.add(*approvals)
+                            if i['is_observer']:
+                                observer = i['observer']
+                                stage.observer.add(*observer)
+                context = {
+                    'message': "Workflow Created Successfully",
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
 
+                return Response(context)
+            context = {
+                'message': "Error!",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+                'data': [],
+            }
             return Response(context)
-        context = {
-            'message': "Error!",
-            'status': status.HTTP_400_BAD_REQUEST,
-            'errors': serializer.errors,
-            'data': [],
-        }
-        return Response(context)
-        # except Exception as e:
-        #     print(e)
-        #     context = {
-        #         'message': "Something Went Wrong",
-        #         'status': status.HTTP_400_BAD_REQUEST,
-        #         'errors': "Error",
-        #         'data': [],
-        #     }
-        #     return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
 
     def update(self, request, *args, **kwargs):
         try:
