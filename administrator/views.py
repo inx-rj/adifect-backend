@@ -306,13 +306,17 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company','user']
+
 
     def list(self, request, *args, **kwargs):
         user_role = request.user.role
         if user_role == 0:
-            job_data = self.queryset.filter(user=request.user).exclude(status=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).order_by('-modified')
+            # job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user).exclude(status=0).order_by('-modified')
         else:
-            job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -1981,13 +1985,12 @@ def JobWorkSubmitEmail(user, work,approved=None,moved=None):
             profile_image = work.job_applied.user.profile_img.url
         img_url = ''
         if approved:
-            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{approved.workflow_stage.order} '
+            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{int(approved.workflow_stage.order)+1} '
         else:
             message = 'You have Submitted this work for Approval!'
         if moved:
-            message = f'You work is Moved for Stage-{moved.workflow_stage.order} '
+            message = f'You work is Moved for Stage-{int(moved.workflow_stage.order)+1} '
 
-        print("hitt")
         for j in JobWorkAttachments.objects.filter(job_work=work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
         subject = "Job Work Submit"
