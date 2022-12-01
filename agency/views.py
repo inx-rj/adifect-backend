@@ -1339,29 +1339,28 @@ class DAMFilter(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-
 class ShareMediaUrl(APIView):
-    
+
     def post(self, request, *args, **kwargs):
         media = request.data.get('media', None)
-        email = request.data.get('email',None)
+        email = request.data.get('email', None)
         from_email = Email(SEND_GRID_FROM_EMAIL)
         to_email = To(email)
         try:
-            # img_url = ' '
-            # for j in media:
-            #     img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j}"/>'
+            img_url = ''
+            for j in media:
+                img_url += f'<p>{j}</p><br/>'
             subject = "image link"
             content = Content("text/html",
-                                f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{media}</b> </div>')
+                              f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> Adifect Media Links <b>{img_url}</b> </div>')
             mail = send_email(from_email, to_email, subject, content)
             if mail:
                 return Response({'message': 'Media has been successfullly shared.'},
                                 status=status.HTTP_200_OK)
             else:
                 return Response({'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
-    
-                
+
+
         except Exception as e:
             print(e)
             return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
