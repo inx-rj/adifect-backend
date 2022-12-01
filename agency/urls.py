@@ -25,6 +25,7 @@ router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
 
 
 
+
 urlpatterns = [
     path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
          name='update_invite_member'),

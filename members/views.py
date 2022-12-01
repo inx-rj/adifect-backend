@@ -78,7 +78,7 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
     queryset = Workflow_Stages.objects.all()
     pagination_class = FiveRecordsPagination
     # filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['status']
+    # filterset_fields = ['status']
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -87,9 +87,13 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
                 workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
                                                 workflow__isnull=False, is_trashed=False).values_list('workflow_id',
                                                                                                         flat=True)
-                job_data = Job.objects.filter(workflow_id__in=list(workflow_id),job_applied__status=request.GET.get('status')).exclude(status=0).order_by('-modified')
+
+                
+                job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).exclude(status=0).order_by('-modified')
             else:
-                job_data = Job.objects.filter(company=request.GET.get('company'),job_applied__status=request.GET.get('status')).exclude(status=0).order_by('-modified')
+                job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+            if request.GET.get('status'):
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))    
             
             paginated_data = self.paginate_queryset(job_data)
             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
@@ -474,8 +478,10 @@ class JobViewSet(viewsets.ModelViewSet):
 
             if serializer.validated_data.get('status', None) == 1:
                 second_serializer = JobTemplateSerializer(data=request.data)
+                print("here data")
                 if second_serializer.is_valid():
                     self.perform_create(second_serializer)
+                    print("done")
                     Job_template_id = JobTemplate.objects.latest('id')
                     if request.data.get("tasks", None):
                         objs = []
@@ -500,6 +506,9 @@ class JobViewSet(viewsets.ModelViewSet):
                                             status=status.HTTP_400_BAD_REQUEST)
                         for i in templte_sample_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
+                else:
+                    print("here error")
+                    print(serializer.errors)
             JobActivity.objects.create(job=job_id, activity_type=JobActivity.Type.Create)
             context = {
                 'message': 'Job Created Successfully',
@@ -646,7 +655,7 @@ class JobViewSet(viewsets.ModelViewSet):
 class MemberJobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = JobTemplate.objects.filter(status=1)
+    queryset = JobTemplate.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
     search_fields = ['=company', ]

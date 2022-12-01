@@ -101,7 +101,7 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 # #MIGRATION_MODULES = {'authentication':'migrations.authentication','administrator':'migrations.administrator',
 # 'agency': 'migrations.agency','creator':'migrations.creator'}
 #
-
+#
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

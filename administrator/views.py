@@ -2332,6 +2332,9 @@ class JobWorkStatus(APIView):
             if JobApplied.objects.filter(Q(job_id=job) & Q(user_id=user) & Q(Q(status=2) | Q(status=3))):
                 condition_first = SubmitJobWork.objects.filter(job_applied__job_id=job, job_applied__user_id=user,
                                                                status=0).values_list('task_id', flat=True)
+
+                if len(list(task_id)) == 0:
+                    task_id='0'
                 if condition_first:
                     if len(list(task_id)) == len(list(condition_first)):
                         context = {'Disable': True,

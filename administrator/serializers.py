@@ -591,7 +591,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     # company = CompanySerializer()
     get_jobType_details = SerializerMethodField("get_jobType_info")
     workflow_name = SerializerMethodField("get_worksflow_name")
-    status = SerializerMethodField("get_status")
+    # status = SerializerMethodField("get_status")
     company_name = SerializerMethodField("get_company_name")
     job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
@@ -650,8 +650,8 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
             return obj.workflow.name
         return ''
 
-    def get_status(self, obj):
-        return obj.get_status_display()
+    # def get_status(self, obj):
+    #     return obj.get_status_display()
 
     def get_company_name(self, obj):
         try:
@@ -675,29 +675,33 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")
     user_profile_pic = SerializerMethodField("get_user_profile_pic")
-
     class Meta:
         model = Answer
         fields = '__all__'
 
     def getUsername(self, obj):
         if obj.agency is not None:
-            return obj.agency.username
+            if obj.agency.username:
+                return obj.agency.username
+            else:
+                return ""
         if obj.job_applied is not None:
             return obj.job_applied.user.username
         return ''
     
     def get_user_profile_pic(self, obj):
         try:
-            if obj.user:
-                if obj.user.profile_img:
-                    return obj.user.profile_img.url
+            if obj.agency is not None:
+                if obj.agency.profile_img:
+                    return obj.agency.profile_img.url
                 else:
-                    ''
-            else:
-                return ''
+                    return ""
+            if obj.job_applied is not None:
+                return obj.job_applied.user.profile_img.url
+            return ''
         except Exception as err:
             return ''
+
 
 
 class QuestionSerializer(serializers.ModelSerializer):
