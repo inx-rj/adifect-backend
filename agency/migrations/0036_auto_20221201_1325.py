@@ -15,10 +15,5 @@ class Migration(migrations.Migration):
             model_name='dam',
             name='company',
             field=models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.SET_NULL, to='agency.company'),
-        ),
-        migrations.AlterField(
-            model_name='workflow_stages',
-            name='approval_time',
-            field=models.IntegerField(blank=True, default=None, null=True),
-        ),
+        )
     ]
