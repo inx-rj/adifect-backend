@@ -166,7 +166,7 @@ class Workflow_Stages(BaseModel):
     order = models.IntegerField(blank=True, null=True)
     approval_time = models.IntegerField(default=None,null=True,blank=True)
     is_nudge = models.BooleanField(default=False)
-    nudge_time = models.IntegerField(default=None,null=True,blank=True)
+    nudge_time = models.CharField(default=None, max_length=50000, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Workflow Stages'

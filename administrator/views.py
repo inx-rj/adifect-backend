@@ -1256,6 +1256,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         workflow_id = instance.id
+        if instance.job_workflow.all():
+            return Response({'message': 'workflow assign to job cannot delete.', 'status': status.HTTP_404_NOT_FOUND},
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(instance)
         if workflow_id:
             Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()

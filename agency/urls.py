@@ -34,6 +34,8 @@ urlpatterns = [
     # path('invite-member-list/<int:company_id>/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('invite-member-list/', views.InviteMemberUserList.as_view(), name='invite_member_list'),
     path('share-media-link/', views.ShareMediaUrl.as_view(), name='share_media_link'),
+    path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
+    path('member-nudge-reminder/', views.NudgeReminder.as_view(), name='member_nudge_reminder'),
 
 ]
 urlpatterns += router.urls

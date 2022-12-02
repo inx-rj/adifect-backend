@@ -562,6 +562,6 @@ class MemberApprovals(BaseModel):
     message = models.CharField(default=None, max_length=50000, blank=True, null=True)
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
                                        null=True, blank=True)
-
+    nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
     class Meta:
         verbose_name_plural = 'Member Approvals'

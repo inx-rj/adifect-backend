@@ -382,13 +382,23 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return False
         return False
 
+    # def flag_list(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.job_due_date is not None:
+    #         if obj.job_due_date < dt.datetime.today().date():
+    #             return "time up"
+    #         else:
+    #             return ""
+    #     return False
+
     def flag_list(self, obj):
-        request = self.context.get('request')
         if obj.job_due_date is not None:
-            if obj.job_due_date < dt.datetime.today().date():
-                return "time up"
-            else:
-                return ""
+            if obj.job_applied.filter(Q(status=2) | Q(status=3)):
+                if obj.job_due_date < dt.datetime.today().date():
+
+                    return True
+                else:
+                    return False
         return False
 
     def get_users_applied_status(self, obj):
@@ -595,6 +605,7 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     company_name = SerializerMethodField("get_company_name")
     job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
+    jobtemplate_tasks = JobTemplateTasksSerializer(many=True)
 
     class Meta:
         model = JobTemplate
