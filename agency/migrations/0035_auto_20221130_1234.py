@@ -20,6 +20,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflow_stages',
+            name='approval_time',
+            field=models.IntegerField(default=36),
+        ),
+        migrations.AddField(
+            model_name='workflow_stages',
             name='is_nudge',
             field=models.BooleanField(default=False),
         ),
