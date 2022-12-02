@@ -418,10 +418,10 @@ class JobTemplate(BaseModel):
         Fixed = 0
         Hourly = 1
 
-    class Status(models.IntegerChoices):
-        Draft = 0
-        Template = 1
-        Post = 2
+    # class Status(models.IntegerChoices):
+    #     Draft = 0
+    #     Template = 1
+    #     Post = 2
 
     template_name = models.CharField(max_length=250)
     title = models.CharField(max_length=250)
@@ -442,7 +442,7 @@ class JobTemplate(BaseModel):
                                  null=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="jobtemplate_user", null=True,
                              blank=True)
-    status = models.IntegerField(choices=Status.choices, default=Status.Template)
+    # status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
     class Meta:
         verbose_name_plural = 'Job Template'
@@ -562,6 +562,6 @@ class MemberApprovals(BaseModel):
     message = models.CharField(default=None, max_length=50000, blank=True, null=True)
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
                                        null=True, blank=True)
-
+    nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
     class Meta:
         verbose_name_plural = 'Member Approvals'

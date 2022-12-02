@@ -19,13 +19,14 @@ from authentication.manager import IsAdminMember, IsMarketerMember, IsApproverMe
 from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer, MyProjectSerializer, StageSerializer
 from django.db.models import Subquery
 from rest_framework.decorators import action
-from administrator.views  import validate_job_attachments, dam_images_templates, dam_sample_template_images_list
+from administrator.views  import validate_job_attachments, dam_images_templates, dam_sample_template_images_list, dam_images_list, dam_sample_images_list
 import json
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from django.db.models import Subquery, Q
+
 
 
 
@@ -76,17 +77,28 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Workflow_Stages.objects.all()
     pagination_class = FiveRecordsPagination
+    # filter_backends = [DjangoFilterBackend, SearchFilter]
+    # filterset_fields = ['status']
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        workflow_id = self.queryset.filter(approvals__user__user=user, workflow__is_trashed=False,
-                                           workflow__isnull=False, is_trashed=False).values_list('workflow_id',
-                                                                                                 flat=True)
-        job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
+        if request.GET.get('company'): 
+            if  InviteMember.objects.filter(company=request.GET.get('company'),user__user=request.user,user__levels=3):
+                workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
+                                                workflow__isnull=False, is_trashed=False).values_list('workflow_id',
+                                                                                                        flat=True)
+
+                
+                job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).exclude(status=0).order_by('-modified')
+            else:
+                job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+            if request.GET.get('status'):
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))    
+            
+            paginated_data = self.paginate_queryset(job_data)
+            serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+            return self.get_paginated_response(data=serializer.data)
+        return Response({'details': 'No Company Found'}, status=status.HTTP_404_NOT_FOUND)
 
     def retrieve(self, request, pk=None):
         if pk:
@@ -196,6 +208,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def create(self, request, *args, **kwargs):
         data = request.data
+        print(data)
         try:
             serializer = self.serializer_class(data=data)
             if serializer.is_valid():
@@ -207,7 +220,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'])
+                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -256,7 +269,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
-                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'])
+                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -269,7 +282,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
-                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'])
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -392,15 +405,16 @@ class JobViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = Job.objects.all()
     job_template_attach = JobTemplateAttachmentsSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company','is_active','status']
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
         user_role = request.user.role
         if user_role == 0:
-            job_data = self.queryset.filter(user=request.user).exclude(status=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).order_by('-modified')
         else:
-            job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -444,6 +458,8 @@ class JobViewSet(viewsets.ModelViewSet):
                     return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
                 for i in image:
                     JobAttachments.objects.create(job=job_id, job_images=i)
+            dam_images_list(dam_images, job_id)
+            dam_sample_images_list(dam_sample_images, job_id)
             if sample_image:
                 sample_image_error = validate_job_attachments(sample_image)
                 if sample_image_error != 0:
@@ -462,8 +478,10 @@ class JobViewSet(viewsets.ModelViewSet):
 
             if serializer.validated_data.get('status', None) == 1:
                 second_serializer = JobTemplateSerializer(data=request.data)
+                print("here data")
                 if second_serializer.is_valid():
                     self.perform_create(second_serializer)
+                    print("done")
                     Job_template_id = JobTemplate.objects.latest('id')
                     if request.data.get("tasks", None):
                         objs = []
@@ -488,6 +506,9 @@ class JobViewSet(viewsets.ModelViewSet):
                                             status=status.HTTP_400_BAD_REQUEST)
                         for i in templte_sample_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
+                else:
+                    print("here error")
+                    print(serializer.errors)
             JobActivity.objects.create(job=job_id, activity_type=JobActivity.Type.Create)
             context = {
                 'message': 'Job Created Successfully',
@@ -537,6 +558,8 @@ class JobViewSet(viewsets.ModelViewSet):
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
+                    dam_images_list(dam_images, job_id)
+                    dam_sample_images_list(dam_sample_images, job_id)
                 if sample_image:
                     sample_image_error = validate_job_attachments(sample_image)
                     if sample_image_error != 0:
@@ -758,3 +781,15 @@ class MemberInviteMemberUserList(APIView):
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+@permission_classes([IsAdminMember])
+class DraftJobViewSet(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsSerializer
+    queryset = Job.objects.filter(status=0).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)

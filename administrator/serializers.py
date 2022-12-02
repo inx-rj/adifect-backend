@@ -382,13 +382,23 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
             return False
         return False
 
+    # def flag_list(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.job_due_date is not None:
+    #         if obj.job_due_date < dt.datetime.today().date():
+    #             return "time up"
+    #         else:
+    #             return ""
+    #     return False
+
     def flag_list(self, obj):
-        request = self.context.get('request')
         if obj.job_due_date is not None:
-            if obj.job_due_date < dt.datetime.today().date():
-                return "time up"
-            else:
-                return ""
+            if obj.job_applied.filter(Q(status=2) | Q(status=3)):
+                if obj.job_due_date < dt.datetime.today().date():
+
+                    return True
+                else:
+                    return False
         return False
 
     def get_users_applied_status(self, obj):
@@ -591,10 +601,11 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
     # company = CompanySerializer()
     get_jobType_details = SerializerMethodField("get_jobType_info")
     workflow_name = SerializerMethodField("get_worksflow_name")
-    status = SerializerMethodField("get_status")
+    # status = SerializerMethodField("get_status")
     company_name = SerializerMethodField("get_company_name")
     job_type = SerializerMethodField("get_job_type")
     industry_name = SerializerMethodField("get_industry_name")
+    jobtemplate_tasks = JobTemplateTasksSerializer(many=True)
 
     class Meta:
         model = JobTemplate
@@ -650,8 +661,8 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
             return obj.workflow.name
         return ''
 
-    def get_status(self, obj):
-        return obj.get_status_display()
+    # def get_status(self, obj):
+    #     return obj.get_status_display()
 
     def get_company_name(self, obj):
         try:
@@ -674,21 +685,39 @@ class JobTemplateWithAttachmentsSerializer(serializers.ModelSerializer):
 
 class AnswerSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField("getUsername")
-
+    user_profile_pic = SerializerMethodField("get_user_profile_pic")
     class Meta:
         model = Answer
         fields = '__all__'
 
     def getUsername(self, obj):
         if obj.agency is not None:
-            return obj.agency.username
+            if obj.agency.username:
+                return obj.agency.username
+            else:
+                return ""
         if obj.job_applied is not None:
             return obj.job_applied.user.username
         return ''
+    
+    def get_user_profile_pic(self, obj):
+        try:
+            if obj.agency is not None:
+                if obj.agency.profile_img:
+                    return obj.agency.profile_img.url
+                else:
+                    return ""
+            if obj.job_applied is not None:
+                return obj.job_applied.user.profile_img.url
+            return ''
+        except Exception as err:
+            return ''
+
 
 
 class QuestionSerializer(serializers.ModelSerializer):
     answer_question = AnswerSerializer(many=True, required=False)
+    profile_pic = SerializerMethodField("get_profile_pic")
 
     def getUsername(self, obj):
         return obj.user.username
@@ -698,7 +727,18 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = '__all__'
-
+    
+    def get_profile_pic(self, obj):
+        try:
+            if obj.user:
+                if obj.user.profile_img:
+                    return obj.user.profile_img.url
+                else:
+                    ''
+            else:
+                return ''
+        except Exception as err:
+            return ''
 
 class UserSkillsSerializer(serializers.ModelSerializer):
     # skills = SkillsSerializer(required=False)

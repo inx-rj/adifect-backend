@@ -40,6 +40,8 @@ class BaseModel(models.Model):
 
 class Industry(BaseModel):
     industry_name = models.CharField(max_length=50)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='Industry_user', blank=True,
+                               null=True)
     slug = AutoSlugField(populate_from='industry_name')
     description = models.TextField(default=None, blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -121,6 +123,7 @@ class AgencyLevel(BaseModel):
         Agency_admin = 1
         Agency_Marketer = 2
         Agency_Approver = 3
+        Creator_In_House = 4
 
     user = models.ForeignKey(CustomUser,related_name='agency_level',on_delete=models.SET_NULL, null=True, blank=True)
     levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
@@ -161,7 +164,9 @@ class Workflow_Stages(BaseModel):
     workflow = models.ForeignKey(WorksFlow,  related_name="stage_workflow",on_delete=models.SET_NULL, null=True,
                                  blank=True)
     order = models.IntegerField(blank=True, null=True)
-    approval_time = models.IntegerField(default=36)
+    approval_time = models.IntegerField(default=None,null=True,blank=True)
+    is_nudge = models.BooleanField(default=False)
+    nudge_time = models.CharField(default=None, max_length=50000, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Workflow Stages'
@@ -178,6 +183,7 @@ class DAM(BaseModel):
     name = models.CharField(max_length=5000, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
+    company = models.ForeignKey(Company,on_delete=models.SET_NULL,null=True,blank=True,default=None)
     is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     is_favourite = models.BooleanField(default=False) 

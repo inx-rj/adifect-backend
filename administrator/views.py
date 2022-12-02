@@ -306,13 +306,17 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company','user']
+
 
     def list(self, request, *args, **kwargs):
         user_role = request.user.role
         if user_role == 0:
-            job_data = self.queryset.filter(user=request.user).exclude(status=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).order_by('-modified')
+            # job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user).exclude(status=0).order_by('-modified')
         else:
-            job_data = self.queryset.exclude(status=0).exclude(is_active=0).order_by('-modified')
+            job_data = self.filter_queryset(self.get_queryset()).exclude(status=0).exclude(is_active=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -1140,7 +1144,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
                                                     workflow=workflow_latest, order=i['order'],
-                                                    approval_time=i['approval_time'])
+                                                    approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -1190,7 +1194,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
                                                                 is_all_approval=i['is_all_approval'],
-                                                                approval_time=i['approval_time'])
+                                                                approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -1204,7 +1208,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
                                                               is_all_approval=i['is_all_approval'], order=i['order'],
-                                                              approval_time=i['approval_time'])
+                                                              approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -1252,6 +1256,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         workflow_id = instance.id
+        if instance.job_workflow.all():
+            return Response({'message': 'workflow assign to job cannot delete.', 'status': status.HTTP_404_NOT_FOUND},
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(instance)
         if workflow_id:
             Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()
@@ -1321,7 +1328,7 @@ class JobProposal(APIView):
                 try:
                     subject = "Your Job Proposal has been accepted"
                     content = Content("text/html",
-                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">Your Job Proposal has been accepted!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding: 0 20px;border-left: 5px solid #2472FC;height: 100%;border-radius: 0;"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding-bottom:17px">Assigned to:<span style="padding:0 12px;color:#2472fc">{job_details.user.get_full_name()}</span></div><div style="float: left;width: 100%;">{skills}</div></div></div></div><div style="padding: 10px 0 40px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">Your Job Proposal has been accepted!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:7px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding: 0 20px;height: 100%;border-radius: 0;"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding-bottom:17px">Assigned to:<span style="padding:0 12px;color:#2472fc">{job_details.user.get_full_name()}</span></div><div style="float: left;width: 100%;">{skills}</div></div></div></div><div style="padding: 10px 0 40px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                     # content = Content("text/html",
                     #                   f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;background:#fff;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></img></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">Your Job Proposal has been accepted!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding-bottom:17px">Assigned to:<span style="padding:0 12px;color:#2472fc">{job_details.user.get_full_name()}</span></div><div style="display:flex">{skills}</div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button  style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                     data = send_email(from_email, to_email, subject, content)
@@ -1981,13 +1988,12 @@ def JobWorkSubmitEmail(user, work,approved=None,moved=None):
             profile_image = work.job_applied.user.profile_img.url
         img_url = ''
         if approved:
-            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{approved.workflow_stage.order} '
+            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{int(approved.workflow_stage.order)+1} '
         else:
             message = 'You have Submitted this work for Approval!'
         if moved:
-            message = f'You work is Moved for Stage-{moved.workflow_stage.order} '
+            message = f'You work is Moved for Stage-{int(moved.workflow_stage.order)+1} '
 
-        print("hitt")
         for j in JobWorkAttachments.objects.filter(job_work=work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
         subject = "Job Work Submit"
@@ -2332,6 +2338,9 @@ class JobWorkStatus(APIView):
             if JobApplied.objects.filter(Q(job_id=job) & Q(user_id=user) & Q(Q(status=2) | Q(status=3))):
                 condition_first = SubmitJobWork.objects.filter(job_applied__job_id=job, job_applied__user_id=user,
                                                                status=0).values_list('task_id', flat=True)
+
+                if len(list(task_id)) == 0:
+                    task_id='0'
                 if condition_first:
                     if len(list(task_id)) == len(list(condition_first)):
                         context = {'Disable': True,

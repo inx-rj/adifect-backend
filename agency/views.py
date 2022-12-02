@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity
+from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity, JobActivityAttachments, \
+    JobWorkActivityAttachments, JobAppliedAttachments,JobWorkAttachments
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
-    JobAppliedSerializer
+    JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
+    JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -40,6 +42,14 @@ import datetime as dt
 class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['user']
+
+    def list(self, request, *args, **kwargs):
+        user = self.request.user
+        queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=None) | Q(user=user))
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -97,17 +107,34 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.filter(is_trashed=False).exclude(status=0)
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company','is_active','job_applied__status']
+    filterset_fields = ['company', 'is_active', 'job_applied__status']
     search_fields = ['=company', '=name']
 
     def list(self, request, *args, **kwargs):
         if request.GET.get('expire'):
+            job_data = self.filter_queryset(self.get_queryset()).filter(Q(user=request.user) &
+                                                                        Q(job_due_date__lt=dt.datetime.today()) &
+                                                                        Q(user__is_account_closed=False)).exclude(
+                Q(job_applied__status=2) | Q(job_applied__status=3) | Q(job_applied__status=4)).order_by(
+                "-modified")
+
+        elif request.GET.get('progress'):
+            job_data = self.filter_queryset(self.get_queryset()).filter(
+                Q(user=request.user) & Q(user__is_account_closed=False) & Q(
+                    Q(job_applied__status=2) | Q(job_applied__status=3))).order_by(
+                "-modified")
+
+        elif request.GET.get('completed'):
+            job_data = self.filter_queryset(self.get_queryset()).filter(
+                Q(user=request.user) & Q(user__is_account_closed=False) & Q(job_applied__status=4)).exclude(
+                Q(job_applied__status=2) | Q(job_applied__status=3)).order_by(
+                "-modified")
+
+
+        else:
             job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,
-                                                                        job_due_date__lt=dt.datetime.today(),
                                                                         user__is_account_closed=False).order_by(
                 "-modified")
-        else:
-            job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,user__is_account_closed=False).order_by("-modified")
         job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -253,7 +280,9 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                         if name:
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
-                                                    workflow=workflow_latest, order=i['order'],approval_time=i['approval_time'])
+                                                    workflow=workflow_latest, order=i['order'],
+                                                    approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                    nudge_time=i['nudge_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -302,7 +331,9 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
-                                                                is_all_approval=i['is_all_approval'],approval_time=i['approval_time'])
+                                                                is_all_approval=i['is_all_approval'],
+                                                                approval_time=i['approval_time'],
+                                                                is_nudge=i['is_nudge'], nudge_time=i['nudge_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -315,7 +346,9 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
                                     if stage:
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
-                                                              is_all_approval=i['is_all_approval'], order=i['order'],approval_time=i['approval_time'])
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],
+                                                              approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                              nudge_time=i['nudge_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -363,6 +396,9 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         workflow_id = instance.id
+        if instance.job_workflow.all():
+            return Response({'message': 'workflow assign to job cannot delete.', 'status': status.HTTP_404_NOT_FOUND},
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(instance)
         if workflow_id:
             Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()
@@ -635,7 +671,7 @@ class InviteMemberUserList(APIView):
         agency = request.user
         if level == '3':
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
-                                                       user__user__isnull=False,user__levels=3)
+                                                       user__user__isnull=False, user__levels=3)
         else:
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
                                                        user__user__isnull=False)
@@ -643,6 +679,7 @@ class InviteMemberUserList(APIView):
             invited_user = invited_user.filter(Q(company_id=company_id) | Q(user__user=agency))
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
 
 @permission_classes([IsAuthenticated])
 class StageViewSet(viewsets.ModelViewSet):
@@ -708,7 +745,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'company']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -988,7 +1025,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
     filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
-    search_fields = ['title','tags','skills__skill_name','dam__name']
+    search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
@@ -1122,30 +1159,6 @@ class DraftJobViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
-class MemberJobListViewSet(viewsets.ModelViewSet):
-    serializer_class = JobsWithAttachmentsSerializer
-    queryset = Workflow_Stages.objects.all()
-    pagination_class = FiveRecordsPagination
-
-    def list(self, request, *args, **kwargs):
-        user = request.user
-        workflow_id = self.queryset.filter(approvals__user__user=user, workflow__is_trashed=False,
-                                           workflow__isnull=False, is_trashed=False).values_list('workflow_id',
-                                                                                                 flat=True)
-        job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, pk=None):
-        if pk:
-            job_data = Job.objects.filter(id=pk).first()
-            serializer = self.serializer_class(job_data, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
-
-
 # --      --   --         --     --    my project --   --       --      --        -- #
 
 @permission_classes([IsAuthenticated])
@@ -1244,29 +1257,6 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
-    serializer_class = JobsWithAttachmentsSerializer
-    queryset = MemberApprovals.objects.all()
-    pagination_class = FiveRecordsPagination
-
-    def list(self, request, *args, **kwargs):
-        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,
-                                                                  status=0).values_list('job_work__job_applied__job_id',
-                                                                                        flat=True)
-        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
-        paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, pk=None):
-        if pk:
-            job_data = Job.objects.filter(id=pk).first()
-            serializer = self.serializer_class(job_data, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
-
-
 @permission_classes([IsAuthenticated])
 class JobActivityMemberViewSet(viewsets.ModelViewSet):
     serializer_class = JobActivitySerializer
@@ -1338,7 +1328,6 @@ class DAMFilter(viewsets.ModelViewSet):
             folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
             folder = folders_data.data
 
-
         if not photos and not videos and not collections:
             data1 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=False,
                                                                      is_trashed=False)
@@ -1362,30 +1351,130 @@ class DAMFilter(viewsets.ModelViewSet):
             'photos': photo,
             'videos': video,
             'collections': collection,
-            'folders':folder
+            'folders': folder
         }
         return Response(context, status=status.HTTP_200_OK)
 
 
-class MemberApprovedJobViewSet(viewsets.ModelViewSet):
-    serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
-    parser_classes = (MultiPartParser, FormParser, JSONParser)
+class ShareMediaUrl(APIView):
 
-    def list(self, request, *args, **kwargs):
-        queryset = JobApplied.objects.filter(
-                                             job__workflow__stage_workflow__approvals__user__user=request.user)
-        job_count = queryset.count()
-        job_review = queryset.filter(status=3).count()
-        job_progress = queryset.filter(status=2).count()
-        job_completed = queryset.filter(status=4).count()
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+    def post(self, request, *args, **kwargs):
+        media = request.data.get('media', None)
+        email = request.data.get('email', None)
+        from_email = Email(SEND_GRID_FROM_EMAIL)
+        to_email = To(email)
+        try:
+            img_url = ''
+            for j in media:
+                img_url += f'<p>{j}</p><br/>'
+            subject = "image link"
+            content = Content("text/html",
+                              f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> Adifect Media Links <b>{img_url}</b> </div>')
+            mail = send_email(from_email, to_email, subject, content)
+            if mail:
+                return Response({'message': 'Media has been successfullly shared.'},
+                                status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        except Exception as e:
+            print(e)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class JobAttachmentsView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        job = request.GET.get('job', None)
+        level = request.GET.get('level', None)
+
+        job_attachments = JobAttachments.objects.filter(job=job, job__user=request.user)
+        job_attachments_data = JobAttachmentsSerializer(job_attachments, many=True, context={'request': request})
+        job_activity = JobActivityAttachments.objects.filter(job_activity_chat__job_activity__job=job,
+                                                             job_activity_chat__job_activity__job__user=request.user)
+        job_activity_attachments = JobActivityAttachmentsSerializer(job_activity, many=True,
+                                                                    context={'request': request})
+        job_work = JobWorkActivityAttachments.objects.filter(work_activity__job_activity_chat__job=job,
+                                                             work_activity__job_activity_chat__job__user=request.user)
+        job_work_attachments = JobWorkActivityAttachmentsSerializer(job_work, many=True, context={'request': request})
+        job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job, job_applied__job__user=request.user)
+        job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
+
         context = {
-            'Total_Job_count': job_count,
-            'In_progress_jobs': job_progress,
-            'In_review_jobs': job_review,
-            'completed_jobs':job_completed,
-            'data': serializer.data,
+            'job_attachments': job_attachments_data.data,
+            'job_activity_attachments': job_activity_attachments.data,
+            'job_work_attachments': job_work_attachments.data,
+            'job_applied_attachments': job_applied_attachments.data
         }
         return Response(context, status=status.HTTP_200_OK)
+
+
+def ApprovalReminder(approver, work):
+    try:
+        if not work.job_applied.user.profile_img:
+            profile_image = ''
+        else:
+            profile_image = work.job_applied.user.profile_img.url
+        img_url = ''
+        for j in JobWorkAttachments.objects.filter(job_work=work):
+            img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
+        subject = "Job Work Approver Submit"
+        content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">{work.message}</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+        data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
+    except Exception as e:
+        print(e)
+
+
+
+
+
+from django.db.models import F
+from django.utils import timezone
+from datetime import timedelta
+#
+class NudgeReminder(APIView):
+    queryset = MemberApprovals.objects.all()
+
+    def get(self, request, *args, **kwargs):
+       # try:
+            queryset = self.queryset.filter(status=0, workflow_stage__is_nudge=True).exclude(nudge_status=F('workflow_stage__nudge_time'))
+            for i in queryset:
+                print(i.workflow_stage.nudge_time)
+                print(i.nudge_status)
+                if '3' in i.workflow_stage.nudge_time and not '3' in i.nudge_status if i.nudge_status is not None else '':
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(3))):
+                        # send email
+                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        i.nudge_status = i.nudge_status + '3,'
+                        print("here")
+                        i.save()
+                if '6' in i.workflow_stage.nudge_time and not '6' in i.nudge_status if i.nudge_status is not None else '':
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(6))):
+                        # send email
+                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        i.nudge_status = i.nudge_status + '6,'
+                        i.save()
+
+                if '9' in i.workflow_stage.nudge_time and not '9' in i.nudge_status if i.nudge_status is not None else '':
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(9))):
+                        # send email
+                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        i.nudge_status = i.nudge_status + '9,'
+                        i.save()
+
+                if '12' in i.workflow_stage.nudge_time and not '12' in i.nudge_status  if i.nudge_status is not None else '':
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(12))):
+                        # send email
+                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        i.nudge_status = i.nudge_status + '12,'
+                        i.save()
+            return Response({'message': 'Reminder Email Sent Successfully'},
+                            status=status.HTTP_200_OK)
+        # except Exception as e:
+        #     print(e)
+        #     return Response({'message': 'Here Is Error','error':str(e)},
+        #                     status=status.HTTP_200_OK)
 

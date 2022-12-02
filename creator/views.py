@@ -299,7 +299,7 @@ class GetTaskList(APIView):
         job = request.data.get('job', None)
         user = request.data.get('user', None)
         if job and user:
-            get_task = self.queryset.filter(job_applied__job__id=job, job_applied__user_id=user).exclude(status=2).values('task__title','task')
+            get_task = self.queryset.filter(job_applied__job__id=job, job_applied__user_id=user,task__isnull=False).exclude(status=2).values('task__title','task')
             context = {
                 'message': 'Success',
                 'Data':get_task,
