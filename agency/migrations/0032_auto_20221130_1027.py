@@ -10,11 +10,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='workflow_stages',
-            name='approval_time',
-            field=models.IntegerField(default=36),
-        ),
+#         migrations.AddField(
+#             model_name='workflow_stages',
+#             name='approval_time',
+#             field=models.IntegerField(default=36),
+#         ),
         migrations.AlterField(
             model_name='dammedia',
             name='usage',
