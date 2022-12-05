@@ -20,5 +20,6 @@ urlpatterns = [
     path('creator-company-list', views.CreatorCompanyList.as_view(), name='creator_company_list'),
     path('get-resubmit-work/', views.GetRejectedWork.as_view(), name='get_resubmit_work'),
     path('get-task-list/', views.GetTaskList.as_view(), name='get_task_list'),
+    path('job-attachments/', views.JobAttachmentsView.as_view(), name='get_job_attachments'),
 ]
 urlpatterns += router.urls

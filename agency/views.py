@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity, JobActivityAttachments, \
-    JobWorkActivityAttachments, JobAppliedAttachments,JobWorkAttachments
+    JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer
@@ -1396,22 +1396,25 @@ class JobAttachmentsView(APIView):
                                                              job_activity_chat__job_activity__job__user=request.user)
         job_activity_attachments = JobActivityAttachmentsSerializer(job_activity, many=True,
                                                                     context={'request': request})
-        job_work = JobWorkActivityAttachments.objects.filter(work_activity__job_activity_chat__job=job,
+        job_work_approved = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="approved",work_activity__job_activity_chat__job=job,
                                                              work_activity__job_activity_chat__job__user=request.user)
-        job_work_attachments = JobWorkActivityAttachmentsSerializer(job_work, many=True, context={'request': request})
+        job_work_approved_attachments = JobWorkActivityAttachmentsSerializer(job_work_approved, many=True, context={'request': request})
+        job_work_rejected = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="rejected",work_activity__job_activity_chat__job=job,
+                                                             work_activity__job_activity_chat__job__user=request.user)
+        job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True, context={'request': request})
         job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job, job_applied__job__user=request.user)
         job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
-
         context = {
             'job_attachments': job_attachments_data.data,
             'job_activity_attachments': job_activity_attachments.data,
-            'job_work_attachments': job_work_attachments.data,
-            'job_applied_attachments': job_applied_attachments.data
+            'approved_job_work_attachments': job_work_approved_attachments.data,
+            'rejected_job_work_attachments': job_work_rejected_attachments.data,
+            'job_applied_attachments': job_applied_attachments.data,
         }
         return Response(context, status=status.HTTP_200_OK)
 
 
-def ApprovalReminder(approver, work):
+def ApprovalReminder(approver, work, reminder=None):
     try:
         if not work.job_applied.user.profile_img:
             profile_image = ''
@@ -1420,7 +1423,7 @@ def ApprovalReminder(approver, work):
         img_url = ''
         for j in JobWorkAttachments.objects.filter(job_work=work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
-        subject = "Job Work Approver Submit"
+        subject = f'Job Work Approver Reminder - {reminder}'
         content = Content("text/html",
                           f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have a new Approval that needs your attention! Please view the asset below or click the link to be navigated to the Adifect site.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">{work.message}</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
@@ -1428,53 +1431,50 @@ def ApprovalReminder(approver, work):
         print(e)
 
 
-
-
-
 from django.db.models import F
 from django.utils import timezone
 from datetime import timedelta
+
+
 #
 class NudgeReminder(APIView):
     queryset = MemberApprovals.objects.all()
 
     def get(self, request, *args, **kwargs):
-       # try:
-            queryset = self.queryset.filter(status=0, workflow_stage__is_nudge=True).exclude(nudge_status=F('workflow_stage__nudge_time'))
+        try:
+            queryset = self.queryset.filter(status=0, workflow_stage__is_nudge=True).exclude(
+                nudge_status=F('workflow_stage__nudge_time'))
             for i in queryset:
-                print(i.workflow_stage.nudge_time)
-                print(i.nudge_status)
                 if '3' in i.workflow_stage.nudge_time and not '3' in i.nudge_status if i.nudge_status is not None else '':
-                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(3))):
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(3))):
                         # send email
-                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        ApprovalReminder(i.approver.user.user, i.job_work, '3')
                         i.nudge_status = i.nudge_status + '3,'
-                        print("here")
                         i.save()
+
                 if '6' in i.workflow_stage.nudge_time and not '6' in i.nudge_status if i.nudge_status is not None else '':
-                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(6))):
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(6))):
                         # send email
-                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        ApprovalReminder(i.approver.user.user, i.job_work, '2')
                         i.nudge_status = i.nudge_status + '6,'
                         i.save()
 
                 if '9' in i.workflow_stage.nudge_time and not '9' in i.nudge_status if i.nudge_status is not None else '':
-                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(9))):
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(9))):
                         # send email
-                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        ApprovalReminder(i.approver.user.user, i.job_work, '1')
                         i.nudge_status = i.nudge_status + '9,'
                         i.save()
 
-                if '12' in i.workflow_stage.nudge_time and not '12' in i.nudge_status  if i.nudge_status is not None else '':
-                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time)-int(12))):
+                if '12' in i.workflow_stage.nudge_time and not '12' in i.nudge_status if i.nudge_status is not None else '':
+                    if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(12))):
                         # send email
-                        ApprovalReminder(i.approver.user.user,i.job_work)
+                        ApprovalReminder(i.approver.user.user, i.job_work)
                         i.nudge_status = i.nudge_status + '12,'
                         i.save()
             return Response({'message': 'Reminder Email Sent Successfully'},
                             status=status.HTTP_200_OK)
-        # except Exception as e:
-        #     print(e)
-        #     return Response({'message': 'Here Is Error','error':str(e)},
-        #                     status=status.HTTP_200_OK)
-
+        except Exception as e:
+            print(e)
+            return Response({'message': 'Here Is Error', 'error': str(e)},
+                            status=status.HTTP_200_OK)
