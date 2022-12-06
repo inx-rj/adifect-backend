@@ -4,7 +4,7 @@ from administrator.models import Job, JobAttachments, JobApplied, MemberApproval
     JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
-    JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer
+    JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer,JobWorkAttachmentsSerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -717,7 +717,7 @@ def copy_media_logic(id, parent_id=None):
         dam_old.parent_id = parent_id
         dam_new = dam_old.save()
         new_id = None
-        print(id)
+
         for j in DAM.objects.filter(parent=id, type=3):
             for i in DamMedia.objects.filter(dam=j):
                 i.pk = None
@@ -769,7 +769,7 @@ class DAMViewSet(viewsets.ModelViewSet):
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
-                                                agency=serializer.validated_data['agency'])
+                                                agency=serializer.validated_data['agency'], company = serializer.validated_data.get('company', None))
                     DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             # elif serializer.validated_data['type']==1:
             #     print("yesssssssssssssssssss")
@@ -1104,7 +1104,6 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         data = request.POST.get('dam_images', None)
         dam_intial = 0
         for i in data.split(','):
-            print(request.data)
             if not request.data.get('parent', None) == 'null':
                 dam_id = DAM.objects.create(type=3, parent_id=request.data.get('parent', None),
                                             agency_id=request.data.get('user'))
@@ -1301,34 +1300,63 @@ class DAMFilter(viewsets.ModelViewSet):
         videos = request.GET.get('videos', None)
         collections = request.GET.get('collections', None)
         folders = request.GET.get('folders', None)
+        company = request.GET.get('company', None)
+        id_list = request.GET.get('company', None)
+        order_list = id_list.split(",")
         photo = None
         video = None
         collection = None
         folder = None
         if photos:
-            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=False,
-                                                                    is_trashed=False)
-            photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
-            photo = photos_data.data
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=False,company__in=order_list,
+                                                                        is_trashed=False)
+                photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=False,
+                                                                        is_trashed=False)
+                photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
         if videos:
-            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=True,
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=True,company__in=order_list,
                                                                     is_trashed=False)
-            videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
-            video = videos_data.data
+                videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=True,
+                                                                        is_trashed=False)
+                videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
         if collections:
-            data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=2,
+            if company:
+                data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=2,company__in=order_list,
                                                                         is_trashed=False).values_list('pk', flat=True))
-            collections = set(list(data))
-            filter_data = DAM.objects.filter(id__in=data)
-            collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
-            collection = collections_data.data
+                collections = set(list(data))
+                filter_data = DAM.objects.filter(id__in=data)
+                collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+                collection = collections_data.data
+            else:
+                data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=2,
+                                                                            is_trashed=False).values_list('pk', flat=True))
+                collections = set(list(data))
+                filter_data = DAM.objects.filter(id__in=data)
+                collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+                collection = collections_data.data
         if folders:
-            data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1,
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1, company__in=order_list,
                                                                     is_trashed=False)
-            folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
-            folder = folders_data.data
+                folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                folder = folders_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1,
+                                                                        is_trashed=False)
+                folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                folder = folders_data.data
 
-        if not photos and not videos and not collections:
+        if not photos and not videos and not collections and not company:
             data1 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=3, is_video=False,
                                                                      is_trashed=False)
             photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
@@ -1339,6 +1367,25 @@ class DAMFilter(viewsets.ModelViewSet):
             video = videos_data.data
             data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=2,
                                                                         is_trashed=False).values_list('pk', flat=True))
+            filter_data = DAM.objects.filter(id__in=data,company__in=order_list)
+            collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+            collection = collections_data.data
+            data4 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,company__in=order_list, type=1,
+                                                                     is_trashed=False)
+            folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
+            folder = folders_data.data
+        
+        if company and not photos and not videos and not collections:
+            data1 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,company__in=order_list, type=3, is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, company__in=order_list,type=3, is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamWithMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+            data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,company__in=order_list, type=2,
+                                                                        is_trashed=False).values_list('pk', flat=True))
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
@@ -1346,7 +1393,13 @@ class DAMFilter(viewsets.ModelViewSet):
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
+            # id_list = request.GET.get('company', None)
+            # order_list = id_list.split(",")
+            # data = DAM.objects.filter(company__in=order_list)
+            # serializer_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+            # company_data = serializer_data.data
 
+        
         context = {
             'photos': photo,
             'videos': video,
@@ -1361,12 +1414,13 @@ class ShareMediaUrl(APIView):
     def post(self, request, *args, **kwargs):
         media = request.data.get('media', None)
         email = request.data.get('email', None)
+        media_names = request.data.get('mediaNames', None)
         from_email = Email(SEND_GRID_FROM_EMAIL)
         to_email = To(email)
         try:
             img_url = ''
-            for j in media:
-                img_url += f'<p>{j}</p><br/>'
+            for index, url in enumerate(media):
+                img_url += f'<p>{url}</p><b>{media_names[index]}</b><br/>'
             subject = "image link"
             content = Content("text/html",
                               f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> Adifect Media Links <b>{img_url}</b> </div>')
@@ -1376,8 +1430,6 @@ class ShareMediaUrl(APIView):
                                 status=status.HTTP_200_OK)
             else:
                 return Response({'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
-
-
         except Exception as e:
             print(e)
             return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1404,12 +1456,15 @@ class JobAttachmentsView(APIView):
         job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True, context={'request': request})
         job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job, job_applied__job__user=request.user)
         job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
+        final_approved_data = JobWorkAttachments.objects.filter(job_work__job_applied__job=job,job_work__job_applied__job__user=request.user,job_work__status=1)
+        final_approved = JobWorkAttachmentsSerializer(final_approved_data,many=True,context={'request': request})
         context = {
             'job_attachments': job_attachments_data.data,
             'job_activity_attachments': job_activity_attachments.data,
             'approved_job_work_attachments': job_work_approved_attachments.data,
             'rejected_job_work_attachments': job_work_rejected_attachments.data,
             'job_applied_attachments': job_applied_attachments.data,
+            'final_approved_data':final_approved.data
         }
         return Response(context, status=status.HTTP_200_OK)
 

@@ -89,9 +89,7 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
                 workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
                                                 workflow__isnull=False, is_trashed=False).values_list('workflow_id',
                                                                                                         flat=True)
-
-                
-                job_data = Job.objects.filter(workflow_id__in=list(workflow_id)).exclude(status=0).order_by('-modified')
+                job_data = Job.objects.filter(workflow_id__in=list(workflow_id),company=request.GET.get('company')).exclude(status=0).order_by('-modified')
             else:
                 job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
             if request.GET.get('status'):

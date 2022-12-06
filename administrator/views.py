@@ -2128,7 +2128,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance,
                                                            work_activity='submit_approval')
             for ind, i in enumerate(attachment):
-                JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
+                JobWorkAttachments.objects.create(job_work=instance, work_attachments=i)
                 JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                           work_attachment=activity_attachment[ind])
             JobWorkSubmitEmail(instance.job_applied.user, instance)
