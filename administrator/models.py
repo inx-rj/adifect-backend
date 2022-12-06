@@ -10,7 +10,7 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages
+from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages,InviteMember
 from django.core.validators import MaxValueValidator, MinValueValidator
 from io import BytesIO
 from PIL import Image
@@ -154,6 +154,8 @@ class Job(BaseModel):
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
+    is_house_member = models.BooleanField(default=False)
+    house_member = models.ForeignKey(InviteMember, on_delete=models.SET_NULL, null=True, blank=True,default=None)
 
     class Meta:
         verbose_name_plural = 'Job'

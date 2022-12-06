@@ -183,7 +183,7 @@ class DAM(BaseModel):
     name = models.CharField(max_length=5000, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
-    company = models.ForeignKey(Company,on_delete=models.SET_NULL,null=True,blank=True,default=None)
+    company = models.ForeignKey(Company,related_name="dam_company",on_delete=models.SET_NULL,null=True,blank=True,default=None)
     is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     is_favourite = models.BooleanField(default=False)

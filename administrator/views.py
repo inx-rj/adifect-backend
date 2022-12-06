@@ -2210,22 +2210,30 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                 if serializer.validated_data['status'] == 1:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
-                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                    work_activity='approved', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
-                    print("yeah")
+                    if instance.job_work.job_submit_Work.all():
+                        for i in instance.job_work.job_submit_Work.all():
+                            JobWorkActivityAttachments.objects.create(work_activity=work_activity,
+                                                                      work_attachment=i.work_attachments)
                     JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,instance)
                     # SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
 
                 if serializer.validated_data['status'] == 2:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
-                    JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
+                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
                                                    work_activity='rejected', approver=instance,
                                                    workflow_stage=instance.workflow_stage)
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
                     MemberApprovals.objects.filter(job_work=instance.job_work,
                                                    workflow_stage=instance.workflow_stage).update(status=2)
+                    if instance.job_work.job_submit_Work.all():
+                        for i in instance.job_work.job_submit_Work.all():
+                            JobWorkActivityAttachments.objects.create(work_activity=work_activity,
+                                                                      work_attachment=i.work_attachments)
+
                     JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
@@ -2451,12 +2459,13 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
             work_attachment = JobWorkAttachments.objects.filter(job_work__job_applied=instance, job_work__status=1)
             if work_attachment:
                 for i in work_attachment:
-                    dam = DAM.objects.create(agency=instance.job.user, type=3, applied_creator=instance.user)
+                    dam = DAM.objects.create(agency=instance.job.user, type=3, applied_creator=instance.user,company=instance.job.company)
                     try:
                         dam_media = DamMedia.objects.create(dam=dam, title=str(i.work_attachments.name).split('/')[-1],
                                                             media=i.work_attachments)
                     except Exception as e:
                         print(e)
+
             context = {
                 'message': 'Job Completed',
                 'status': status.HTTP_201_CREATED,

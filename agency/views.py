@@ -1247,11 +1247,10 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = DAM.objects.filter(type=2, agency=request.user).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
-
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
                    'total_collection': total_collection,
-                   'total_video': total_video
+                   'total_video': total_video,
                    }
         return Response(context, status=status.HTTP_200_OK)
 
@@ -1301,8 +1300,9 @@ class DAMFilter(viewsets.ModelViewSet):
         collections = request.GET.get('collections', None)
         folders = request.GET.get('folders', None)
         company = request.GET.get('company', None)
-        id_list = request.GET.get('company', None)
-        order_list = id_list.split(",")
+        order_list = None
+        if company:
+            order_list = company.split(",")
         photo = None
         video = None
         collection = None
@@ -1367,10 +1367,10 @@ class DAMFilter(viewsets.ModelViewSet):
             video = videos_data.data
             data = set(self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=2,
                                                                         is_trashed=False).values_list('pk', flat=True))
-            filter_data = DAM.objects.filter(id__in=data,company__in=order_list)
+            filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user,company__in=order_list, type=1,
+            data4 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1,
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
@@ -1533,3 +1533,16 @@ class NudgeReminder(APIView):
             print(e)
             return Response({'message': 'Here Is Error', 'error': str(e)},
                             status=status.HTTP_200_OK)
+
+
+class InHouseMemberViewset(viewsets.ModelViewSet):
+    serializer_class = InviteMemberSerializer
+    queryset = InviteMember.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        return Response(data=serializer.data)
+

@@ -349,7 +349,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.filter(Q(status=2) | Q(status=3)):
+            if obj.job_applied.filter(Q(status=2) | Q(status=3) | Q(status=4)):
                 return False
             return True
         except Exception as e:
