@@ -2462,9 +2462,38 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     dam = DAM.objects.create(agency=instance.job.user, type=3, applied_creator=instance.user,company=instance.job.company)
                     try:
                         dam_media = DamMedia.objects.create(dam=dam, title=str(i.work_attachments.name).split('/')[-1],
-                                                            media=i.work_attachments)
+                                                            media=i.work_attachments,tags=instance.job.tags)
+                        if instance.job.skills is not None:
+                            dam_media.skills.add(*instance.job.skills.all())
+                            dam_media.save()
+
                     except Exception as e:
                         print(e)
+            agency_user = instance.job.user.email
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(agency_user)
+            skills = ''
+            for i in instance.job.skills.all():
+                skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
+            try:
+                subject = "Job Completed."
+                content = Content("text/html",
+                                  f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+            
+            user = instance.user.email
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(user)
+            try:
+                subject = "Job Completed."
+                content = Content("text/html",
+                                  f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                data = send_email(from_email, to_email, subject, content)
+
+            except Exception as e:
+                print(e)
 
             context = {
                 'message': 'Job Completed',

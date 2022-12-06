@@ -37,6 +37,6 @@ urlpatterns = [
     path('share-media-link/', views.ShareMediaUrl.as_view(), name='share_media_link'),
     path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
     path('member-nudge-reminder/', views.NudgeReminder.as_view(), name='member_nudge_reminder'),
-
+    path('company-count/', views.CompanyMediaCount.as_view(), name='company_count'),
 ]
 urlpatterns += router.urls

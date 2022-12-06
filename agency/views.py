@@ -467,7 +467,6 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     agency_level = AgencyLevel.objects.create(levels=levels)
                     invite = InviteMember.objects.create(agency=agency, email=email, user=agency_level, status=0,
                                                          company=company)
-                    # invite_id = invite.pk
                 decodeId = StringEncoder.encode(self, invite.user.id)
                 try:
                     subject = "Invitation link to Join Team"
@@ -487,7 +486,6 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 if not invite:
                     agency_level = AgencyLevel.objects.create(user=user, levels=levels)
                     invite = InviteMember.objects.create(user=agency_level, agency=agency, status=0, company=company)
-                    # invite = InviteMember.objects.latest('id')
 
                 decodeId = StringEncoder.encode(self, invite.id)
                 accept_invite_status = 1
@@ -710,7 +708,6 @@ class StageViewSet(viewsets.ModelViewSet):
 
 
 def copy_media_logic(id, parent_id=None):
-    # try:
     if id:
         dam_old = DAM.objects.filter(pk=id).first()
         dam_old.pk = None
@@ -733,9 +730,6 @@ def copy_media_logic(id, parent_id=None):
         return True
 
 
-# except Exception as e:
-#     print(e)
-#     return False
 
 
 @permission_classes([IsAuthenticated])
@@ -1232,6 +1226,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=False, url_path='count', url_name='count')
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
+        company = request.GET.get('company', None)
         if id:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
                                             is_trashed=False).count()
@@ -1240,6 +1235,25 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent=id, is_trashed=False).count()
+        if id and company:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True,company__in=order_list, parent=id,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list, dam__parent=id,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list, dam__parent=id,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user,company__in=order_list, parent=id, is_trashed=False).count()
+        if company and not id:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True,company__in=order_list,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user,company__in=order_list, is_trashed=False).count()
+
         else:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
@@ -1263,8 +1277,6 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['job', 'user', 'job__user']
-    # search_fields = ['=status', ]
-    # pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
@@ -1393,11 +1405,6 @@ class DAMFilter(viewsets.ModelViewSet):
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
-            # id_list = request.GET.get('company', None)
-            # order_list = id_list.split(",")
-            # data = DAM.objects.filter(company__in=order_list)
-            # serializer_data = DamWithMediaSerializer(data, many=True, context={'request': request})
-            # company_data = serializer_data.data
 
         
         context = {
@@ -1545,4 +1552,15 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
+
+@permission_classes([IsAuthenticated])
+class CompanyMediaCount(APIView):
+    def get(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            company_count = Company.objects.filter(agency=request.user,dam_company__parent=id).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            return Response(company_count, status=status.HTTP_200_OK)
+        else:
+            company_count = Company.objects.filter(agency=request.user).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            return Response(company_count, status=status.HTTP_200_OK)
 
