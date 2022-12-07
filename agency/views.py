@@ -1239,22 +1239,24 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True,company__in=order_list, parent=id,
                                             is_trashed=False).count()
+            print(fav_folder)
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
+            print(total_image)
             total_collection = DAM.objects.filter(type=2, agency=request.user,company__in=order_list, parent=id, is_trashed=False).count()
         if company and not id:
             order_list = company.split(",")
-            fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True,company__in=order_list,
+            fav_folder = DAM.objects.filter(agency=request.user,parent__isnull=True, is_favourite=True,company__in=order_list,
                                             is_trashed=False).count()
-            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list,
+            total_image = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__agency=request.user,dam__company__in=order_list,
                                                   is_trashed=False, is_video=False).count()
-            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user,dam__company__in=order_list,
+            total_video = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__agency=request.user,dam__company__in=order_list,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=request.user,company__in=order_list, is_trashed=False).count()
+            total_collection = DAM.objects.filter(type=2,parent__isnull=True, agency=request.user,company__in=order_list, is_trashed=False).count()
 
-        else:
+        if not id and not company:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
@@ -1265,8 +1267,9 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                    'total_image': total_image,
                    'total_collection': total_collection,
                    'total_video': total_video,
+                   'status': status.HTTP_201_CREATED,
                    }
-        return Response(context, status=status.HTTP_200_OK)
+        return Response(context)
 
 
 @permission_classes([IsAuthenticated])
@@ -1553,14 +1556,27 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 
+
 @permission_classes([IsAuthenticated])
-class CompanyMediaCount(APIView):
+class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            company_count = Company.objects.filter(agency=request.user,dam_company__parent=id).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            return Response(company_count, status=status.HTTP_200_OK)
+            company_count = Company.objects.filter(agency=request.user,dam_company__parent=id)
+            initial_count = company_count.values_list('id',flat=True)
+            company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+
+            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(agency=request.user , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
+            context = {
+            'company_count': company_count,
+            'null_company_count': null_company_count,
+            }
+            return Response(context, status=status.HTTP_200_OK)
         else:
             company_count = Company.objects.filter(agency=request.user).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            return Response(company_count, status=status.HTTP_200_OK)
-
+            context = {
+            'company_count': company_count,
+            'null_company_count': [],
+            }
+            return Response(context, status=status.HTTP_200_OK)

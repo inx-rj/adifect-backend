@@ -1373,3 +1373,27 @@ class JobAttachmentsView(APIView):
             'job_applied_attachments': job_applied_attachments.data,
         }
         return Response(context, status=status.HTTP_200_OK)
+
+
+class JobHouseMember(viewsets.ModelViewSet):
+    serializer_class = JobsWithAttachmentsThumbnailSerializer
+    queryset = Job.objects.filter(is_trashed=False,is_house_member=True)
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    ordering_fields = ['created', 'modified']
+    ordering = ['created', 'modified']
+    filterset_fields = ['id', 'is_active','job_applied__status','job_applied__user']
+    search_fields = ['title']
+    pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        job_data = self.filter_queryset(self.get_queryset()).filter(house_member__user__user=request.user)
+        paginated_data = self.paginate_queryset(job_data)
+        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+
+    def retrieve(self, request,*args, **kwargs):
+        obj = self.get_object()
+        serializer = JobsWithAttachmentsSerializer(obj, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

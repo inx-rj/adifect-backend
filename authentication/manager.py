@@ -56,7 +56,7 @@ class IsMarketerMember(permissions.BasePermission):
                 return True
 
 class IsApproverMember(permissions.BasePermission):
-
+    edit_methods = ("GET")
     def has_permission(self, request, view):
         if request.user.is_authenticated and request.method in ['GET']:
             if request.user.role == 3 and request.user.agency_level.filter(levels=3):

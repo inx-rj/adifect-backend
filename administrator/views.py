@@ -272,16 +272,12 @@ def dam_sample_images_list(dam_sample_images, job_id):
         exceeded_files = []
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
-            print(dam_inital)
-            print("yoooooooooooooooooooooooooooooo")
             if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
-                print("hahahahahahahahaha")
                 dam_inital.job_count += 1
                 dam_inital.save()
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
                     exceeded_files.append(dam_inital)
-                    print("limit exceeded")
                 else:
                     JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
                                                   dam_media_id=dam_inital)
@@ -337,11 +333,13 @@ class JobViewSet(viewsets.ModelViewSet):
         dam_images = request.data.getlist('dam_images')
         dam_sample_images = request.data.getlist('dam_sample_images')
 
+
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
             if template_name:
                 if Job.objects.filter(template_name=template_name, is_trashed=False).exclude(
                         template_name=None).exists():
+                    print(template_name)
                     context = {
                         'message': 'Job Template Already Exist',
                         'status': status.HTTP_400_BAD_REQUEST,
@@ -418,6 +416,13 @@ class JobViewSet(viewsets.ModelViewSet):
                         for i in templte_sample_image:
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
             JobActivity.objects.create(job=job_id, activity_type=JobActivity.Type.Create)
+
+
+            #----- FOR IN HOUSE MEMBER ------#
+            if job_id.is_house_member:
+                for i in job_id.house_member.all():
+                    JobApplied.objects.create(job=job_id,status=2,user=i.user.user,is_seen=True)
+
             context = {
                 'message': 'Job Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -771,7 +776,7 @@ class LatestJobAPI(APIView):
         try:
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
-            latest_job = Job.objects.exclude(id__in=list(applied_data))
+            latest_job = Job.objects.exclude(id__in=list(applied_data),is_house_member=False)
             latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today())
             user_role = request.user.role
             if not user_role == 0:

@@ -135,10 +135,22 @@ class JobSerializer(serializers.ModelSerializer):
             validated_data.pop('skills')
             skills_data = None
 
+        if validated_data.get('house_member'):
+            house = validated_data.get('house_member')
+            validated_data.pop('house_member')
+        else:
+            validated_data.pop('house_member')
+            house = None
+
+
+
         job = Job.objects.create(**validated_data)
         if skills_data:
             for i in skills_data:
                 job.skills.add(i)
+        if house:
+            for j in house:
+                job.house_member.add(j)
 
         job.save()
         return job
@@ -559,11 +571,28 @@ class JobTemplateSerializer(serializers.ModelSerializer):
         if validated_data.get('skills'):
             skills_data = validated_data.get('skills')
             validated_data.pop('skills')
+        else:
+            validated_data.pop('skills')
+            skills_data = None
+
+
+        if validated_data.get('house_member'):
+            house = validated_data.get('house_member')
+            validated_data.pop('house_member')
+        else:
+            validated_data.pop('house_member')
+            house = None
+
         job = JobTemplate.objects.create(**validated_data)
+
         if skills_data:
             for i in skills_data:
                 job.skills.add(i)
-            job.save()
+
+        if house:
+            for j in house:
+                job.house_member.add(j)
+        job.save()
         return job
 
 

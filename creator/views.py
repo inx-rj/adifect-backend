@@ -196,7 +196,7 @@ class MyProjectAllJob(APIView):
 
 @permission_classes([IsAuthenticated])
 class AvailableJobs(viewsets.ModelViewSet):
-    queryset = Job.objects.filter(is_blocked=False).exclude(status=0).exclude(is_active=0)
+    queryset = Job.objects.filter(is_blocked=False,is_house_member=False).exclude(status=0).exclude(is_active=0)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created', 'modified']

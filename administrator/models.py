@@ -155,7 +155,7 @@ class Job(BaseModel):
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
     is_house_member = models.BooleanField(default=False)
-    house_member = models.ForeignKey(InviteMember, on_delete=models.SET_NULL, null=True, blank=True,default=None)
+    house_member = models.ManyToManyField(InviteMember, blank=True)
 
     class Meta:
         verbose_name_plural = 'Job'
@@ -431,9 +431,9 @@ class JobTemplate(BaseModel):
     job_type = models.IntegerField(choices=JobType.choices, default=JobType.Fixed)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, related_name="jobtemplate_level", null=True, blank=True)
     expected_delivery_date = models.DateField(default=None)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    tags = models.CharField(max_length=10000)
-    skills = models.ManyToManyField(Skills)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
+    tags = models.CharField(max_length=10000, null=True, blank=True)
+    skills = models.ManyToManyField(Skills, blank=True)
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="jobtemplate_company", null=True,
@@ -444,6 +444,10 @@ class JobTemplate(BaseModel):
                                  null=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="jobtemplate_user", null=True,
                              blank=True)
+
+    is_house_member = models.BooleanField(default=False)
+    house_member = models.ManyToManyField(InviteMember, blank=True)
+
     # status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
     class Meta:

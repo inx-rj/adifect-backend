@@ -22,7 +22,8 @@ router.register(r'member-dam-root', views.MemberDamRootViewSet, basename='dam_ro
 router.register(r'member-dam-media', views.MemberDamMediaViewSet, basename='member_dam_media')
 router.register(r'member-dam-duplicate', views.MemberDamDuplicateViewSet, basename='member_dam_duplicate')
 router.register(r'member-dam-media-filter', views.MemberDamMediaFilterViewSet, basename='member_dam_media_filter')
-router.register(r'member-dam-filter', views.MemberDAMFilter, basename='member-dam-filter')
+router.register(r'member-dam-filter', views.MemberDAMFilter, basename='member_dam_filter')
+router.register(r'job-house-member', views.JobHouseMember, basename='job_house_member')
 
 urlpatterns = [
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
