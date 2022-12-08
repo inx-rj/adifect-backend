@@ -1074,6 +1074,9 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=partial)
 
         if serializer.is_valid():
+            if request.data['company']:
+                DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+                self.perform_update(serializer)
             self.perform_update(serializer)
             context = {
                 'message': 'Updated Successfully...',
