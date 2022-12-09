@@ -1131,7 +1131,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
-        workflow_data = self.queryset
+        workflow_data = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
