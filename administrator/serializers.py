@@ -8,7 +8,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
     JobTemplateAttachments, Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, \
     JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity, \
-    JobWorkActivityAttachments
+    JobWorkActivityAttachments, JobFeedback
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
@@ -1051,3 +1051,25 @@ class UserPortfolioSerializer(serializers.ModelSerializer):
 
 class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
+
+
+
+class JobFeedbackSerializer(serializers.ModelSerializer):
+    receiver_user_details = serializers.SerializerMethodField("get_receiver_full_name")
+    sender_user_details = serializers.SerializerMethodField('get_sender_full_name')
+
+    class Meta:
+        model = JobFeedback
+        fields = '__all__'
+
+    def get_receiver_full_name(self, obj):
+        if obj.receiver_user:
+            return obj.receiver_user.get_full_name()
+        else:
+            return ''
+
+    def get_sender_full_name(self, obj):
+        if obj.sender_user:
+            return obj.sender_user.get_full_name()
+        else:
+            return ''

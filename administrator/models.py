@@ -571,3 +571,20 @@ class MemberApprovals(BaseModel):
     nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
     class Meta:
         verbose_name_plural = 'Member Approvals'
+
+        
+
+class JobFeedback(BaseModel):
+    receiver_user = models.ForeignKey(CustomUser, related_name='feedback_receiver', on_delete=models.CASCADE, null=True,
+                                      blank=True, default=None)
+    sender_user = models.ForeignKey(CustomUser, related_name='feedback_sender', on_delete=models.CASCADE, null=True,
+                                    blank=True, default=None)
+    rating = models.IntegerField(default=None, null=True, blank=True, validators=[
+        MaxValueValidator(5)])
+    feedback = models.TextField(default=None, null=True, blank=True)
+    job = models.ForeignKey(Job, related_name='job_feedback', on_delete=models.CASCADE, blank=True, null=True,
+                            default=None)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Feedback'

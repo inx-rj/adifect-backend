@@ -21,6 +21,7 @@ router.register(r'dam-filter', views.DamMediaFilterViewSet, basename='dam_filter
 router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename='job_activity_member')
 router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
 router.register(r'inhouse-user-list', views.InHouseMemberViewset, basename='inhouse_user_list')
+router.register(r'job-feedback', views.JobFeedbackViewset, basename='job_feedback')
 
 
 

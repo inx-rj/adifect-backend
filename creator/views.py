@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork, JobTasks, JobActivityAttachments, JobWorkActivityAttachments , JobAppliedAttachments
+from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork, JobTasks, JobActivityAttachments, JobWorkActivityAttachments , JobAppliedAttachments, JobFeedback
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, \
-    JobActivitySerializer, SubmitJobWorkSerializer, JobTasksSerializer, JobAttachmentsSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer
+    JobActivitySerializer, SubmitJobWorkSerializer, JobTasksSerializer, JobAttachmentsSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobFeedbackSerializer
 
 from rest_framework import status
 from rest_framework import viewsets
@@ -365,3 +365,19 @@ class JobAttachmentsView(APIView):
             'job_applied_attachments': job_applied_attachments.data
         }
         return Response(context, status=status.HTTP_200_OK)
+
+
+
+@permission_classes([IsAuthenticated])
+class JobFeedbackViewset(viewsets.ModelViewSet):
+    serializer_class = JobFeedbackSerializer
+    queryset = JobFeedback.objects.all()
+    ordering_fields = ['modified','created']
+    ordering = ['modified','created']
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['receiver_user', 'sender_user', 'rating', 'job']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        return Response(data=serializer.data)

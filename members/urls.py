@@ -28,5 +28,6 @@ router.register(r'job-house-member', views.JobHouseMember, basename='job_house_m
 urlpatterns = [
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
         path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
+        path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
 ]
 urlpatterns += router.urls

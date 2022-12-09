@@ -12,6 +12,7 @@ router.register(r'public-job-api', views.PublicJobViewApi, basename='public_job_
 router.register(r'available-jobs', views.AvailableJobs, basename='available_jobs')
 router.register(r'job-activity', views.JobActivityCreaterViewSet, basename='job_activity')
 router.register(r'creator-job-count',  views.CreatorJobsCountViewSet, basename='creator_job_count')
+router.register(r'job-feedback', views.JobFeedbackViewset, basename='job_feedback')
 
 
 
