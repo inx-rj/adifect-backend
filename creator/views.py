@@ -381,3 +381,25 @@ class JobFeedbackViewset(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
+
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            if serializer.validated_data['sender_user'] is not None and serializer.validated_data['sender_user'].role==1:
+                JobActivity.objects.create(job=serializer.validated_data['job'],activity_type=7,activity_status=0,user=serializer.validated_data['sender_user'],activity_by=1)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)

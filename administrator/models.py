@@ -230,6 +230,11 @@ class JobActivity(BaseModel):
         Reject = 4
         Moved = 5
         Completed = 6
+        Rating = 7
+
+    class Send_by(models.IntegerChoices):
+        agency = 0
+        creator = 1
 
     job = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
     activity_type = models.IntegerField(choices=Type.choices, null=True, blank=True)
@@ -237,6 +242,7 @@ class JobActivity(BaseModel):
     user = models.ForeignKey(CustomUser, related_name='job_activity_user', on_delete=models.SET_NULL, null=True,
                              blank=True)
     activity_status = models.IntegerField(choices=Status.choices, default=Status.Notification)
+    activity_by =  models.IntegerField(choices=Send_by.choices, default=Send_by.agency)
 
     def __str__(self) -> str:
         return f'{self.job.title}'

@@ -924,6 +924,30 @@ class customUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = '__all__'
 
+class JobFeedbackSerializer(serializers.ModelSerializer):
+    receiver_user_details = serializers.SerializerMethodField("get_receiver_full_name")
+    sender_user_details = serializers.SerializerMethodField('get_sender_full_name')
+
+    class Meta:
+        model = JobFeedback
+        fields = '__all__'
+
+
+    def get_receiver_full_name(self, obj):
+        if obj.receiver_user is not None:
+            return obj.receiver_user.get_full_name()
+        else:
+            return ''
+
+    def get_sender_full_name(self, obj):
+        if obj.sender_user is not None:
+            return obj.sender_user.get_full_name()
+        else:
+            return ''
+
+
+
+
 
 class JobActivitySerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
@@ -934,6 +958,9 @@ class JobActivitySerializer(serializers.ModelSerializer):
     activity_job_chat = JobActivityChatSerializer(many=True, required=False)
     activity_job_work = JobWorkActivitySerializer(many=True, required=False)
     job_applied_data = serializers.SerializerMethodField("get_job_applied_data")
+    job_rating_sender = serializers.SerializerMethodField("get_job_sender")
+    job_rating_receiver = serializers.SerializerMethodField("get_job_receiver")
+
 
     class Meta:
         model = JobActivity
@@ -994,6 +1021,31 @@ class JobActivitySerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
+    def get_job_sender(self, obj):
+        if obj.activity_type == 7 and self.context.get("request"):
+            if obj.job.job_feedback.all() and  obj.user is not None :
+                if self.context.get("request").user.role == 1 :
+                    filter_data = obj.job.job_feedback.filter(sender_user=self.context.get("request").user).first()
+                else:
+                    filter_data = None
+                    if obj.activity_by == 0:
+                        filter_data = obj.job.job_feedback.filter(sender_user=obj.job.user,receiver_user=obj.user).first()
+                if filter_data:
+                  return JobFeedbackSerializer(filter_data).data
+        return []
+
+    def get_job_receiver(self, obj):
+        if obj.activity_type == 7 and self.context.get("request"):
+            if obj.job.job_feedback.all() and obj.user is not None:
+                if self.context.get("request").user.role == 1:
+                    filter_data = obj.job.job_feedback.filter(receiver_user=self.context.get("request").user).first()
+                else:
+                    filter_data = None
+                    if obj.activity_by == 1:
+                        filter_data = obj.job.job_feedback.filter(receiver_user=obj.job.user,sender_user=obj.user).first()
+                if filter_data:
+                    return JobFeedbackSerializer(filter_data).data
+        return []
 
 class JobActivityUserSerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
@@ -1054,22 +1106,3 @@ class SearchFilterSerializer(serializers.Serializer):
 
 
 
-class JobFeedbackSerializer(serializers.ModelSerializer):
-    receiver_user_details = serializers.SerializerMethodField("get_receiver_full_name")
-    sender_user_details = serializers.SerializerMethodField('get_sender_full_name')
-
-    class Meta:
-        model = JobFeedback
-        fields = '__all__'
-
-    def get_receiver_full_name(self, obj):
-        if obj.receiver_user:
-            return obj.receiver_user.get_full_name()
-        else:
-            return ''
-
-    def get_sender_full_name(self, obj):
-        if obj.sender_user:
-            return obj.sender_user.get_full_name()
-        else:
-            return ''
