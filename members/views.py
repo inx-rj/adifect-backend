@@ -167,7 +167,7 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-@permission_classes([IsApproverMember | IsAdminMember])
+@permission_classes([IsApproverMember | IsAdminMember | IsMarketerMember])
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
