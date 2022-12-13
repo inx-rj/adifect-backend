@@ -19,7 +19,7 @@ app.config_from_object(settings, namespace='CELERY')
 app.conf.beat_schedule = {
     'reminder-email-every-1-minute': {
         'task': 'approver_reminder_email',
-        'schedule': 60.0,
+        'schedule': 30.0,
         # 'args': (16, 16)
     },
 }

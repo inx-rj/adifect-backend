@@ -1625,6 +1625,9 @@ class JobFeedbackViewset(viewsets.ModelViewSet):
 
 def send_reminder_email():
     try:
+        from_email = Email(SEND_GRID_FROM_EMAIL)
+        to_email = To('tosharstudio45@gmail.com')
+        mail = send_email(from_email,to_email, 'hii test', 'hello testing celery')
         queryset = MemberApprovals.objects.filter(status=0, workflow_stage__is_nudge=True).exclude(
             nudge_status=F('workflow_stage__nudge_time'))
         for i in queryset:

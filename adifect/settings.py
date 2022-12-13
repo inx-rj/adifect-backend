@@ -94,7 +94,7 @@ WSGI_APPLICATION = 'adifect.wsgi.application'
 # ------ django celery -----#
 # CELERY_RESULT_BACKEND = "django-db"
 result_backend = "django-db"
-CELERY_BROKER_URL = os.environ.get('REDIS_HOST')
+CELERY_BROKER_URL = f'redis://{os.environ.get("REDIS_HOST")}'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # ----- end -----#
 
