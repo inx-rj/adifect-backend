@@ -91,12 +91,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adifect.wsgi.application'
 
-#------ django celery -----#
+# ------ django celery -----#
 # CELERY_RESULT_BACKEND = "django-db"
 result_backend = "django-db"
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379'
+CELERY_BROKER_URL = os.environ.get('REDIS_HOST')
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-#----- end -----#
+# ----- end -----#
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
@@ -253,4 +253,3 @@ TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
 # ----------------- end ------------------------------#
-
