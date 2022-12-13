@@ -194,7 +194,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
@@ -399,7 +399,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
@@ -651,7 +651,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class MemberJobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
