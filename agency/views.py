@@ -1629,28 +1629,28 @@ def send_reminder_email():
             nudge_status=F('workflow_stage__nudge_time'))
         for i in queryset:
             if '3' in i.workflow_stage.nudge_time and not '3' in i.nudge_status if i.nudge_status is not None else '':
-                if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(3))):
+                if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(3))):
                     # send email
                     ApprovalReminder(i.approver.user.user, i.job_work, '3')
                     i.nudge_status = i.nudge_status + '3,'
                     i.save()
 
             if '6' in i.workflow_stage.nudge_time and not '6' in i.nudge_status if i.nudge_status is not None else '':
-                if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(6))):
+                if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(6))):
                     # send email
                     ApprovalReminder(i.approver.user.user, i.job_work, '2')
                     i.nudge_status = i.nudge_status + '6,'
                     i.save()
 
             if '9' in i.workflow_stage.nudge_time and not '9' in i.nudge_status if i.nudge_status is not None else '':
-                if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(9))):
+                if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(9))):
                     # send email
                     ApprovalReminder(i.approver.user.user, i.job_work, '1')
                     i.nudge_status = i.nudge_status + '9,'
                     i.save()
 
             if '12' in i.workflow_stage.nudge_time and not '12' in i.nudge_status if i.nudge_status is not None else '':
-                if timezone.now() >= i.created + timedelta(minutes=(int(i.workflow_stage.approval_time) - int(12))):
+                if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(12))):
                     # send email
                     ApprovalReminder(i.approver.user.user, i.job_work)
                     i.nudge_status = i.nudge_status + '12,'
