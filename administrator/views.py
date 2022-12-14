@@ -37,7 +37,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia, DAM
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer, \
-    InviteMemberSerializer, MyProjectSerializer
+    InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -2562,3 +2562,753 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
         return Response(context)
+
+
+@permission_classes([IsAuthenticated])
+class MemberDAMViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    search_fields = ['name']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            dam_data = self.queryset.get(id=pk)
+            serializer = DamWithMediaSerializer(dam_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+        if serializer.is_valid():
+            if serializer.validated_data['type'] == 3:
+                for index, i in enumerate(dam_files):
+                    # self.perform_create(serializer)
+                    dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
+                                                agency=serializer.validated_data['agency'])
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            # elif serializer.validated_data['type']==1:
+            #     print("yesssssssssssssssssss")
+            #     if request.data['parent'] is not None:
+            #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     elif request.data['parent'] is None:
+            #          if DAM.objects.filter(name=request.data['name']):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     else:
+            #         self.perform_create(serializer)
+            #         dam_id = DAM.objects.latest('id')
+            #         for index,i in enumerate(dam_files):
+            #             DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         context = {
+            #             'message': 'Media Uploaded Successfully',
+            #             'status': status.HTTP_201_CREATED,
+            #             'errors': serializer.errors,
+            #             'data': serializer.data,
+            #         }
+            #         return Response(context)
+
+            else:
+                self.perform_create(serializer)
+                dam_id = DAM.objects.latest('id')
+                for index, i in enumerate(dam_files):
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=False, url_path='selected_delete', url_name='selected_delete')
+    def delete_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id_list', None)
+            order_list = id_list.split(",")
+            if order_list:
+                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                    i.delete()
+                DAM.objects.filter(id__in=order_list).delete()
+                context = {
+                    'message': 'Deleted Succesfully',
+                    'status': status.HTTP_204_NO_CONTENT,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['post'], detail=False, url_path='copy_to', url_name='copy_to')
+    def copy_to(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid() and request.data.get('id'):
+            id = request.data.get('id')
+            type_id = serializer.validated_data.get('type')
+            parent = serializer.validated_data.get('parent')
+            type_new = int(request.data.get('type_new'))
+            # --- image copy from one folder to another -----#
+            if type_id == 3 and type_new == 3:
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                if dam_media_inital:
+                    dam_intial = dam_media_inital.dam
+                    dam_intial.pk = None
+                    dam_intial.parent = parent
+                    dam_intial.type = type_new
+                    dam_intial.save()
+                    dam_media_inital.pk = None
+                    dam_media_inital.dam = dam_intial
+                    dam_media_inital.save()
+                    context = {
+                        'message': 'Media Uploaded Successfully',
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+
+                else:
+                    context = {
+                        'error': 'DAM id not found.',
+                        'errors': serializer.errors,
+                    }
+
+                return Response(context)
+            # --- collection  copy from one  to collection or image copy into collection  -----#
+            if (type_id == 2 and type_new == 2) or (type_id == 3 and type_new == 2):
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                dam_media_inital.pk = None
+                dam_media_inital.dam = parent
+                dam_media_inital.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+
+            # ---------------- image copy from collection --------#
+            if type_id == 2 and type_new == 3:
+                dam_new = DAM.objects.create(type=3, parent=parent, agency=request.user)
+                dam_media = DamMedia.objects.filter(id=id).first()
+                dam_media.pk = None
+                dam_media.dam = dam_new
+                dam_media.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            return Response({'message': serializer.errors}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in DamMedia.objects.filter(dam_id=instance.id):
+            i.delete()
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+    @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
+    def create_collection(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data, partial=partial)
+        images = request.data.get('dam_images', None)
+        data = images.split(",")
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            dam_id = DAM.objects.latest('id')
+            for i in data:
+                dam_inital = DamMedia.objects.get(id=i)
+
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title,
+                                        description=dam_inital.description)
+                dam_inital.delete()
+                if dam_files:
+                    for index, i in enumerate(dam_files):
+                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['put'], detail=False, url_path='rename_folder/(?P<pk>[^/.]+)', url_name='rename_folder')
+    def rename_folder(self, request, pk=None):
+        new_title = request.data.get('new_title', None)
+        dam_data = DamMedia.objects.filter(id=pk).update(title=new_title)
+        return Response(dam_data.data, status=status.HTTP_200_OK)
+
+    @action(methods=['put'], detail=False, url_path='move_to', url_name='move_to')
+    def move_to(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id', None)
+            if id_list:
+                DAM.objects.filter(id__in=id_list).update(parent=request.data['parent'])
+                context = {
+                    'message': 'Updated successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+@permission_classes([IsAuthenticated])
+class MemberDAMViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    search_fields = ['name']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            dam_data = self.queryset.get(id=pk)
+            serializer = DamWithMediaSerializer(dam_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+        if serializer.is_valid():
+            if serializer.validated_data['type'] == 3:
+                for index, i in enumerate(dam_files):
+                    # self.perform_create(serializer)
+                    dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
+                                                agency=serializer.validated_data['agency'])
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            # elif serializer.validated_data['type']==1:
+            #     print("yesssssssssssssssssss")
+            #     if request.data['parent'] is not None:
+            #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     elif request.data['parent'] is None:
+            #          if DAM.objects.filter(name=request.data['name']):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     else:
+            #         self.perform_create(serializer)
+            #         dam_id = DAM.objects.latest('id')
+            #         for index,i in enumerate(dam_files):
+            #             DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         context = {
+            #             'message': 'Media Uploaded Successfully',
+            #             'status': status.HTTP_201_CREATED,
+            #             'errors': serializer.errors,
+            #             'data': serializer.data,
+            #         }
+            #         return Response(context)
+
+            else:
+                self.perform_create(serializer)
+                dam_id = DAM.objects.latest('id')
+                for index, i in enumerate(dam_files):
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=False, url_path='selected_delete', url_name='selected_delete')
+    def delete_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id_list', None)
+            order_list = id_list.split(",")
+            if order_list:
+                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                    i.delete()
+                DAM.objects.filter(id__in=order_list).delete()
+                context = {
+                    'message': 'Deleted Succesfully',
+                    'status': status.HTTP_204_NO_CONTENT,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['post'], detail=False, url_path='copy_to', url_name='copy_to')
+    def copy_to(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid() and request.data.get('id'):
+            id = request.data.get('id')
+            type_id = serializer.validated_data.get('type')
+            parent = serializer.validated_data.get('parent')
+            type_new = int(request.data.get('type_new'))
+            # --- image copy from one folder to another -----#
+            if type_id == 3 and type_new == 3:
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                if dam_media_inital:
+                    dam_intial = dam_media_inital.dam
+                    dam_intial.pk = None
+                    dam_intial.parent = parent
+                    dam_intial.type = type_new
+                    dam_intial.save()
+                    dam_media_inital.pk = None
+                    dam_media_inital.dam = dam_intial
+                    dam_media_inital.save()
+                    context = {
+                        'message': 'Media Uploaded Successfully',
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+
+                else:
+                    context = {
+                        'error': 'DAM id not found.',
+                        'errors': serializer.errors,
+                    }
+
+                return Response(context)
+            # --- collection  copy from one  to collection or image copy into collection  -----#
+            if (type_id == 2 and type_new == 2) or (type_id == 3 and type_new == 2):
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                dam_media_inital.pk = None
+                dam_media_inital.dam = parent
+                dam_media_inital.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+
+            # ---------------- image copy from collection --------#
+            if type_id == 2 and type_new == 3:
+                dam_new = DAM.objects.create(type=3, parent=parent, agency=request.user)
+                dam_media = DamMedia.objects.filter(id=id).first()
+                dam_media.pk = None
+                dam_media.dam = dam_new
+                dam_media.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            return Response({'message': serializer.errors}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in DamMedia.objects.filter(dam_id=instance.id):
+            i.delete()
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+    @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
+    def create_collection(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data, partial=partial)
+        images = request.data.get('dam_images', None)
+        data = images.split(",")
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            dam_id = DAM.objects.latest('id')
+            for i in data:
+                dam_inital = DamMedia.objects.get(id=i)
+
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title,
+                                        description=dam_inital.description)
+                dam_inital.delete()
+                if dam_files:
+                    for index, i in enumerate(dam_files):
+                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['put'], detail=False, url_path='rename_folder/(?P<pk>[^/.]+)', url_name='rename_folder')
+    def rename_folder(self, request, pk=None):
+        new_title = request.data.get('new_title', None)
+        dam_data = DamMedia.objects.filter(id=pk).update(title=new_title)
+        return Response(dam_data.data, status=status.HTTP_200_OK)
+
+    @action(methods=['put'], detail=False, url_path='move_to', url_name='move_to')
+    def move_to(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id', None)
+            if id_list:
+                DAM.objects.filter(id__in=id_list).update(parent=request.data['parent'])
+                context = {
+                    'message': 'Updated successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+@permission_classes([IsAuthenticated])
+class SuperAdminDAMViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    search_fields = ['name']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            dam_data = self.queryset.get(id=pk)
+            serializer = DamWithMediaSerializer(dam_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+        if serializer.is_valid():
+            if serializer.validated_data['type'] == 3:
+                for index, i in enumerate(dam_files):
+                    # self.perform_create(serializer)
+                    dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
+                                                agency=serializer.validated_data['agency'],company=serializer.validated_data['company'])
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            else:
+                self.perform_create(serializer)
+                dam_id = DAM.objects.latest('id')
+                for index, i in enumerate(dam_files):
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=False, url_path='selected_delete', url_name='selected_delete')
+    def delete_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id_list', None)
+            order_list = id_list.split(",")
+            if order_list:
+                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                    i.delete()
+                DAM.objects.filter(id__in=order_list).delete()
+                context = {
+                    'message': 'Deleted Succesfully',
+                    'status': status.HTTP_204_NO_CONTENT,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['post'], detail=False, url_path='copy_to', url_name='copy_to')
+    def copy_to(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid() and request.data.get('id'):
+            id = request.data.get('id')
+            type_id = serializer.validated_data.get('type')
+            parent = serializer.validated_data.get('parent')
+            type_new = int(request.data.get('type_new'))
+            # --- image copy from one folder to another -----#
+            if type_id == 3 and type_new == 3:
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                if dam_media_inital:
+                    dam_intial = dam_media_inital.dam
+                    dam_intial.pk = None
+                    dam_intial.parent = parent
+                    dam_intial.type = type_new
+                    dam_intial.save()
+                    dam_media_inital.pk = None
+                    dam_media_inital.dam = dam_intial
+                    dam_media_inital.save()
+                    context = {
+                        'message': 'Media Uploaded Successfully',
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+
+                else:
+                    context = {
+                        'error': 'DAM id not found.',
+                        'errors': serializer.errors,
+                    }
+
+                return Response(context)
+            # --- collection  copy from one  to collection or image copy into collection  -----#
+            if (type_id == 2 and type_new == 2) or (type_id == 3 and type_new == 2):
+                dam_media_inital = DamMedia.objects.filter(id=request.data.get('id')).first()
+                dam_media_inital.pk = None
+                dam_media_inital.dam = parent
+                dam_media_inital.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+
+            # ---------------- image copy from collection --------#
+            if type_id == 2 and type_new == 3:
+                dam_new = DAM.objects.create(type=3, parent=parent, agency=request.user)
+                dam_media = DamMedia.objects.filter(id=id).first()
+                dam_media.pk = None
+                dam_media.dam = dam_new
+                dam_media.save()
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            return Response({'message': serializer.errors}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in DamMedia.objects.filter(dam_id=instance.id):
+            i.delete()
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+    @action(methods=['post'], detail=False, url_path='create_collection', url_name='create_collection')
+    def create_collection(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(data=request.data, partial=partial)
+        images = request.data.get('dam_images', None)
+        data = images.split(",")
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_name = request.POST.getlist('dam_files_name', None)
+
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            dam_id = DAM.objects.latest('id')
+            for i in data:
+                dam_inital = DamMedia.objects.get(id=i)
+
+                DamMedia.objects.create(dam=dam_id, media=dam_inital.media, title=dam_inital.title,
+                                        description=dam_inital.description)
+                dam_inital.delete()
+                if dam_files:
+                    for index, i in enumerate(dam_files):
+                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+
+            context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['put'], detail=False, url_path='rename_folder/(?P<pk>[^/.]+)', url_name='rename_folder')
+    def rename_folder(self, request, pk=None):
+        new_title = request.data.get('new_title', None)
+        dam_data = DamMedia.objects.filter(id=pk).update(title=new_title)
+        return Response(dam_data.data, status=status.HTTP_200_OK)
+
+    @action(methods=['put'], detail=False, url_path='move_to', url_name='move_to')
+    def move_to(self, request, *args, **kwargs):
+        try:
+            id_list = request.data.get('id', None)
+            if id_list:
+                DAM.objects.filter(id__in=id_list).update(parent=request.data['parent'])
+                context = {
+                    'message': 'Updated successfully',
+                    'status': status.HTTP_201_CREATED,
+                    'errors': False,
+                }
+                return Response(context)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)

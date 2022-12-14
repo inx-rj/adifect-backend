@@ -48,6 +48,7 @@ router.register(r'agency-job-details', views.AgencyJobDetailsViewSet, basename='
 router.register(r'submit-job-work', views.JobWorkSubmitViewSet, basename='submit_job_work')
 router.register(r'member-work-approval', views.MemberApprovalViewSet, basename='member_work_approval')
 router.register(r'completed-job', views.JobCompletedViewSet, basename='completed_job')
+router.register(r'super-admin-dam', views.SuperAdminDAMViewSet, basename='super_admin_dam')
 
 
 #-------------------------------------  END  ---------------------------------------------#
@@ -69,6 +70,8 @@ urlpatterns = [
     path('job-work-status/', views.JobWorkStatus.as_view(), name='job_work_status'),
     path('job-completed-status/', views.JobCompletedStatus.as_view(), name='job_completed_status'),
     path('job-activity-users/<int:job_id>/', views.JobActivityUserList.as_view(), name='job_activity_users'),
+
+
 
 ]
 urlpatterns += router.urls

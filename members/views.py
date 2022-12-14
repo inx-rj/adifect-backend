@@ -770,6 +770,7 @@ class MemberInviteMemberUserList(APIView):
     def get(self, request, *args, **kwargs):
         company_id = request.GET.get('company', None)
         level = request.GET.get('level', None)
+        agency = request.user
         if level == '3':
             invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
                                                        user__user__isnull=False, user__levels=3)
@@ -777,7 +778,7 @@ class MemberInviteMemberUserList(APIView):
             invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
                                                        user__user__isnull=False)
         if company_id:
-            invited_user = invited_user.filter(company_id=company_id)
+            invited_user = invited_user.filter(Q(company_id=company_id) | Q(user__user=agency))
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -1381,15 +1382,17 @@ class JobHouseMember(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsThumbnailSerializer
     queryset = Job.objects.filter(is_trashed=False,is_house_member=True)
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    ordering_fields = ['created', 'modified']
-    ordering = ['created', 'modified']
-    filterset_fields = ['id', 'is_active','job_applied__status','job_applied__user']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter ]
+    ordering_fields = ['created', 'modified', 'job_due_date','job__created']
+    ordering = ['created', 'modified', 'job_due_date','job__created']
+    filterset_fields = ['id', 'is_active','job_applied__status','job_applied__user','company']
     search_fields = ['title']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        job_data = self.filter_queryset(self.get_queryset()).filter(house_member__user__user=request.user)
+        
+        job_data = self.filter_queryset(self.get_queryset()).filter(house_member__user__user=request.user).distinct()
         paginated_data = self.paginate_queryset(job_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
@@ -1457,3 +1460,75 @@ class CompanyImageCount(APIView):
             'null_company_count': [],
             }
             return Response(context, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsAuthenticated])
+class CompanyCountView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        company = request.GET.get('company', None)
+        user_id = request.GET.get('user_id', None)
+        if id and company:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, company__in=order_list, parent=id,
+                                            is_trashed=False).count()
+            print(fav_folder)
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__company__in=order_list,
+                                                  dam__parent=id,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__company__in=order_list,
+                                                  dam__parent=id,
+                                                  is_trashed=False, is_video=True).count()
+            print(total_image)
+            total_collection = DAM.objects.filter(type=2, agency=user_id, company__in=order_list, parent=id,
+                                                  is_trashed=False).count()
+        if company and not id:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(agency=user_id, parent__isnull=True, is_favourite=True,
+                                            company__in=order_list,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__parent__isnull=True, dam__agency=user_id,
+                                                  dam__company__in=order_list,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__parent__isnull=True, dam__agency=user_id,
+                                                  dam__company__in=order_list,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2, parent__isnull=True, agency=user_id, company__in=order_list,
+                                                  is_trashed=False).count()
+            context = {'fav_folder': fav_folder,
+                       'total_image': total_image,
+                       'total_collection': total_collection,
+                       'total_video': total_video,
+                       'status': status.HTTP_201_CREATED,
+                       }
+            return Response(context)
+        return Response({"message":"Please add company id"},status=status.HTTP_200_OK)
+    
+
+    # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
+    # def favourites(self, request, pk=None, *args, **kwargs):
+    #     id = request.GET.get('id', None)
+    #     company = request.GET.get('company', None)
+    #     user_id = request.GET.get('user_id', None)
+    #     if id:
+    #         fav_folder = DAM.objects.filter(type=1, agency=user_id, is_favourite=True, parent=id)
+    #         fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
+    #         fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=user_id)
+    #         fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
+    #         fav_images = DAM.objects.filter(parent=id, type=3, agency=user_id, is_favourite=True)
+    #         fav_images_data = DamWithMediaSerializer(fav_images, many=True, context={'request': request})
+    #     else:
+    #         fav_folder = DAM.objects.filter(type=1, agency=user_id, is_favourite=True)
+    #         fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
+    #         fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, dam__agency=user_id)
+    #         fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
+    #         fav_images = DAM.objects.filter(type=3, agency=user_id, is_favourite=True, )
+    #         fav_images_data = DamWithMediaSerializer(fav_images, many=True, context={'request': request})
+
+    #     context = {
+    #         'fav_folder': fav_folder_data.data,
+    #         'fav_collection': fav_collection_data.data,
+    #         'fav_images': fav_images_data.data
+    #     }
+    #     return Response(context, status=status.HTTP_200_OK)
