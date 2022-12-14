@@ -8,7 +8,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
     JobTemplateAttachments, Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, \
     JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity, \
-    JobWorkActivityAttachments
+    JobWorkActivityAttachments, JobFeedback
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
@@ -135,10 +135,22 @@ class JobSerializer(serializers.ModelSerializer):
             validated_data.pop('skills')
             skills_data = None
 
+        if validated_data.get('house_member'):
+            house = validated_data.get('house_member')
+            validated_data.pop('house_member')
+        else:
+            validated_data.pop('house_member')
+            house = None
+
+
+
         job = Job.objects.create(**validated_data)
         if skills_data:
             for i in skills_data:
                 job.skills.add(i)
+        if house:
+            for j in house:
+                job.house_member.add(j)
 
         job.save()
         return job
@@ -349,7 +361,7 @@ class JobsWithAttachmentsSerializer(serializers.ModelSerializer):
 
     def get_is_edit(self, obj):
         try:
-            if obj.job_applied.filter(Q(status=2) | Q(status=3)):
+            if obj.job_applied.filter(Q(status=2) | Q(status=3) | Q(status=4)):
                 return False
             return True
         except Exception as e:
@@ -559,11 +571,28 @@ class JobTemplateSerializer(serializers.ModelSerializer):
         if validated_data.get('skills'):
             skills_data = validated_data.get('skills')
             validated_data.pop('skills')
+        else:
+            validated_data.pop('skills')
+            skills_data = None
+
+
+        if validated_data.get('house_member'):
+            house = validated_data.get('house_member')
+            validated_data.pop('house_member')
+        else:
+            validated_data.pop('house_member')
+            house = None
+
         job = JobTemplate.objects.create(**validated_data)
+
         if skills_data:
             for i in skills_data:
                 job.skills.add(i)
-            job.save()
+
+        if house:
+            for j in house:
+                job.house_member.add(j)
+        job.save()
         return job
 
 
@@ -895,6 +924,30 @@ class customUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = '__all__'
 
+class JobFeedbackSerializer(serializers.ModelSerializer):
+    receiver_user_details = serializers.SerializerMethodField("get_receiver_full_name")
+    sender_user_details = serializers.SerializerMethodField('get_sender_full_name')
+
+    class Meta:
+        model = JobFeedback
+        fields = '__all__'
+
+
+    def get_receiver_full_name(self, obj):
+        if obj.receiver_user is not None:
+            return obj.receiver_user.get_full_name()
+        else:
+            return ''
+
+    def get_sender_full_name(self, obj):
+        if obj.sender_user is not None:
+            return obj.sender_user.get_full_name()
+        else:
+            return ''
+
+
+
+
 
 class JobActivitySerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
@@ -905,6 +958,9 @@ class JobActivitySerializer(serializers.ModelSerializer):
     activity_job_chat = JobActivityChatSerializer(many=True, required=False)
     activity_job_work = JobWorkActivitySerializer(many=True, required=False)
     job_applied_data = serializers.SerializerMethodField("get_job_applied_data")
+    job_rating_sender = serializers.SerializerMethodField("get_job_sender")
+    job_rating_receiver = serializers.SerializerMethodField("get_job_receiver")
+
 
     class Meta:
         model = JobActivity
@@ -965,6 +1021,31 @@ class JobActivitySerializer(serializers.ModelSerializer):
         except Exception as err:
             return ''
 
+    def get_job_sender(self, obj):
+        if obj.activity_type == 7 and self.context.get("request"):
+            if obj.job.job_feedback.all() and  obj.user is not None :
+                if self.context.get("request").user.role == 1 :
+                    filter_data = obj.job.job_feedback.filter(sender_user=self.context.get("request").user).first()
+                else:
+                    filter_data = None
+                    if obj.activity_by == 0:
+                        filter_data = obj.job.job_feedback.filter(sender_user=obj.job.user,receiver_user=obj.user).first()
+                if filter_data:
+                  return JobFeedbackSerializer(filter_data).data
+        return []
+
+    def get_job_receiver(self, obj):
+        if obj.activity_type == 7 and self.context.get("request"):
+            if obj.job.job_feedback.all() and obj.user is not None:
+                if self.context.get("request").user.role == 1:
+                    filter_data = obj.job.job_feedback.filter(receiver_user=self.context.get("request").user).first()
+                else:
+                    filter_data = None
+                    if obj.activity_by == 1:
+                        filter_data = obj.job.job_feedback.filter(receiver_user=obj.job.user,sender_user=obj.user).first()
+                if filter_data:
+                    return JobFeedbackSerializer(filter_data).data
+        return []
 
 class JobActivityUserSerializer(serializers.ModelSerializer):
     # activity = serializers.SerializerMethodField("get_activity")
@@ -1022,3 +1103,6 @@ class UserPortfolioSerializer(serializers.ModelSerializer):
 
 class SearchFilterSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=200, required=False)
+
+
+

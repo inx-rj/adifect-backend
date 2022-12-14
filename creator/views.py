@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork, JobTasks
+from administrator.models import Job, JobAttachments, JobApplied, JobActivity, SubmitJobWork, JobTasks, JobActivityAttachments, JobWorkActivityAttachments , JobAppliedAttachments, JobFeedback
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobAppliedSerializer, \
-    JobActivitySerializer, SubmitJobWorkSerializer, JobTasksSerializer
+    JobActivitySerializer, SubmitJobWorkSerializer, JobTasksSerializer, JobAttachmentsSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobFeedbackSerializer
+
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -195,7 +196,7 @@ class MyProjectAllJob(APIView):
 
 @permission_classes([IsAuthenticated])
 class AvailableJobs(viewsets.ModelViewSet):
-    queryset = Job.objects.filter(is_blocked=False).exclude(status=0).exclude(is_active=0)
+    queryset = Job.objects.filter(is_blocked=False,is_house_member=False).exclude(status=0).exclude(is_active=0)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['created', 'modified']
     ordering = ['created', 'modified']
@@ -334,6 +335,71 @@ class CreatorJobsCountViewSet(viewsets.ModelViewSet):
             'In_progress_jobs': in_review_count,
         }
         return Response(context)
-    
+
+@permission_classes([IsAuthenticated])
+class JobAttachmentsView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        job = request.GET.get('job', None)
+
+        job_attachments = JobAttachments.objects.filter(job=job)
+        job_attachments_data = JobAttachmentsSerializer(job_attachments, many=True, context={'request': request})
+        job_activity = JobActivityAttachments.objects.filter(job_activity_chat__job_activity__job=job,
+                                                             job_activity_chat__job_activity__user=request.user)
+        job_activity_attachments = JobActivityAttachmentsSerializer(job_activity, many=True,
+                                                                    context={'request': request})
+        job_work_approved = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="approved",work_activity__job_activity_chat__job=job,
+                                                             work_activity__job_activity_chat__user=request.user)
+        job_work_approved_attachments = JobWorkActivityAttachmentsSerializer(job_work_approved, many=True, context={'request': request})
+        job_work_rejected = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="rejected",work_activity__job_activity_chat__job=job,
+                                                             work_activity__job_activity_chat__user=request.user)
+        job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True, context={'request': request})
+        job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job, job_applied__user=request.user)
+        job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
+
+        context = {
+            'job_attachments': job_attachments_data.data,
+            'job_activity_attachments': job_activity_attachments.data,
+            'approved_job_work_attachments': job_work_approved_attachments.data,
+            'rejected_job_work_attachments': job_work_rejected_attachments.data,
+            'job_applied_attachments': job_applied_attachments.data
+        }
+        return Response(context, status=status.HTTP_200_OK)
 
 
+
+@permission_classes([IsAuthenticated])
+class JobFeedbackViewset(viewsets.ModelViewSet):
+    serializer_class = JobFeedbackSerializer
+    queryset = JobFeedback.objects.all()
+    ordering_fields = ['modified','created']
+    ordering = ['modified','created']
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['receiver_user', 'sender_user', 'rating', 'job']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        return Response(data=serializer.data)
+
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            if serializer.validated_data['sender_user'] is not None and serializer.validated_data['sender_user'].role==1:
+                JobActivity.objects.create(job=serializer.validated_data['job'],activity_type=7,activity_status=0,user=serializer.validated_data['sender_user'],activity_by=1)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)

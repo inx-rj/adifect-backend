@@ -307,6 +307,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
+    company = SerializerMethodField("get_company")
     # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia
@@ -338,6 +339,11 @@ class DamMediaSerializer(serializers.ModelSerializer):
         if obj.dam is not None:
                 return obj.dam.is_favourite
         return False
+
+    def get_company(self,obj):
+        if obj.dam.company is not None:
+                return obj.dam.company.id
+        return ""
     # def get_description(self,obj):
     #     if obj.description is not None:
     #         return obj.description
@@ -427,6 +433,7 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
+    company = SerializerMethodField("get_company_name")
 
     class Meta:
         model = DAM
@@ -457,6 +464,10 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
                 return obj.parent.parent.id
         else:
             return False
+    def get_company_name(self,obj):
+        if obj.company is not None:
+            return obj.company.name
+        return ''
 
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
@@ -464,6 +475,7 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     is_parent = SerializerMethodField("get_is_parent")
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
+    company = SerializerMethodField("get_company_name")
 
     class Meta:
         model = DAM
@@ -490,6 +502,10 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     def get_user_name(self,obj):
         if obj.agency is not None:
             return obj.agency.get_full_name()
+        return ''
+    def get_company_name(self,obj):
+        if obj.company is not None:
+            return obj.company.name
         return ''
 
     # def get_parent(self,obj):

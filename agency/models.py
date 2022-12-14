@@ -24,7 +24,7 @@ class BaseModel(models.Model):
     modified = models.DateTimeField(auto_now=True, editable=False)
     is_trashed = models.BooleanField(default=False)
     objects = SoftDeleteManager()
-    objects_with_deleted = SoftDeleteManager(deleted=True)
+    objects_with_deleted = SoftDeleteManager (deleted=True)
 
     def delete(self, *args, **kwargs):
         self.is_trashed = True
@@ -129,7 +129,7 @@ class AgencyLevel(BaseModel):
     levels = models.IntegerField(choices=Agency_Levels.choices, default=None)
     is_active = models.BooleanField(default=True)
 
-        
+
 
 
 class InviteMember(BaseModel):
@@ -146,7 +146,7 @@ class InviteMember(BaseModel):
     email = models.EmailField(max_length=254,default=None,null=True,blank=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
                                 blank=True)
-    is_blocked = models.BooleanField(default=False)                            
+    is_blocked = models.BooleanField(default=False)
     class Meta:
         verbose_name_plural = 'Invite Members'
 
@@ -183,10 +183,10 @@ class DAM(BaseModel):
     name = models.CharField(max_length=5000, default=None,null=True, blank=True)
     agency = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_agency")
     type = models.IntegerField(choices=Type.choices, default=None)
-    company = models.ForeignKey(Company,on_delete=models.SET_NULL,null=True,blank=True,default=None)
+    company = models.ForeignKey(Company,related_name="dam_company",on_delete=models.SET_NULL,null=True,blank=True,default=None)
     is_video = models.BooleanField(default=False)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
-    is_favourite = models.BooleanField(default=False) 
+    is_favourite = models.BooleanField(default=False)
     applied_creator = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="dam_creator")
 
 
@@ -228,10 +228,10 @@ class DamMedia(BaseModel):
 
     class Meta:
         verbose_name_plural = 'DAM Media'
-    
+
     def save(self, **kwargs):
-        
-        if str(self.media).endswith(".mp4"):
+
+        if str(self.media).endswith((".mp4",".mp3",".mov")):
             self.thumbnail=self.media
             self.is_video= True
             self.dam.is_video= True

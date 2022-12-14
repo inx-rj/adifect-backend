@@ -17,7 +17,18 @@ router.register(r'invite-member', views.InviteMemberViewSet, basename='invite_me
 router.register(r'member-jobs', views.JobViewSet, basename='member_jobs')
 router.register(r'members-job-template', views.MemberJobTemplatesViewSet, basename='job_template')
 router.register(r'members-draft-jobs', views.DraftJobViewSet, basename='draft_jobs')
+router.register(r'member-dam', views.MemberDAMViewSet, basename='member_dam')
+router.register(r'member-dam-root', views.MemberDamRootViewSet, basename='dam_root')
+router.register(r'member-dam-media', views.MemberDamMediaViewSet, basename='member_dam_media')
+router.register(r'member-dam-duplicate', views.MemberDamDuplicateViewSet, basename='member_dam_duplicate')
+router.register(r'member-dam-media-filter', views.MemberDamMediaFilterViewSet, basename='member_dam_media_filter')
+router.register(r'member-dam-filter', views.MemberDAMFilter, basename='member_dam_filter')
+router.register(r'job-house-member', views.JobHouseMember, basename='job_house_member')
+
 urlpatterns = [
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
+        path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
+        path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
+        path('company-count/', views.CompanyCountView.as_view(), name='company_count'),
 ]
 urlpatterns += router.urls

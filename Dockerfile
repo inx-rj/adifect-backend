@@ -1,6 +1,7 @@
 FROM python:latest
 RUN python -m pip install --upgrade pip
 RUN python --version && pip --version
+RUN python -m pip install celery
 
 ENV PYTHONUNBUFFERED 1
 

@@ -10,7 +10,7 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages
+from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages,InviteMember
 from django.core.validators import MaxValueValidator, MinValueValidator
 from io import BytesIO
 from PIL import Image
@@ -154,6 +154,8 @@ class Job(BaseModel):
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
+    is_house_member = models.BooleanField(default=False)
+    house_member = models.ManyToManyField(InviteMember, blank=True)
 
     class Meta:
         verbose_name_plural = 'Job'
@@ -228,6 +230,11 @@ class JobActivity(BaseModel):
         Reject = 4
         Moved = 5
         Completed = 6
+        Rating = 7
+
+    class Send_by(models.IntegerChoices):
+        agency = 0
+        creator = 1
 
     job = models.ForeignKey(Job, related_name="activity_job", on_delete=models.SET_NULL, null=True, blank=True)
     activity_type = models.IntegerField(choices=Type.choices, null=True, blank=True)
@@ -235,6 +242,7 @@ class JobActivity(BaseModel):
     user = models.ForeignKey(CustomUser, related_name='job_activity_user', on_delete=models.SET_NULL, null=True,
                              blank=True)
     activity_status = models.IntegerField(choices=Status.choices, default=Status.Notification)
+    activity_by =  models.IntegerField(choices=Send_by.choices, default=Send_by.agency)
 
     def __str__(self) -> str:
         return f'{self.job.title}'
@@ -429,9 +437,9 @@ class JobTemplate(BaseModel):
     job_type = models.IntegerField(choices=JobType.choices, default=JobType.Fixed)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, related_name="jobtemplate_level", null=True, blank=True)
     expected_delivery_date = models.DateField(default=None)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    tags = models.CharField(max_length=10000)
-    skills = models.ManyToManyField(Skills)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
+    tags = models.CharField(max_length=10000, null=True, blank=True)
+    skills = models.ManyToManyField(Skills, blank=True)
     image_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     sample_work_url = models.CharField(default=None, max_length=50000, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name="jobtemplate_company", null=True,
@@ -442,6 +450,10 @@ class JobTemplate(BaseModel):
                                  null=True)
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="jobtemplate_user", null=True,
                              blank=True)
+
+    is_house_member = models.BooleanField(default=False)
+    house_member = models.ManyToManyField(InviteMember, blank=True)
+
     # status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
     class Meta:
@@ -565,3 +577,20 @@ class MemberApprovals(BaseModel):
     nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
     class Meta:
         verbose_name_plural = 'Member Approvals'
+
+        
+
+class JobFeedback(BaseModel):
+    receiver_user = models.ForeignKey(CustomUser, related_name='feedback_receiver', on_delete=models.CASCADE, null=True,
+                                      blank=True, default=None)
+    sender_user = models.ForeignKey(CustomUser, related_name='feedback_sender', on_delete=models.CASCADE, null=True,
+                                    blank=True, default=None)
+    rating = models.IntegerField(default=None, null=True, blank=True, validators=[
+        MaxValueValidator(5)])
+    feedback = models.TextField(default=None, null=True, blank=True)
+    job = models.ForeignKey(Job, related_name='job_feedback', on_delete=models.CASCADE, blank=True, null=True,
+                            default=None)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Job Feedback'

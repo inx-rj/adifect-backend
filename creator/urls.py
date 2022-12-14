@@ -12,6 +12,7 @@ router.register(r'public-job-api', views.PublicJobViewApi, basename='public_job_
 router.register(r'available-jobs', views.AvailableJobs, basename='available_jobs')
 router.register(r'job-activity', views.JobActivityCreaterViewSet, basename='job_activity')
 router.register(r'creator-job-count',  views.CreatorJobsCountViewSet, basename='creator_job_count')
+router.register(r'job-feedback', views.JobFeedbackViewset, basename='job_feedback')
 
 
 
@@ -20,5 +21,6 @@ urlpatterns = [
     path('creator-company-list', views.CreatorCompanyList.as_view(), name='creator_company_list'),
     path('get-resubmit-work/', views.GetRejectedWork.as_view(), name='get_resubmit_work'),
     path('get-task-list/', views.GetTaskList.as_view(), name='get_task_list'),
+    path('job-attachments/', views.JobAttachmentsView.as_view(), name='get_job_attachments'),
 ]
 urlpatterns += router.urls
