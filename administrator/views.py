@@ -826,8 +826,8 @@ class LatestJobAPI(APIView):
         try:
             applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
                                                                                                       flat=True)
-            latest_job = Job.objects.exclude(id__in=list(applied_data),is_house_member=False)
-            latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today())
+            latest_job = Job.objects.exclude(id__in=list(applied_data))
+            latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today(),is_house_member=False)
             user_role = request.user.role
             if not user_role == 0:
                 latest_job = latest_job.exclude(is_active=0)
