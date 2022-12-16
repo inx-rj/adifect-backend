@@ -34,6 +34,7 @@ router.register(r'question-oldest-first', views.OldestFirstQuestionViewSet, base
 router.register(r'answer', views.AnswerViewSet, basename='answer')
 router.register(r'user-skills', views.UserSkillsViewSet, basename='user_skills')
 router.register(r'job-activity', views.JobActivityViewSet, basename='job_activity')
+router.register(r'admin-job-activity', views.AdminJobActivityViewSet, basename='admin_job_activity')
 
 #----------------------------------- ADMIN SECTION ---------------------------------#
 router.register(r'agency-list', views.AgencyListViewSet, basename='agency_list')
@@ -49,6 +50,12 @@ router.register(r'submit-job-work', views.JobWorkSubmitViewSet, basename='submit
 router.register(r'member-work-approval', views.MemberApprovalViewSet, basename='member_work_approval')
 router.register(r'completed-job', views.JobCompletedViewSet, basename='completed_job')
 router.register(r'super-admin-dam', views.SuperAdminDAMViewSet, basename='super_admin_dam')
+router.register(r'super-admin-dam-root', views.DamRootViewSet, basename='super_admin_dam_root')
+router.register(r'super-admin-dam-media', views.DamMediaViewSet, basename='super_admin_dam_media')
+router.register(r'super-admin-dam-filter', views.DamMediaFilterViewSet, basename='super_admin_dam_filter')
+router.register(r'super-admin-dam-duplicate', views.DamDuplicateViewSet, basename='dam_duplicate')
+router.register(r'super-admin-dam-media-filter', views.DAMFilter, basename='super_admin_dam_media_filter')
+
 
 
 #-------------------------------------  END  ---------------------------------------------#
@@ -70,6 +77,10 @@ urlpatterns = [
     path('job-work-status/', views.JobWorkStatus.as_view(), name='job_work_status'),
     path('job-completed-status/', views.JobCompletedStatus.as_view(), name='job_completed_status'),
     path('job-activity-users/<int:job_id>/', views.JobActivityUserList.as_view(), name='job_activity_users'),
+    path('admin-job-attachments/', views.AdminJobAttachmentsView.as_view(), name='admin_job_attachments'),
+    path('admin-question-filter/', views.AdminQuestionFilterAPI.as_view(), name='admin_question_filter'),
+    path('super-admin-company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
+    path('super-admin-share-media-link/', views.ShareMediaUrl.as_view(), name='share_media_link'),
 
 
 
