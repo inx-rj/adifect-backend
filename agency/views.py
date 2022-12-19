@@ -26,7 +26,7 @@ from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company,
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
-    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -542,8 +542,15 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         level = request.data.get('levels', None)
+        new_observer = request.data.get('new_observer', None)
         if level:
             is_update = AgencyLevel.objects.filter(id=instance.user.id).update(levels=int(level))
+            if instance.user.levels==1:
+                if Workflow_Stages.objects.filter(observer=instance.user.id).exists():
+                    print("yayyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
+                    for i in Workflow_Stages.objects.filter(observer__user__user_id=instance.user.user.id):
+                        i.observer.remove(instance.user.user.id)
+                        i.observer.add(int(new_observer))
             if is_update:
                 context = {
                     'message': 'Updated Successfully...',
@@ -1675,10 +1682,7 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
 
 class GetAdminMembers(APIView):
     def get(self, request,*args, **kwargs):
-        queryset = InviteMember.objects.filter(agency=request.user,user__levels=1, is_trashed=False,
-                                                                    user__isnull=False,
-                                                                    agency__is_account_closed=False).order_by(
-            '-modified')
+        queryset = InviteMember.objects.filter(agency=request.user,user__levels=1,is_trashed=False,user__isnull=False,agency__is_account_closed=False).order_by('-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         context = {
             "user":self.request.user.id,
@@ -1686,3 +1690,21 @@ class GetAdminMembers(APIView):
             "status":status.HTTP_200_OK,
         }
         return Response(context,status=status.HTTP_200_OK)
+
+# class ChangeMemberRole(APIView):
+#     queryset = InviteMember.objects.all()
+#     def put(self, request,pk=None, *args, **kwargs):
+#         if request.data['level']:
+#             data = AgencyLevel.objects.update(user=request.data['user'],levels=request.data['level'])
+#             context = {
+#                     'data':data,
+#                     'message': 'Media Uploaded Successfully',
+#                     'status': status.HTTP_201_CREATED,
+#                 }
+#         else:
+#             context = {
+#                     'message': 'Something went wrong',
+#                     'status': status.HTTP_400_BAD_REQUEST,
+#                 }
+#         return Response(context)
+

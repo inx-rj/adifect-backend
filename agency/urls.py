@@ -27,8 +27,6 @@ router.register(r'agency-notification', views.AgencyNotificationViewset, basenam
 
 
 
-
-
 urlpatterns = [
     path('update-invite-member/<str:id>/<str:status>/<str:exculsive>', views.UpdateInviteMemberStatus.as_view(),
          name='update_invite_member'),
@@ -41,5 +39,7 @@ urlpatterns = [
     path('member-nudge-reminder/', views.NudgeReminder.as_view(), name='member_nudge_reminder'),
     path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
     path('admin-members-list/', views.GetAdminMembers.as_view(), name='admin_members_list'),
+    # path('admin-members-change-role/', views.ChangeMemberRole.as_view(), name='admin_members_change_role'),
+
 ]
 urlpatterns += router.urls
