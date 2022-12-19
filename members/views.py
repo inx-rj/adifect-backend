@@ -28,7 +28,8 @@ from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERV
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from django.db.models import Subquery, Q
-
+from notification.models import Notifications
+from notification.serializers import NotificationsSerializer
 
 
 
@@ -1504,7 +1505,17 @@ class CompanyCountView(APIView):
                        }
             return Response(context)
         return Response({"message":"Please add company id"},status=status.HTTP_200_OK)
-    
+
+
+
+
+class MemberNotificationViewset(viewsets.ModelViewSet):
+    serializer_class = NotificationsSerializer
+    queryset = Notifications.objects.all()
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['user', 'is_seen']
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):

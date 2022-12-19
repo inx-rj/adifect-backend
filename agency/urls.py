@@ -22,6 +22,7 @@ router.register(r'job-activity-member', views.JobActivityMemberViewSet, basename
 router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
 router.register(r'inhouse-user-list', views.InHouseMemberViewset, basename='inhouse_user_list')
 router.register(r'job-feedback', views.JobFeedbackViewset, basename='job_feedback')
+router.register(r'agency-notification', views.AgencyNotificationViewset, basename='agency_notification')
 
 
 
@@ -39,5 +40,6 @@ urlpatterns = [
     path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
     path('member-nudge-reminder/', views.NudgeReminder.as_view(), name='member_nudge_reminder'),
     path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
+    path('admin-members-list/', views.GetAdminMembers.as_view(), name='admin_members_list'),
 ]
 urlpatterns += router.urls

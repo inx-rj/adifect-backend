@@ -47,7 +47,7 @@ from authentication.manager import IsAdmin, IsAdminMember, IsApproverMember
 import datetime as dt
 from django.db.models import Count
 from django.db.models import Subquery
-
+from notification.models import Notifications
 
 # Create your views here.
 
@@ -655,8 +655,10 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = None
                 if not status_job:
                     test_status = JobActivity.Type.Proposal
+                    Notifications.objects.create(user=data['job'].user,notification=f'you have new job proposal from {data["user"].username}')
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
+                    Notifications.objects.create(user=data['job'].user,notification=f'you have new job proposal from {data["user"].username}')
                 if status_job == 2:
                     test_status = JobActivity.Type.Accept
                 if status_job == 1:
@@ -2638,6 +2640,8 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
+            print(request.data)
+            print("hiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type'] == 3:
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
@@ -3152,31 +3156,49 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             dam_data = self.queryset.get(id=pk)
             serializer = DamWithMediaSerializer(dam_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
-            print(request.data)
-            print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type'] == 3:
-                if serializer.validated_data['company']:
-                    for index, i in enumerate(dam_files):
-                        # self.perform_create(serializer)
-                        dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None), agency=serializer.validated_data['agency'],company=serializer.validated_data['company'])
-                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
-                else:
-                    for index, i in enumerate(dam_files):
-                        # self.perform_create(serializer)
-                        dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None), agency=serializer.validated_data['agency'])
-                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+                for index, i in enumerate(dam_files):
+                    # self.perform_create(serializer)
+                    dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
+                                                agency=serializer.validated_data['agency'], company = serializer.validated_data.get('company', None))
+                    DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            # elif serializer.validated_data['type']==1:
+            #     print("yesssssssssssssssssss")
+            #     if request.data['parent'] is not None:
+            #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     elif request.data['parent'] is None:
+            #          if DAM.objects.filter(name=request.data['name']):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     else:
+            #         self.perform_create(serializer)
+            #         dam_id = DAM.objects.latest('id')
+            #         for index,i in enumerate(dam_files):
+            #             DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         context = {
+            #             'message': 'Media Uploaded Successfully',
+            #             'status': status.HTTP_201_CREATED,
+            #             'errors': serializer.errors,
+            #             'data': serializer.data,
+            #         }
+            #         return Response(context)
+
             else:
-                if serializer.validated_data['company']:
-                    for index, i in enumerate(dam_files):
-                        # self.perform_create(serializer)
-                        dam_id = DAM.objects.create(parent=serializer.validated_data.get('parent', None), agency=serializer.validated_data['agency'],company=serializer.validated_data['company'])
-                        DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
                 self.perform_create(serializer)
                 dam_id = DAM.objects.latest('id')
                 for index, i in enumerate(dam_files):
@@ -3190,7 +3212,6 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()

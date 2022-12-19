@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'members',
     'django_celery_beat',
     'django_celery_results',
+    'notification',
 
     # 'category'
 ]

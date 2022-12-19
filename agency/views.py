@@ -5,6 +5,8 @@ from administrator.models import Job, JobAttachments, JobApplied, MemberApproval
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer,JobWorkAttachmentsSerializer, JobFeedbackSerializer
+from notification.models import Notifications
+from notification.serializers import NotificationsSerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -1660,3 +1662,27 @@ def send_reminder_email():
     except  Exception as e :
         print(e)
         return True
+    
+    
+class AgencyNotificationViewset(viewsets.ModelViewSet):
+    serializer_class = NotificationsSerializer
+    queryset = Notifications.objects.all()
+    ordering_fields = ['modified','created']
+    ordering = ['modified','created']
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    filterset_fields = ['user', 'is_seen']
+
+
+class GetAdminMembers(APIView):
+    def get(self, request,*args, **kwargs):
+        queryset = InviteMember.objects.filter(agency=request.user,user__levels=1, is_trashed=False,
+                                                                    user__isnull=False,
+                                                                    agency__is_account_closed=False).order_by(
+            '-modified')
+        serializer = InviteMemberSerializer(queryset, many=True)
+        context = {
+            "user":self.request.user.id,
+            "data":serializer.data,
+            "status":status.HTTP_200_OK,
+        }
+        return Response(context,status=status.HTTP_200_OK)
