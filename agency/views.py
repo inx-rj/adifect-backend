@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity, JobActivityAttachments, \
-    JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments, JobFeedback
+    JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments, JobFeedback, JobTemplate
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer,JobWorkAttachmentsSerializer, JobFeedbackSerializer
@@ -541,16 +541,20 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        print(instance.user.user.id)
         level = request.data.get('levels', None)
         new_observer = request.data.get('new_observer', None)
+        assign_to = request.data.get('assigned_to', None)
         if level:
             is_update = AgencyLevel.objects.filter(id=instance.user.id).update(levels=int(level))
             if instance.user.levels==1:
                 if Workflow_Stages.objects.filter(observer=instance.user.id).exists():
-                    print("yayyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     for i in Workflow_Stages.objects.filter(observer__user__user_id=instance.user.user.id):
                         i.observer.remove(instance.user.user.id)
                         i.observer.add(int(new_observer))
+                job_assigned = Job.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                
             if is_update:
                 context = {
                     'message': 'Updated Successfully...',
@@ -768,8 +772,6 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
-            print(request.data)
-            print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type'] == 3:
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)

@@ -149,14 +149,15 @@ class Job(BaseModel):
                                  null=True)
     job_due_date = models.DateField(default=None, null=True, blank=True)
     due_date_index = models.IntegerField(null=True, blank=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_user", null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
     is_house_member = models.BooleanField(default=False)
     house_member = models.ManyToManyField(InviteMember, blank=True)
-
+    created_by =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_created_by", null=True, blank=True)
+    assigned_to =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_assigned_by", null=True, blank=True)
     class Meta:
         verbose_name_plural = 'Job'
 
@@ -453,6 +454,8 @@ class JobTemplate(BaseModel):
 
     is_house_member = models.BooleanField(default=False)
     house_member = models.ManyToManyField(InviteMember, blank=True)
+    created_by =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_template_created_by", null=True, blank=True)
+    assigned_to =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_template_assigned_by", null=True, blank=True)
 
     # status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
