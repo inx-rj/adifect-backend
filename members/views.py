@@ -1152,7 +1152,12 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
-        queryset = DamMedia.objects.filter(
+        if request.GET.get('dam__agency'):
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__agency=request.GET.get('dam__agency')) &
+                (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
+                '-created')[:4]
+        else:
+             queryset = self.filter_queryset(self.get_queryset()).filter(
             Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True)).order_by(
             '-created')[:4]
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
@@ -1441,7 +1446,7 @@ class JobAttachmentsView(APIView):
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
-        user_id = request.GET.get('id', None)
+        user_id = request.GET.get('user_id', None)
         if id:
             company_count = Company.objects.filter(agency=user_id,dam_company__parent=id)
             initial_count = company_count.values_list('id',flat=True)

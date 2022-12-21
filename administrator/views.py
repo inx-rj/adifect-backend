@@ -251,7 +251,6 @@ def dam_images_list(dam_images, job_id):
 
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
-                    print("limit exceeded")
                     exceeded_files.append(dam_inital)
                 else:
                     JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
@@ -389,7 +388,6 @@ class JobViewSet(viewsets.ModelViewSet):
             if template_name:
                 if Job.objects.filter(template_name=template_name, is_trashed=False).exclude(
                         template_name=None).exists():
-                    print(template_name)
                     context = {
                         'message': 'Job Template Already Exist',
                         'status': status.HTTP_400_BAD_REQUEST,
@@ -570,6 +568,8 @@ class JobViewSet(viewsets.ModelViewSet):
 
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
+
+                    Notifications.objects.create(user=users.user,notification=f'There has been some edit to your applied job - {job_id.title}')
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     to_email = To(users.user.email)
                     skills = ''
@@ -2175,6 +2175,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                                            work_activity='submit_approval',
                                                            message_work=latest_work.message)
+
             if attachment:
                 for ind, i in enumerate(attachment):
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
@@ -2195,6 +2196,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
+                        Notifications.objects.create(user=j.user.user,notification=f'{latest_work.job_applied.user} is submit job work for {latest_work.job_applied.job.title}')
+
                         JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
@@ -2244,6 +2247,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 revision_stage = Workflow_Stages.objects.filter(id__in=stages_id_list).order_by('order').first()
                 revision_member = MemberApprovals.objects.filter(job_work=instance, workflow_stage=revision_stage)
                 for i in revision_member:
+                    Notifications.objects.create(user=i.approver.user.user,
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
                     JobWorkApprovalEmail(i.approver.user.user, instance)
                 update = revision_member.update(status=0)
                 if update:
@@ -2256,6 +2261,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             else:
                 rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
                 for i in rejected_member.workflow_stage.approvals.all():
+                    Notifications.objects.create(user=i.user.user,
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
                     JobWorkApprovalEmail(i.user.user, instance)
                 update = MemberApprovals.objects.filter(job_work=instance,
                                                         workflow_stage=rejected_member.workflow_stage).update(
@@ -2321,7 +2328,10 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                         for i in instance.job_work.job_submit_Work.all():
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,
+                                                 notification=f'{instance.approver.user.user.get_full_name()} is approved your  work for {instance.job_work.job_applied.job.title}')
                     JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,instance)
+
                     # SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
 
                 if serializer.validated_data['status'] == 2:
@@ -2338,6 +2348,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
 
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,
+                                                 notification=f'{instance.approver.user.user.get_full_name()} is Request to edit  your  work for {instance.job_work.job_applied.job.title}')
                     JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
@@ -2380,6 +2392,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             for j in new_stage[0].approvals.all():
                                 created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                          workflow_stage=new_stage[0])
+                                Notifications.objects.create(user=j.user.user,
+                                                             notification=f'{instance.job_work.job_applied.user.get_full_name()} is submit  your  work for {instance.job_work.job_applied.job.title}')
                                 JobWorkApprovalEmail(j.user.user, instance.job_work)
                             if created:
                                 JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,None,created)
@@ -2573,6 +2587,8 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
 
                     except Exception as e:
                         print(e)
+
+            Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}')
             agency_user = instance.job.user.email
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(agency_user)

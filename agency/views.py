@@ -1681,6 +1681,13 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
     filterset_fields = ['user', 'is_seen']
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        context= {'data':serializer.data,'count':queryset.filter(is_seen=False).count()}
+        return Response(context)
+
+
 
 class GetAdminMembers(APIView):
     def get(self, request,*args, **kwargs):
