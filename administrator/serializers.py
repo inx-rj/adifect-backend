@@ -1023,11 +1023,12 @@ class JobActivitySerializer(serializers.ModelSerializer):
 
     def get_job_sender(self, obj):
         if obj.activity_type == 7 and self.context.get("request"):
+            filter_data = None
             if obj.job.job_feedback.all() and  obj.user is not None :
                 if self.context.get("request").user.role == 1 :
-                    filter_data = obj.job.job_feedback.filter(sender_user=self.context.get("request").user).first()
+                    if obj.activity_by == 1:
+                        filter_data = obj.job.job_feedback.filter(sender_user=self.context.get("request").user).first()
                 else:
-                    filter_data = None
                     if obj.activity_by == 0:
                         filter_data = obj.job.job_feedback.filter(sender_user=obj.job.user,receiver_user=obj.user).first()
                 if filter_data:
@@ -1037,10 +1038,11 @@ class JobActivitySerializer(serializers.ModelSerializer):
     def get_job_receiver(self, obj):
         if obj.activity_type == 7 and self.context.get("request"):
             if obj.job.job_feedback.all() and obj.user is not None:
+                filter_data = None
                 if self.context.get("request").user.role == 1:
-                    filter_data = obj.job.job_feedback.filter(receiver_user=self.context.get("request").user).first()
+                    if obj.activity_by == 0:
+                        filter_data = obj.job.job_feedback.filter(receiver_user=self.context.get("request").user).first()
                 else:
-                    filter_data = None
                     if obj.activity_by == 1:
                         filter_data = obj.job.job_feedback.filter(receiver_user=obj.job.user,sender_user=obj.user).first()
                 if filter_data:

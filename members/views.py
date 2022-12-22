@@ -1247,7 +1247,7 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=False, url_path='count', url_name='count')
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
-        user_id = request.GET.get('id', None)
+        user_id = request.GET.get('user_id', None)
         if id:
             fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, parent=id,
                                             is_trashed=False).count()

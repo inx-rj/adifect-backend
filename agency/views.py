@@ -554,7 +554,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         i.observer.add(int(new_observer))
                 job_assigned = Job.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
                 job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
-                
+                Notifications.objects.create(user=instance.user.user,notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties')
             if is_update:
                 context = {
                     'message': 'Updated Successfully...',

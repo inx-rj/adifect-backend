@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from django.db.models import Q
 import os
 # third-party
@@ -754,5 +755,23 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
         return Response(context)
         
 
+def block_tokens_for_user(user):
+    token = RefreshToken(user)
+    token.blacklist()
+    print("hiityyy")
+    return True
 
 
+
+@permission_classes([IsAuthenticated])
+class logout_test(APIView):
+    def get(self, request, *args, **kwargs):
+
+        try:
+            print('hit')
+            print(request.GET.get('token'))
+            block_tokens_for_user(request.GET.get('token'))
+            print("done")
+            return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
+        except KeyError as e:
+            return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
