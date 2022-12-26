@@ -552,9 +552,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                     for i in Workflow_Stages.objects.filter(observer__user__user_id=instance.user.user.id):
                         i.observer.remove(instance.user.user.id)
                         i.observer.add(int(new_observer))
-                job_assigned = Job.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
-                job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
-                Notifications.objects.create(user=instance.user.user,notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties')
+                if assign_to:
+                    job_assigned = Job.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                    job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                    Notifications.objects.create(user=instance.user.user,notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties')
             if is_update:
                 context = {
                     'message': 'Updated Successfully...',
@@ -595,16 +596,21 @@ class UpdateInviteMemberStatus(APIView):
         data = {}
         id = kwargs.get('id', None)
         encoded_id = int(StringEncoder.decode(self, id))
+
+
+
         status = kwargs.get('status', None)
         encoded_status = int(StringEncoder.decode(self, status))
         exculsive = kwargs.get('exculsive', None)
         encoded_exculsive = int(StringEncoder.decode(self, exculsive))
+        if InviteMember.objects.filter(pk=encoded_id, is_modified=True):
+                    return Response({'message': 'You are not Authorize.'})
         if id and status:
             data = InviteMember.objects.filter(pk=encoded_id, is_trashed=False)
             if data and exculsive:
                 user = CustomUser.objects.filter(pk=data.first().user.id, is_trashed=False).update(
                     is_exclusive=encoded_exculsive)
-            update = data.update(status=encoded_status)
+            update = data.update(status=encoded_status,is_modified=True)
             if update:
                 if encoded_status == 1:
                     data = {"message": "Thank you for your response, Invite Accepted.", "status": "success"}

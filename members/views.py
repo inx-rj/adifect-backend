@@ -139,7 +139,7 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
     queryset = InviteMember.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency')
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency').exclude(status=2)
         # serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=queryset, status=status.HTTP_200_OK)
 

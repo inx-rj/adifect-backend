@@ -28,3 +28,12 @@ class Notifications(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Notifications'
+
+
+class TestMedia(BaseModel):
+    media = models.FileField(upload_to="uploded/", blank=True)
+    title = models.CharField(max_length=1000,blank=True, null=True)
+    is_done = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name_plural = 'TestMedia'

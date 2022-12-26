@@ -597,3 +597,14 @@ class JobFeedback(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Job Feedback'
+
+
+class Help(BaseModel):
+    user = models.ForeignKey(CustomUser, related_name='help', on_delete=models.CASCADE, blank=True, null=True)
+    subject = models.CharField(max_length=500, blank=True, null=True, default=None)
+    message = models.TextField(default=None, null=True, blank=True)
+
+class HelpAttachments(BaseModel):
+    attachment = models.ForeignKey(Help, related_name="help_attachments", on_delete=models.SET_NULL, null=True,
+                                   blank=True)
+    help_new_attachments = models.FileField(upload_to='help_attachments', default=None, null=True, blank=True)

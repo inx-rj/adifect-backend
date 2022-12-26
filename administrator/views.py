@@ -9,7 +9,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer
+    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +20,7 @@ from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
-    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments
+    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments,Help, HelpAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -3925,3 +3925,36 @@ class ShareMediaUrl(APIView):
             print(e)
             return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class HelpModelViewset(viewsets.ModelViewSet):
+    serializer_class = HelpSerializer
+    queryset = Help.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = Help.objects.filter(user=request.user)
+        serializer = HelpSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('help_new_attachments')
+            if attachment:
+                latest_image = Help.objects.latest('id')
+                for i in attachment:
+                    HelpAttachments.objects.create(attachment=latest_image, help_new_attachments=i)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)

@@ -55,6 +55,7 @@ router.register(r'super-admin-dam-media', views.DamMediaViewSet, basename='super
 router.register(r'super-admin-dam-filter', views.DamMediaFilterViewSet, basename='super_admin_dam_filter')
 router.register(r'super-admin-dam-duplicate', views.DamDuplicateViewSet, basename='dam_duplicate')
 router.register(r'super-admin-dam-media-filter', views.DAMFilter, basename='super_admin_dam_media_filter')
+router.register(r'help', views.HelpModelViewset, basename='help')
 
 
 
