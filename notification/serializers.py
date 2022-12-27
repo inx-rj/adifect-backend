@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Notifications, TestMedia
 
 
+
 class NotificationsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notifications

@@ -1108,10 +1108,14 @@ class SearchFilterSerializer(serializers.Serializer):
 
 
 class HelpAttachmentsSerializer(serializers.ModelSerializer):
+    image_name = serializers.SerializerMethodField("get_image_name")
     class Meta:
         model = HelpAttachments
         fields = "__all__"
-
+    def get_image_name(self, obj):
+        if obj.help_new_attachments is not None:
+            return str(obj.help_new_attachments.name).split('/')[-1]
+        return ''
 
 class HelpSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField("get_username")
@@ -1130,7 +1134,7 @@ class HelpSerializer(serializers.ModelSerializer):
                 return ''
         except Exception as err:
             return ''
-
+    
 
 
 

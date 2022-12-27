@@ -444,13 +444,13 @@ class EmailChange(APIView):
                 context = {
                     'message': 'Please enter new Email.'
                 }
-                return Response(context)
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
             if CustomUser.objects.filter(email=email).exclude(id=request.user.id):
                 context = {
                     'message': 'Email Already Registered.'
                 }
-                return Response(context)
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(old_email)

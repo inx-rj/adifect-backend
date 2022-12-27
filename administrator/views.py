@@ -655,10 +655,10 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = None
                 if not status_job:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=data['job'].user,notification=f'you have new job proposal from {data["user"].username}')
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=data['job'].user,notification=f'you have new job proposal from {data["user"].username}')
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
                 if status_job == 2:
                     test_status = JobActivity.Type.Accept
                 if status_job == 1:
@@ -3931,7 +3931,7 @@ class HelpModelViewset(viewsets.ModelViewSet):
     queryset = Help.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = Help.objects.filter(user=request.user)
+        queryset = Help.objects.filter(user=request.user).order_by('-created')
         serializer = HelpSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
