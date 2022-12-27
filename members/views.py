@@ -783,7 +783,7 @@ class MemberInviteMemberUserList(APIView):
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Job.objects.filter(status=0).order_by('-modified')

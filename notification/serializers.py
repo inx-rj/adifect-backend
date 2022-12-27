@@ -10,7 +10,6 @@ class NotificationsSerializer(serializers.ModelSerializer):
 
 
 class TestMediaSerializer(serializers.ModelSerializer):
-    sample_files = serializers.FileField(allow_empty_file=True, required=False)
     class Meta:
         model = TestMedia
         fields = '__all__'

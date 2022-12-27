@@ -17,6 +17,7 @@ urlpatterns = [
     path('email-change/', views.EmailChange.as_view(), name='email_change'),
     path('profile-password-change/', views.ProfileChangePassword.as_view(), name='profile_password_change'),
     path('close-account/', views.CloseAccount.as_view(), name='close_account'),
+    path('in-active-user/', views.InActiveAccount.as_view(), name='in_active_user'),
     path('logout_test/', views.logout_test.as_view(), name='logout_test'),
 ]
 urlpatterns += router.urls

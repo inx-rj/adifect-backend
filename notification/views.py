@@ -8,6 +8,8 @@ from rest_framework import status
 import base64
 import io
 from io import TextIOWrapper
+from django.core.files.storage import FileSystemStorage
+
 
 
 # Create your views here.
@@ -19,14 +21,19 @@ class testmedia(APIView):
         print(request.data)
         if serializer.is_valid():
             data = serializer.validated_data
+            myfile = serializer.validated_data['media']
+            fs = FileSystemStorage(location='dummy_file')  # defaults to   MEDIA_ROOT
+            filename = fs.save(myfile.name, myfile)
+            # serializer.save()
             task = TestMedia()
             # task.media_field = request.FILES.get('media_field')
             task.save()
-            data1 = request.FILES.get('sample_files')
-            t = threading.Thread(target=doCrawl, args=[task.id,request])
+            # data1 = request.FILES.get('sample_files')
+            t = threading.Thread(target=doCrawl, args=[task.id,myfile.name])
+            # t = threading.Thread(target=doCrawl, args=['1',serializer])
             t.setDaemon(True)
             t.start()
-            context = {'id': task.id}
+            context = {'id':task.id}
             # return JsonResponse({'id': task.id})
             return Response(context, status=status.HTTP_200_OK)
         return Response({"message":"error"})
@@ -45,39 +52,17 @@ class get_media(APIView):
         return Response(context, status=status.HTTP_200_OK)
 
 
-#
-# def checkCrawl(request,id):
-#     task = Crawl.objects.get(pk=id)
-#     return JsonResponse({'is_done':task.is_done, result:task.result})
 
-from io import TextIOWrapper
-def clean_myfilefield(request):
-    # file = self.cleaned_data['myfilefield']
-    print("llll")
-    new = request.FILES.getlist('sample_files', None)[0]
-    read_file = TextIOWrapper(new, encoding='ASCII')
-    headerCounter = 0
-    for line in read_file:
-        if ">" in line:
-            headerCounter += 1
-    if headerCounter > 1:
-        error = "Custom error message 1"
-        # raise ValidationError(error)
-    if headerCounter == 0:
-        error = "Custom error message 2"
-        # raise ValidationError(error)
-    read_file.detach()
-    return new
 
-def doCrawl(id,request):
-    print("innnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
+from django.core.files.images import ImageFile
+import os
+
+def doCrawl(id,image):
     task = TestMedia.objects.get(pk=id)
-    # new = request.FILES.getlist('sample_files', None)
-    # for i in new:
-    task.title = request.data.get('title')
-    task.media = request.FILES.getlist('sample_files', None)[0]
-    task.save()
-
-    # print(task.media)
-    print("enddddddddddddddddddddddddddddddddddddddd")
-    task.save()
+    with open(f'dummy_file/{image}', 'rb') as existing_file:
+        django_image_file = ImageFile(file=existing_file, name='filename.jpeg')
+        # post = Post(image=django_image_file)
+        task.media=django_image_file
+        task.is_done=True
+        task.save()
+        os.remove(f'dummy_file/{image}')

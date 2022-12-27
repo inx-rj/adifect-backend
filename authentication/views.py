@@ -205,6 +205,8 @@ class LoginView(GenericAPIView):
                 'message': 'Please confirm your email to access your account'
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_inactive == True:
+            CustomUser.objects.filter(id=request.user.id).update(is_inactive=False)
 
         useremail = user.email
         # user_level
@@ -543,7 +545,6 @@ class ProfileChangePassword(APIView):
 
 @permission_classes([IsAuthenticated])
 class CloseAccount(APIView):
-
     def post(self, request, *args, **kwargs):
 
         try:
@@ -555,7 +556,27 @@ class CloseAccount(APIView):
                 }
                 return Response(context, status=status.HTTP_400_BAD_REQUEST)
             user = CustomUser.objects.filter(id=request.user.id).update(is_account_closed=True)
+            request.user.delete()
             return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
+        except KeyError as e:
+            return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class InActiveAccount(APIView):
+
+    def post(self, request, *args, **kwargs):
+
+        try:
+            password = request.data.get('password', None)
+            user = CustomUser.objects.filter(id=request.user.id).first()
+            if not user.check_password(password):
+                context = {
+                    'message': 'Please enter valid login details.'
+                }
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            user = CustomUser.objects.filter(id=request.user.id).update(is_inactive=True)
+            return Response({'message': 'Your account is Inactive now.'}, status=status.HTTP_200_OK)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
 
