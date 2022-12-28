@@ -329,7 +329,7 @@ class JobViewSet(viewsets.ModelViewSet):
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company','user']
+    filterset_fields = ['company','user', 'job_applied__status']
 
 
     def list(self, request, *args, **kwargs):
@@ -361,6 +361,10 @@ class JobViewSet(viewsets.ModelViewSet):
         else:
             job_data = self.filter_queryset(self.get_queryset()).filter(user__is_account_closed=False).order_by(
                 "-modified")
+            if request.GET.get('status'):
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            if request.GET.get('ordering'):
+                job_data = job_data.order_by(request.GET.get('ordering'))
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
 
@@ -769,24 +773,37 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 
             if not proposed_price:
                 color = ''
-
-            agency = serializer.validated_data.get('job')
-            from_email = Email(SEND_GRID_FROM_EMAIL)
-            to_email = To(agency.user.email)
-            skills = ''
-            for i in agency.skills.all():
-                skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                          f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
-                          f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
-                          f'{i.skill_name}</button></div>'
-            try:
-                subject = "Job proposal"
-                content = Content("text/html",
-                                  f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                data = send_email(from_email, to_email, subject, content)
-            except Exception as e:
-                print(e)
-            data = None
+            user = serializer.validated_data.get('job').user
+            if serializer.validated_data.get('job').user:
+                    data = user.user_communication_mode.filter(is_preferred=True).first()
+                    if data.communication_mode == 1:
+                        try:
+                            to = data.mode_value
+                            twilio_number = TWILIO_NUMBER
+                            data = send_text_message(f'You have been invited to join Adifect.',
+                                                    twilio_number, to)
+                        except Exception as e:
+                            print("error")
+                            print(e)
+                    else:
+                        agency = serializer.validated_data.get('job')
+                        from_email = Email(SEND_GRID_FROM_EMAIL)
+                        to_email = To(agency.user.email)
+                        skills = ''
+                        for i in agency.skills.all():
+                            skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                                    f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
+                                    f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
+                                    f'{i.skill_name}</button></div>'
+                        try:
+                            subject = "Job proposal"
+                            content = Content("text/html",
+                                            f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                            data = send_email(from_email, to_email, subject, content)
+                        except Exception as e:
+                            print(e)
+                        data = None
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
         else:
             context = {
                 'message': 'You cannot update the proposal',
@@ -3954,10 +3971,24 @@ class HelpModelViewset(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_create(serializer)
             attachment = request.FILES.getlist('help_new_attachments')
+            latest_image = Help.objects.latest('id')
             if attachment:
-                latest_image = Help.objects.latest('id')
                 for i in attachment:
                     HelpAttachments.objects.create(attachment=latest_image, help_new_attachments=i)
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To('')
+            attachments = ''
+            for j in latest_image.help_attachments.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.help_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.subject} </h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">{latest_image.message} </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.user.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.user.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+
             context = {
                 'message': 'Created Successfully',
                 'status': status.HTTP_201_CREATED,

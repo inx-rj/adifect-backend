@@ -94,8 +94,9 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
             else:
                 job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
             if request.GET.get('status'):
-                job_data = job_data.filter(job_applied__status=request.GET.get('status'))    
-            
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            if request.GET.get('ordering'):    
+                job_data = job_data.order_by(request.GET.get('ordering'))
             paginated_data = self.paginate_queryset(job_data)
             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
             return self.get_paginated_response(data=serializer.data)
@@ -168,7 +169,7 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-@permission_classes([IsApproverMember | IsAdminMember | IsMarketerMember])
+@permission_classes([IsApproverMember | IsAdminMember | IsMarketerMember | InHouseMember])
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
@@ -329,7 +330,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
             return Response(context)
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class MemberStageViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('order')
@@ -358,7 +359,7 @@ class MemberStageViewSet(viewsets.ModelViewSet):
 
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class MemberMyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
