@@ -385,8 +385,6 @@ class JobViewSet(viewsets.ModelViewSet):
         templte_sample_image = request.FILES.getlist('template_sample_image')
         dam_images = request.data.getlist('dam_images')
         dam_sample_images = request.data.getlist('dam_sample_images')
-
-
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
             if template_name:
@@ -398,7 +396,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         'errors': serializer.errors,
                         'data': serializer.data,
                     }
-                    return Response(context)
+                    return Response(context,status=status.HTTP_400_BAD_REQUEST)
             '''
             if serializer.validated_data.get('status', None) == 0:
                 if self.queryset.filter(user=request.user, status=0).exists():
@@ -694,16 +692,16 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 # user = JobApplied.objects.filter(user=request.user).first()
                 user = serializer.validated_data.get('job').user
                 if serializer.validated_data.get('job').user:
-                    data = user.user_communication_mode.filter(is_preferred=True).first()
-                    if data.communication_mode == 1:
-                        try:
-                            to = data.mode_value
-                            twilio_number = TWILIO_NUMBER
-                            data = send_text_message(f'You have been invited to join Adifect.',
-                                                    twilio_number, to)
-                        except Exception as e:
-                            print("error")
-                            print(e)
+                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode =1).first()
+                    if data:
+                            try:
+                                to = data.mode_value
+                                twilio_number = TWILIO_NUMBER
+                                data = send_text_message(f'You have been invited to join Adifect.',
+                                                        twilio_number, to)
+                            except Exception as e:
+                                print("error")
+                                print(e)
                     else:
                         agency = serializer.validated_data.get('job')
                         from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -775,16 +773,16 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 color = ''
             user = serializer.validated_data.get('job').user
             if serializer.validated_data.get('job').user:
-                    data = user.user_communication_mode.filter(is_preferred=True).first()
-                    if data.communication_mode == 1:
-                        try:
-                            to = data.mode_value
-                            twilio_number = TWILIO_NUMBER
-                            data = send_text_message(f'You have been invited to join Adifect.',
-                                                    twilio_number, to)
-                        except Exception as e:
-                            print("error")
-                            print(e)
+                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
+                    if data:
+                            try:
+                                to = data.mode_value
+                                twilio_number = TWILIO_NUMBER
+                                data = send_text_message(f'You have been invited to join Adifect.',
+                                                        twilio_number, to)
+                            except Exception as e:
+                                print("error")
+                                print(e)
                     else:
                         agency = serializer.validated_data.get('job')
                         from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -2622,30 +2620,30 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
             Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}')
             user = instance.job.user
             if user:
-                data = user.user_communication_mode.filter(is_preferred=True).first()
-                if data.communication_mode == 1:
+                data = user.user_communication_mode.filter(is_preferred=True,communication_mode = 1).first()
+                if data:
+                        try:
+                            to = data.mode_value
+                            twilio_number = TWILIO_NUMBER
+                            data = send_text_message(f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}.',
+                                                        twilio_number, to)
+                        except Exception as e:
+                            print("error")
+                            print(e)
+                else:
+                    agency_user = instance.job.user.email
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(agency_user)
+                    skills = ''
+                    for i in instance.job.skills.all():
+                        skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
                     try:
-                        to = data.mode_value
-                        twilio_number = TWILIO_NUMBER
-                        data = send_text_message(f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}.',
-                                                    twilio_number, to)
+                        subject = "Job Completed."
+                        content = Content("text/html",
+                                        f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
                     except Exception as e:
-                        print("error")
                         print(e)
-            else:
-                agency_user = instance.job.user.email
-                from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To(agency_user)
-                skills = ''
-                for i in instance.job.skills.all():
-                    skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
-                try:
-                    subject = "Job Completed."
-                    content = Content("text/html",
-                                    f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                    data = send_email(from_email, to_email, subject, content)
-                except Exception as e:
-                    print(e)
             
             user = instance.user.email
             from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -3941,6 +3939,10 @@ class CompanyImageCount(APIView):
             null_company_count = Company.objects.filter(agency=request.user).exclude(
                 id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
                                                                                   'is_active').distinct('pk')
+            context = {
+                'company_count': company_count,
+                'null_company_count': null_company_count,
+            }
             return Response(context, status=status.HTTP_200_OK)
 
 
@@ -4017,3 +4019,17 @@ class HelpModelViewset(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@permission_classes([IsAuthenticated])
+class InHouseMemberViewset(viewsets.ModelViewSet):
+    serializer_class = InviteMemberSerializer
+    queryset = InviteMember.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        return Response(data=serializer.data)
