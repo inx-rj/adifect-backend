@@ -57,6 +57,8 @@ router.register(r'super-admin-dam-duplicate', views.DamDuplicateViewSet, basenam
 router.register(r'super-admin-dam-media-filter', views.DAMFilter, basename='super_admin_dam_media_filter')
 router.register(r'help', views.HelpModelViewset, basename='help')
 router.register(r'inhouse-user-list', views.InHouseMemberViewset, basename='inhouse_user_list')
+router.register(r'work-flow', views.WorksFlowViewSet, basename='work_flow')
+router.register(r'admin-job-template', views.AdminJobTemplatesViewSet, basename='job_template')
 
 
 
@@ -67,6 +69,7 @@ urlpatterns = [
     path('job-filter/', views.JobFilterApi.as_view(), name='job_filter'),
     path('latest-job/', views.LatestJobAPI.as_view(), name='latest_job'),
     path('related-jobs/<int:company_id>/', views.RelatedJobsAPI.as_view(), name='related_jobs'),
+    path('admin-related-jobs/<int:company_id>/', views.AdminRelatedJobsAPI.as_view(), name='admin_related_jobs'),
     path('job-status-update/<int:Job_id>/<int:status>/', views.JobStatusUpdate.as_view(), name='job_status_update'),
     # ----------------------------- test api url -----------------------------#
     path('test-api/', views.TestApi.as_view(), name='test_api'),

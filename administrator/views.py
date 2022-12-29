@@ -4033,3 +4033,300 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
+
+
+
+
+@permission_classes([IsAuthenticated])
+class WorksFlowViewSet(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company', 'is_blocked']
+    search_fields = ['=company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        workflow_data = queryset.filter(agency__is_account_closed=False)
+        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        try:
+            serializer = self.serializer_class(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                workflow_latest = WorksFlow.objects.latest('id')
+                if request.data.get('stage', None):
+                    for i in request.data['stage']:
+                        name = i['stage_name']
+                        if name:
+                            stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest, order=i['order'],
+                                                    approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                    nudge_time=i['nudge_time'])
+                            stage.save()
+                            if i['approvals']:
+                                approvals = i['approvals']
+                                stage.approvals.add(*approvals)
+                            if i['is_observer']:
+                                observer = i['observer']
+                                stage.observer.add(*observer)
+                context = {
+                    'message': "Workflow Created Successfully",
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+
+                return Response(context)
+            context = {
+                'message': "Error!",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+                'data': [],
+            }
+            return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            if not Job.objects.filter(workflow=instance):
+                serializer = WorksFlowSerializer(instance, data=request.data, partial=partial)
+                if serializer.is_valid():
+                    self.perform_update(serializer)
+                    if request.data.get('stage', None):
+                        for i in request.data['stage']:
+                            name = i['stage_name']
+                            if name:
+                                if i['stage_id'] == '':
+                                    new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                                is_observer=i['is_observer'],
+                                                                workflow=instance, order=i['order'],
+                                                                is_all_approval=i['is_all_approval'],
+                                                                approval_time=i['approval_time'],
+                                                                is_nudge=i['is_nudge'], nudge_time=i['nudge_time'])
+                                    new_stage.save()
+                                    if i['approvals']:
+                                        approvals = i['approvals']
+                                        new_stage.approvals.add(*approvals)
+                                    if i['is_observer']:
+                                        observer = i['observer']
+                                        new_stage.observer.add(*observer)
+                                else:
+                                    stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
+                                    if stage:
+                                        update = stage.update(name=name, is_approval=i['is_approval'],
+                                                              is_observer=i['is_observer'],
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],
+                                                              approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                              nudge_time=i['nudge_time'])
+                                        stage = stage.first()
+                                        if i['approvals']:
+                                            approvals = i['approvals']
+                                            stage.approvals.clear()
+                                            stage.approvals.add(*approvals)
+                                        else:
+                                            stage.approvals.clear()
+                                        if i['is_observer']:
+                                            observer = i['observer']
+                                            stage.observer.clear()
+                                            stage.observer.add(*observer)
+                                        else:
+                                            stage.observer.clear()
+                    context = {
+                        'message': "Workflow Updated Successfully",
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context)
+                context = {
+                    'message': "error",
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            context = {
+                'message': "This workflow is currently in use and cannot be edited",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': 'ERROR',
+                'data': [],
+            }
+            return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        workflow_id = instance.id
+        if instance.job_workflow.all():
+            return Response({'message': 'workflow assign to job cannot delete.', 'status': status.HTTP_404_NOT_FOUND},
+                            status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        if workflow_id:
+            Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()
+        context = {
+            'message': 'WorkFlow Deleted successfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminJobTemplatesViewSet(viewsets.ModelViewSet):
+    serializer_class = JobTemplateSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    queryset = JobTemplate.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company', ]
+
+    # pagination_class = FiveRecordsPagination
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        job_data = queryset.order_by('-modified')
+        serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            job_data = JobTemplate.objects.get(id=id)
+            serializer = JobTemplateWithAttachmentsSerializer(job_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        image = request.FILES.getlist('image')
+        sample_image = request.FILES.getlist('sample_image')
+        remove_image_ids = request.data.getlist('remove_image', None)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        dam_images = request.data.getlist('dam_images')
+        dam_sample_work = request.data.getlist('dam_sample_work')
+
+        if serializer.is_valid():
+            template_name = serializer.validated_data.get('template_name', None)
+            job_template_id = JobTemplate.objects.latest('id')
+            if template_name:
+                if JobTemplate.objects.filter(
+                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exclude(
+                    template_name=None).exists():
+                    context = {
+                        'message': 'Job Template Already Exist',
+                        'status': status.HTTP_400_BAD_REQUEST,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_update(serializer)
+            update_job_template = Job.objects.filter(template_name=template_name).update(template_name=template_name)
+            # ------- ----- -- -- --- -- task -- --- -- --- ----  --- ----#
+            if request.data.get('tasks', None):
+                for i in json.loads(request.data['tasks']):
+                    name = i['title']
+                    if name:
+                        if 'id' in i:
+                            JobTemplateTasks.objects.filter(id=i['id']).update(title=i['title'],
+                                                                               due_date=i['due_date'])
+                        else:
+                            JobTemplateTasks.objects.create(job_template=instance, title=name, due_date=i['due_date'])
+            # ------ --- -- - --- ---- end ---  --- -- - --- ---  ----  --#
+
+            if remove_image_ids:
+                for id in remove_image_ids:
+                    JobTemplateAttachments.objects.filter(id=id).delete()
+            if image:
+                image_error = validate_job_attachments(image)
+                if image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
+                for i in image:
+                    JobTemplateAttachments.objects.create(job_template=instance, job_template_images=i)
+            dam_images_templates(dam_images, job_template_id)
+            dam_sample_template_images_list(dam_sample_work, job_template_id)
+
+            if sample_image:
+                sample_image_error = validate_job_attachments(sample_image)
+                if sample_image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                for i in sample_image:
+                    JobTemplateAttachments.objects.create(job_template=instance, work_sample_images=i)
+            context = {
+                'message': 'Updated Succesfully',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        context = {
+            'message': 'Something Went Wrong',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+            'data': serializer.data,
+        }
+        return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in JobTemplateAttachments.objects.filter(job_template=instance):
+            i.delete()
+        update_job_template = Job.objects.filter(template_name=instance.template_name).update(template_name=None,
+                                                                                              status=2)
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminRelatedJobsAPI(APIView):
+
+    def get(self, request, *args, **kwargs):
+        if kwargs['company_id']:
+            queryset = Job.objects.filter(status=2, company_id=kwargs['company_id'])
+            if queryset:
+                serializer = RelatedJobsSerializer(queryset, many=True)
+                context = {
+                    'message': 'Related Jobs',
+                    'status': status.HTTP_200_OK,
+                    'data': serializer.data,
+                }
+                return Response(context)
+
+        context = {
+            'message': 'No data found',
+            'status': status.HTTP_200_OK,
+            'data': [],
+        }
+        return Response(context)
+

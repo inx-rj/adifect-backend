@@ -327,7 +327,7 @@ class CreatorJobsCountViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,
                                                                     user__is_account_closed=False).order_by("-modified")
-        job_count = job_data.count()
+        job_count = job_data.exclude(Q(status=0) & Q(status=1)).count()
         in_review = job_data.filter(status=2)
         in_review_count = in_review.count()
         context = {
