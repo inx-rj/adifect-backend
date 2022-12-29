@@ -1283,7 +1283,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=request.user).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user,parent__isnull=True).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
         context = {'fav_folder': fav_folder,
@@ -1597,10 +1597,14 @@ class CompanyImageCount(APIView):
             }
             return Response(context, status=status.HTTP_200_OK)
         else:
-            company_count = Company.objects.filter(agency=request.user).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            company_initial = Company.objects.filter(agency=request.user,dam_company__parent=None)
+            company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')
+
+
             context = {
             'company_count': company_count,
-            'null_company_count': [],
+            'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
 

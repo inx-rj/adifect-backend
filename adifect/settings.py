@@ -210,6 +210,9 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
+#---- send grid help support  email ----#
+HELP_EMAIL_SUPPORT = os.environ.get('HELP_EMAIL_SUPPORT')
+
 
 FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
 BACKEND_SITE_URL = f"https://{os.environ.get('BACKEND_SITE_URL')}"
