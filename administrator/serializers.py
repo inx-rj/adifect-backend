@@ -8,7 +8,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, \
     JobTemplateAttachments, Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, \
     JobActivityAttachments, SubmitJobWork, JobWorkAttachments, MemberApprovals, JobWorkActivity, \
-    JobWorkActivityAttachments, JobFeedback,Help, HelpAttachments
+    JobWorkActivityAttachments, JobFeedback,Help, HelpAttachments, HelpChat, HelpChatAttachments
 from rest_framework.fields import SerializerMethodField
 from authentication.serializers import UserSerializer
 from .validators import validate_file_extension
@@ -1109,6 +1109,7 @@ class SearchFilterSerializer(serializers.Serializer):
 
 class HelpAttachmentsSerializer(serializers.ModelSerializer):
     image_name = serializers.SerializerMethodField("get_image_name")
+
     class Meta:
         model = HelpAttachments
         fields = "__all__"
@@ -1117,13 +1118,75 @@ class HelpAttachmentsSerializer(serializers.ModelSerializer):
             return str(obj.help_new_attachments.name).split('/')[-1]
         return ''
 
+
+class HelpChatAttachmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HelpChatAttachments
+        fields = '__all__'
+
+
+class HelpChatSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField("get_sender_name")
+    receiver_name = serializers.SerializerMethodField("get_receiver_name")
+    receiver_user_image = serializers.SerializerMethodField("get_receiver_user_img")
+    sender_user_image = serializers.SerializerMethodField("get_sender_user_img")
+    chat_attachments_user = HelpChatAttachmentsSerializer(required=False, many=True)
+
+    class Meta:
+        model = HelpChat
+        fields = '__all__'
+
+    def get_sender_name(self, obj):
+        try:
+            if obj.sender is not None:
+                return obj.sender.get_full_name()
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+    def get_receiver_name(self, obj):
+        try:
+            if obj.receiver is not None:
+                return obj.receiver.get_full_name()
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+
+    def get_sender_user_img(self,obj):
+        try:
+            if obj.sender is not None:
+                return obj.sender.profile_img.url
+            else:
+                return ''
+        except Exception as err:
+                return ''
+
+    def get_receiver_user_img(self,obj):
+        try:
+            if obj.receiver is not None:
+                return obj.receiver.profile_img.url
+            else:
+                return ''
+        except Exception as err:
+                return ''
+
+
 class HelpSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField("get_username")
     help_attachments = HelpAttachmentsSerializer(many=True,required=False)
+    helpChat_user = HelpChatSerializer(many=True, required=False)
 
     class Meta:
         model = Help
         fields = "__all__"
+        extra_kwargs = {
+            'subject': {'required': True},
+            'message': {'required': True},
+            'user':{'required':True},
+        }
 
     def get_username(self, obj):
         try:

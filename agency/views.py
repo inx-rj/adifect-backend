@@ -1614,13 +1614,15 @@ class CompanyImageCount(APIView):
 class JobFeedbackViewset(viewsets.ModelViewSet):
     serializer_class = JobFeedbackSerializer
     queryset = JobFeedback.objects.all()
-    ordering_fields = ['modified','created']
-    ordering = ['modified','created']
-    filter_backends = [DjangoFilterBackend]
+    ordering_fields = ['modified','created','rating']
+    ordering = ['modified','created','rating']
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     filterset_fields = ['receiver_user', 'sender_user', 'rating', 'job']
+    search_fields = ['feedback', ]
+
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(receiver_user=request.user)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 

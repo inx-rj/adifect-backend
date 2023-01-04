@@ -9,7 +9,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer
+    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer, HelpChatSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +20,7 @@ from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
-    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments,Help, HelpAttachments
+    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments,Help, HelpAttachments, HelpChat, HelpChatAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -77,7 +77,7 @@ class ProfileEdit(APIView):
     # pagination_class = FiveRecordsPagination
 
     def get(self, request, *args, **kwargs):
-        queryset = CustomUser.objects.filter(email=self.request.user.email, is_trashed=False)
+        queryset = CustomUser.objects.filter(id=self.request.user.id, is_trashed=False)
         serializer = EditProfileSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
         # paginated_data = FiveRecordsPagination(queryset)
@@ -4329,4 +4329,51 @@ class AdminRelatedJobsAPI(APIView):
             'data': [],
         }
         return Response(context)
+
+
+
+class HelpchatViewset(viewsets.ModelViewSet):
+    serializer_class = HelpChatSerializer
+    queryset = HelpChat.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('chat_new_attachments')
+            latest_image = HelpChat.objects.latest('id')
+            if attachment:
+                for i in attachment:
+                    HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminHelpModelViewset(viewsets.ModelViewSet):
+    serializer_class = HelpSerializer
+    queryset = Help.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.queryset.order_by('-created')
+        serializer = HelpSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
 

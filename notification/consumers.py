@@ -34,18 +34,21 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.room_name = f'test_consumer-{self.scope["url_route"]["kwargs"]["pk"]}'
             self.room_group_name = f'test_consumer_group-{self.scope["url_route"]["kwargs"]["pk"]}'
             await self.channel_layer.group_add(self.room_group_name,self.channel_name)
-            self.send({
-                "type":"websocket.send",
-                "text":"room made"
-            })
+            # self.send({
+            #     "type":"websocket.send",
+            #     "text":"room made"
+            # })
 
     async def websocket_receive(self,event):
             # print(event)
             print('second')
             data_to_get=json.loads(event['text'])
-            user_to_get=await get_user(int(data_to_get))
+            user_to_get=await get_user(data_to_get)
             # print(user_to_get)
-            get_of=await create_notification(user_to_get)
+            # get_of=await create_notification(user_to_get)
+            get_of=user_to_get
+            print(get_of)
+
             self.room_group_name=f'test_consumer_group-{self.scope["url_route"]["kwargs"]["pk"]}'
             channel_layer=get_channel_layer()
             await (channel_layer.group_send)(

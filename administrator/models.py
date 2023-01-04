@@ -604,7 +604,36 @@ class Help(BaseModel):
     subject = models.CharField(max_length=500, blank=True, null=True, default=None)
     message = models.TextField(default=None, null=True, blank=True)
 
+    class Meta:
+        verbose_name_plural = 'Help'
+
 class HelpAttachments(BaseModel):
     attachment = models.ForeignKey(Help, related_name="help_attachments", on_delete=models.SET_NULL, null=True,
                                    blank=True)
     help_new_attachments = models.FileField(upload_to='help_attachments', default=None, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'Help Attachments'
+
+
+
+
+class HelpChat(BaseModel):
+    help = models.ForeignKey(Help, related_name='helpChat_user', on_delete=models.CASCADE, blank=True, null=True)
+    sender = models.ForeignKey(CustomUser, related_name='sender_user', on_delete=models.CASCADE, blank=True, null=True)
+    receiver = models.ForeignKey(CustomUser, related_name='receiver_user', on_delete=models.CASCADE, blank=True,
+                                 null=True)
+    chat = models.TextField(default=None, null=True, blank=True)
+    is_admin = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name_plural = 'Help Chat'
+
+
+
+class HelpChatAttachments(BaseModel):
+    chat_attachments = models.ForeignKey(HelpChat, related_name='chat_attachments_user', on_delete=models.CASCADE, blank=True, null=True)
+    chat_new_attachments = models.FileField(upload_to='helpchat_attachments', default=None, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'Help Chat Attachments'
