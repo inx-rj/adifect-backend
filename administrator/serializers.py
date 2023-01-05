@@ -1176,6 +1176,7 @@ class HelpChatSerializer(serializers.ModelSerializer):
 
 class HelpSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField("get_username")
+    user_image = serializers.SerializerMethodField("get_user_img")
     help_attachments = HelpAttachmentsSerializer(many=True,required=False)
     helpChat_user = HelpChatSerializer(many=True, required=False)
 
@@ -1193,6 +1194,16 @@ class HelpSerializer(serializers.ModelSerializer):
             if obj.user:
                 profile = obj.user.get_full_name()
                 return profile
+            else:
+                return ''
+        except Exception as err:
+            return ''
+
+
+    def get_user_img(self, obj):
+        try:
+            if obj.user is not None:
+                return obj.user.profile_img.url
             else:
                 return ''
         except Exception as err:

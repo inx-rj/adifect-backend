@@ -61,6 +61,7 @@ router.register(r'work-flow', views.WorksFlowViewSet, basename='work_flow')
 router.register(r'admin-job-template', views.AdminJobTemplatesViewSet, basename='job_template')
 router.register(r'help-chat', views.HelpchatViewset, basename='help_chat')
 router.register(r'admin-help', views.AdminHelpModelViewset, basename='admin_help')
+router.register(r'agency-help-chat', views.AgencyHelpchatViewset, basename='agency_help+_chat')
 
 
 

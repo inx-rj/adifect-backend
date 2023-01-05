@@ -662,15 +662,19 @@ class SignUpViewInvite(APIView):
                     email_verified=True,
                     role=3
                 )
+               
                 user.set_password(data['password'])
                 user.save()
-                # To get user id and update the invite table
                 id = kwargs.get('invite_id', None)
                 encoded_id = int(StringEncoder.decode(self, id))
                 user_id = CustomUser.objects.latest('id')
                 agency_level = AgencyLevel.objects.filter(pk=encoded_id, is_trashed=False).update(user=user)
                 invite = InviteMember.objects.filter(user_id=encoded_id).update(status=1)
-
+                user_email = data['email']
+                user_username = data['username']
+                agency_user = InviteMember.objects.filter(user__user__email=user_email).values("agency_id")
+                Notifications.objects.create(user_id=agency_user[0]["agency_id"],notification=f'User {user_username} with email {user_email} has accepted your invitation')
+                # To get user id and update the invite table
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

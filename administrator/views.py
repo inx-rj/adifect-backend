@@ -703,9 +703,15 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                                 print("error")
                                 print(e)
                     else:
+                        if serializer.validated_data.get('job').user:
+                            data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
+                            email_value = data.mode_value
                         agency = serializer.validated_data.get('job')
                         from_email = Email(SEND_GRID_FROM_EMAIL)
-                        to_email = To(agency.user.email)
+                        if email_value:
+                            to_email = To(email_value)
+                        else:    
+                            to_email = To(agency.user.email)
                         skills = ''
                         for i in agency.skills.all():
                             skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
@@ -2225,7 +2231,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
-                        Notifications.objects.create(user=j.user.user,notification=f'{latest_work.job_applied.user} is submit job work for {latest_work.job_applied.job.title}')
+                        Notifications.objects.create(user=j.user.user,notification=f'{latest_work.job_applied.user} has submitted job work for {latest_work.job_applied.job.title}')
 
                         JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
@@ -2378,7 +2384,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                                       work_attachment=i.work_attachments)
 
                     Notifications.objects.create(user=instance.job_work.job_applied.user,
-                                                 notification=f'{instance.approver.user.user.get_full_name()} is Request to edit  your  work for {instance.job_work.job_applied.job.title}')
+                                                 notification=f'{instance.approver.user.user.get_full_name()} has requested to edit  your  work for {instance.job_work.job_applied.job.title}')
                     JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
@@ -2617,7 +2623,7 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     except Exception as e:
                         print(e)
 
-            Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}')
+            Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}')
             user = instance.job.user
             if user:
                 data = user.user_communication_mode.filter(is_preferred=True,communication_mode = 1).first()
@@ -4350,6 +4356,22 @@ class HelpchatViewset(viewsets.ModelViewSet):
             if attachment:
                 for i in attachment:
                     HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
+            receiver_email = latest_image.receiver.email
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(receiver_email)
+
+            attachments = ''
+            for j in latest_image.chat_attachments_user.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.chat_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.receiver.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.receiver.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+        
             context = {
                 'message': 'Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -4377,3 +4399,50 @@ class AdminHelpModelViewset(viewsets.ModelViewSet):
         serializer = HelpSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
+
+
+class AgencyHelpchatViewset(viewsets.ModelViewSet):
+    serializer_class = HelpChatSerializer
+    queryset = HelpChat.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.queryset.filter(Q(sender=request.user) | Q(receiver=request.user))
+        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('chat_new_attachments')
+            latest_image = HelpChat.objects.latest('id')
+            if attachment:
+                for i in attachment:
+                    HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(HELP_EMAIL_SUPPORT)
+            attachments = ''
+            for j in latest_image.chat_attachments_user.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.chat_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                                    f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.sender.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.sender.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
