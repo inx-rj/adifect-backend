@@ -736,6 +736,15 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            if serializer.validated_data.get('communication_mode') == 0:
+                if UserCommunicationMode.objects.filter(communication_mode=0,
+                                                        mode_value=serializer.validated_data.get(
+                                                            'mode_value')).exists():
+                    return Response({'message': "Email is Already added."}, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.validated_data.get('communication_mode') == 1:
+                if UserCommunicationMode.objects.filter(communication_mode=1, mode_value=serializer.validated_data.get(
+                        'mode_value')).exists():
+                    return Response({'message': "Phone number is Already added."}, status=status.HTTP_400_BAD_REQUEST)
             user = self.queryset.filter(user=request.user, is_preferred=True)
             if serializer.validated_data['is_preferred'] is True:
                 user.update(is_preferred=False)

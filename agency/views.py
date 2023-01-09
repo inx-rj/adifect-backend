@@ -673,7 +673,7 @@ class SignUpViewInvite(APIView):
                 user_email = data['email']
                 user_username = data['username']
                 agency_user = InviteMember.objects.filter(user__user__email=user_email).values("agency_id")
-                Notifications.objects.create(user_id=agency_user[0]["agency_id"],notification=f'User {user_username} with email {user_email} has accepted your invitation')
+                Notifications.objects.create(user_id=agency_user[0]["agency_id"],notification=f'User {user_username} with email {user_email} has accepted your invitation for creator role')
                 # To get user id and update the invite table
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:

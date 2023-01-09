@@ -183,29 +183,37 @@ class JobAttachments(BaseModel):
     work_sample_images = models.FileField(upload_to='work_sample_images', blank=True, null=True)
     work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
     dam_media_id = models.ForeignKey("agency.DamMedia", on_delete=models.SET_NULL, null=True, blank=True)
-
+    is_video = models.BooleanField(default=False)
     def save(self, **kwargs):
         output_size = (250, 250)
         output_thumb = BytesIO()
         if self.job_images:
-            img = Image.open(self.job_images)
-            img_name = self.job_images.name.split('.')[0]
-            img.thumbnail(output_size)
-            img.save(output_thumb, format=img.format, quality=90)
+            if str(self.job_images).endswith((".mp4", ".mp3", ".mov")):
+                self.thumbnail = self.job_images
+                self.is_video = True
+            else:
+                img = Image.open(self.job_images)
+                img_name = self.job_images.name.split('.')[0]
+                img.thumbnail(output_size)
+                img.save(output_thumb, format=img.format, quality=90)
 
-            self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                             'image/jpeg',
-                                                             sys.getsizeof(output_thumb), None)
+                self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                                'image/jpeg',
+                                                                sys.getsizeof(output_thumb), None)
         if self.work_sample_images:
-            img_work_sample = Image.open(self.work_sample_images)
-            img_name = self.work_sample_images.name.split('.')[0]
-            print(img_name)
-            img_work_sample.thumbnail(output_size)
-            img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
+            if str(self.work_sample_images).endswith((".mp4", ".mp3", ".mov")):
+                self.thumbnail = self.work_sample_images
+                self.is_video = True
+            else:
+                img_work_sample = Image.open(self.work_sample_images)
+                img_name = self.work_sample_images.name.split('.')[0]
+                print(img_name)
+                img_work_sample.thumbnail(output_size)
+                img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
 
-            self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                              'image/jpeg',
-                                                              sys.getsizeof(output_thumb), None)
+                self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
+                                                                'image/jpeg',
+                                                                sys.getsizeof(output_thumb), None)
 
         super(JobAttachments, self).save()
 

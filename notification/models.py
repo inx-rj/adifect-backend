@@ -21,9 +21,11 @@ class Notifications(BaseModel):
     is_seen = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        notification_count = Notifications.objects.filter(is_seen=False).count()
+        notification_count = Notifications.objects.filter(is_seen=False,user=self.user).count()
         data = '{"text":{"count":'+str(notification_count)+', "current_notification": "'+str(self.notification)+'"}}'
-        asyncio.run(send_notification(self.user.id,data))
+        # data = '{"type": "send_notification","text":{"count": "150", "current_notification": "yes tessting"}}'
+        asyncio.run(send_notification(str(self.user.id),data))
+        # asyncio.run(send_notification("2",data))
         super(Notifications, self).save(*args, **kwargs)
 
     def __str__(self) -> str:

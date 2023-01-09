@@ -1153,6 +1153,11 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
+        if request.GET.get('dam__company'):
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__company=request.GET.get('dam__company')) &
+                (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
+                '-created')[:4]
+
         if request.GET.get('dam__agency'):
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__agency=request.GET.get('dam__agency')) &
                 (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
@@ -1249,20 +1254,27 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         user_id = request.GET.get('user_id', None)
+        company_id = request.GET.get('company_id', None)
+        dam_data = DAM.objects.filter()
+        dammedia_data = DamMedia.objects.filter()                                    
+        if company_id:
+            dam_data = dam_data.filter(company=company_id)
+            dammedia_data = dammedia_data.filter(dam__company=company_id)
+                                       
         if id:
-            fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, parent=id,
+            fav_folder = dam_data.filter(agency=user_id, is_favourite=True, parent=id,
                                             is_trashed=False).count()
-            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
+            total_image = dammedia_data.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
-            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
+            total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=user_id, parent=id, is_trashed=False).count()
+            total_collection = dam_data.filter(type=2, agency=user_id, parent=id, is_trashed=False).count()
         else:
-            fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, parent__isnull=True).count()
-            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
+            fav_folder = dam_data.filter(agency=user_id, is_favourite=True, parent__isnull=True).count()
+            total_image = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=user_id,parent__isnull=True).count()
-            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
+            total_collection = dam_data.filter(type=2, agency=user_id,parent__isnull=True).count()
+            total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
 
         context = {'fav_folder': fav_folder,
