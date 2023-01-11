@@ -579,15 +579,36 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             return Response({'message:'}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
 
+        instance = self.get_object()
+        agency_level = instance.user.id
+        user_id = None
+        if instance.user.user is not None:
+            user_id = instance.user.user.id
+        levels = instance.user.levels
+        self.perform_destroy(instance)
+        agency_level = AgencyLevel.objects.filter(id=agency_level).delete()
+        if levels == 4:
+            user = CustomUser.objects.filter(id=user_id).delete()
+        else:
+            if not InviteMember.objects.filter(user__user=user_id) and user_id :
+               CustomUser.objects.filter(id=user_id).delete()
         context = {
-            'message': 'Deleted Succesfully',
-            'status': status.HTTP_204_NO_CONTENT,
-            'errors': False,
-        }
+                'message': 'Deleted Succesfully',
+                'status': status.HTTP_204_NO_CONTENT,
+                'errors': False,
+            }
         return Response(context)
+
+        # instance = self.get_object()
+        # self.perform_destroy(instance)
+
+        # context = {
+        #     'message': 'Deleted Succesfully',
+        #     'status': status.HTTP_204_NO_CONTENT,
+        #     'errors': False,
+        # }
+        # return Response(context)
 
 
 class UpdateInviteMemberStatus(APIView):
@@ -1588,11 +1609,39 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        favourites = request.GET.get('favourite', None)
+
+
         if id:
+
+            q_photos = Q()
             company_count = Company.objects.filter(agency=request.user,dam_company__parent=id)
+            if photos:
+                print('hiiiiiiiiiiiiiiii')
+                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
+                # company_count = company_count.filter(dam_company__type=3, is_video=False)
+            q_videos = Q()
+            if videos:
+                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+            q_collections=Q()
+            if collections :
+                q_collections = Q(dam_company__type=2)
+                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+            q_folders = Q()
+            if folders:
+                q_folders = Q(dam_company__type=1)
+            q_favourites = Q()
+            if favourites:
+                q_favourites = Q(dam_company__is_favourite=True)
+                # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+            company_count = company_count.filter(q_photos|q_videos|q_collections|q_folders)
             initial_count = company_count.values_list('id',flat=True)
             company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-
             # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
             null_company_count = Company.objects.filter(agency=request.user , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
             context = {
@@ -1600,17 +1649,101 @@ class CompanyImageCount(APIView):
             'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
+
         else:
             company_initial = Company.objects.filter(agency=request.user,dam_company__parent=None)
+            q_photos = Q()
+            if photos:
+                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
+                print(q_photos,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+                # company_count = company_count.filter(dam_company__type=3, is_video=False)
+            q_videos = Q()
+            if videos:
+                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+            q_collections = Q()
+            if collections:
+                q_collections = Q(dam_company__type=2)
+                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+            q_folders = Q()
+            if folders:
+                q_folders = Q(dam_company__type=1)
+            company_initial = company_initial.filter(q_photos | q_videos | q_collections | q_folders)
             company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
             null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')
-
 
             context = {
             'company_count': company_count,
             'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
+        #     company_count1 = 0
+        #     company_count2 = 0
+        #     company_count3 = 0
+        #     company_count4 = 0
+        #     company_count = Company.objects.filter(agency=request.user,dam_company__parent=id) 
+
+        #     if photos:
+                
+        #         company_filter1 = company_count.filter(dam_company__type=3, dam_company__is_video=False)
+        #         company_count1 = company_filter1.count()
+        #         company_name1 = company_filter1.values('name', 'id')
+        #         collected_data = company_name1 + company_count1
+        #         print(collected_data)
+        #         print("hereeeeeeeeeeeeeeeeeeeee")
+        #     if videos:
+        #         company_count2 = company_count.filter( dam_company__type=3,dam_company__is_video=True).count
+        #     if collections :
+        #         company_count3 = company_count.filter(dam_company__type=2,is_trashed=False)
+        #     if folders:
+        #         company_count4 = company_count.filter(dam_company__type=1,is_trashed=False)
+        #     final_count = collected_data
+        #     initial_count = company_count.values_list('id',flat=True)
+        #     company_count = company_count.values('dam_company__company','name','id','is_active','dam_company_').order_by().annotate(Count('dam_company__company'))
+
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
+        #     context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        #     'final_count' : collected_data,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+
+        # else:
+        #     company_initial1 = 0
+        #     company_initial2 = 0
+        #     company_initial3 = 0
+        #     company_initial4 = 0
+        #     collected_data = 0
+        #     company_initial = Company.objects.filter(agency=request.user,dam_company__parent=None)
+
+        #     if photos:
+        #         company_filter1 = company_initial.filter(dam_company__type=3, dam_company__is_video=False)
+        #         for company in company_filter1:
+        #             print(company)
+        #         company_name1 = company_filter1.values('name', 'id')
+        #         company_count1 = company_name1.count()
+        #         collected_data = company_name1 , company_count1
+        #         # print(collected_data)
+        #         print("hereeeeeeeeeeeeeeeeeeeee")
+        #     if videos:
+        #         company_initial2 = company_initial.filter( dam_company__type=3,dam_company__is_video=True).count()
+        #     if collections :
+        #         company_initial3 = company_initial.filter(dam_company__type=2,is_trashed=False).count()
+        #     if folders:
+        #         company_initial4 = company_initial.filter(dam_company__type=1,is_trashed=False).count()
+        #     final_count = collected_data
+        #     company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')
+
+
+        #     context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        #     'final_count' : final_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
 
             
 
@@ -1703,6 +1836,24 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         context= {'data':serializer.data,'count':queryset.filter(is_seen=False).count()}
         return Response(context)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid(raise_exception=True):
+            self.perform_update(serializer)
+            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
