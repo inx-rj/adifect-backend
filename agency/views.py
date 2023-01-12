@@ -72,15 +72,24 @@ class CompanyViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
+        #   serializer.validated_data['is_active']
         if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
-            context = {
-                'message': 'Updated Successfully...',
-                'status': status.HTTP_200_OK,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
+            if not instance.job_company.all():
+                self.perform_update(serializer)
+                context = {
+                        'message': 'Updated Successfully...',
+                        'status': status.HTTP_200_OK,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                return Response(context,status=status.HTTP_200_OK)
+            else:
+                context = {
+                    'message': 'This company is assigned to a Job, so the status cannot be Edited!',
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': True,
+                }
+            return Response(context,status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -110,7 +119,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_active', 'job_applied__status']
-    search_fields = ['=company', '=name']
+    search_fields = ['company__name', 'title','description','tags','skills__skill_name']
 
     def list(self, request, *args, **kwargs):
         if request.GET.get('expire'):
@@ -121,16 +130,21 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                 "-modified")
 
         elif request.GET.get('progress'):
+
             job_data = self.filter_queryset(self.get_queryset()).filter(
                 Q(user=request.user) & Q(user__is_account_closed=False) & Q(
                     Q(job_applied__status=2) | Q(job_applied__status=3))).order_by(
                 "-modified")
 
+
         elif request.GET.get('completed'):
+            # job_data = self.filter_queryset(self.get_queryset()).filter(
+            #     Q(user=request.user) & Q(user__is_account_closed=False) & Q(job_applied__status=4)).exclude(
+            #     Q(job_applied__status=2) | Q(job_applied__status=3)).order_by(
+            #     "-modified")
+
             job_data = self.filter_queryset(self.get_queryset()).filter(
-                Q(user=request.user) & Q(user__is_account_closed=False) & Q(job_applied__status=4)).exclude(
-                Q(job_applied__status=2) | Q(job_applied__status=3)).order_by(
-                "-modified")
+                Q(user=request.user) & Q(user__is_account_closed=False) & Q(job_applied__status=4)).order_by("-modified")
 
 
         else:
@@ -1210,7 +1224,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
     filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
     ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
     ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
-    search_fields = ['=status', ]
+    search_fields = ['status','job__tags', 'job__skills__skill_name','job__description','job__title']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
@@ -1221,8 +1235,7 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         filter_data = queryset.filter(
             pk__in=Subquery(
                 queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
-            )
-        ).order_by(ordering)
+            )).order_by(ordering)
         if request.GET.get('job__is_active', None) == 'true':
             filter_data = filter_data.filter(job__is_active=True)
         paginated_data = self.paginate_queryset(filter_data)
@@ -1655,19 +1668,25 @@ class CompanyImageCount(APIView):
             q_photos = Q()
             if photos:
                 q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
-                print(q_photos,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+                print(q_photos,'phtoto')
                 # company_count = company_count.filter(dam_company__type=3, is_video=False)
             q_videos = Q()
             if videos:
+
                 q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+                print(q_photos,'video')
+
                 # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
             q_collections = Q()
             if collections:
                 q_collections = Q(dam_company__type=2)
+                print(collections,'collection')
+
                 # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
             q_folders = Q()
             if folders:
                 q_folders = Q(dam_company__type=1)
+                print(folders,'collection')
             company_initial = company_initial.filter(q_photos | q_videos | q_collections | q_folders)
             company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
             null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')

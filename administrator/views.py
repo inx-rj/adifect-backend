@@ -705,13 +705,19 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     else:
                         if serializer.validated_data.get('job').user:
                             data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
-                            email_value = data.mode_value
+                            if data:
+                                email_value = data.mode_value
+                                if email_value:
+                                    to_email = To(email_value)
+                            else:    
+                                to_email = To(agency.user.email)                        
                         agency = serializer.validated_data.get('job')
+                        to_email = To(agency.user.email)
                         from_email = Email(SEND_GRID_FROM_EMAIL)
-                        if email_value:
-                            to_email = To(email_value)
-                        else:    
-                            to_email = To(agency.user.email)
+                        # if email_value:
+                        #     to_email = To(email_value)
+                        # else:    
+                        #     to_email = To(agency.user.email)
                         skills = ''
                         for i in agency.skills.all():
                             skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
@@ -792,13 +798,19 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     else:
                         if serializer.validated_data.get('job').user:
                             data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
-                            email_value = data.mode_value
-                        agency = serializer.validated_data.get('job')
-                        from_email = Email(SEND_GRID_FROM_EMAIL)
-                        if email_value:
-                            to_email = To(email_value)
-                        else:    
+                            if data:
+                                email_value = data.mode_value
+                                if email_value:
+                                    to_email = To(email_value)
+                        else:
                             to_email = To(agency.user.email)
+                        agency = serializer.validated_data.get('job')
+                        to_email = To(agency.user.email)
+                        from_email = Email(SEND_GRID_FROM_EMAIL)
+                        # if email_value:
+                        #     to_email = To(email_value)
+                        # else:    
+                        #     to_email = To(agency.user.email)
                     skills = ''
                     for i in agency.skills.all():
                         skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
@@ -3931,6 +3943,17 @@ class DAMFilter(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
+        # company_initial = Company.objects.filter(agency=request.user)
+        # company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                         'is_active').order_by().annotate(Count('dam_company__company'))
+        # null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #     id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                         'is_active').distinct('pk')
+        # context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        # }
+        # return Response(context, status=status.HTTP_200_OK)
         id = request.GET.get('id', None)
         if id:
             company_count = Company.objects.filter(dam_company__parent=id)
@@ -3945,18 +3968,17 @@ class CompanyImageCount(APIView):
             }
             return Response(context, status=status.HTTP_200_OK)
         else:
-            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
+            company_initial = Company.objects.filter(dam_company__parent=None)
             company_count = company_initial.values('dam_company__company', 'name', 'id',
-                                                   'is_active').order_by().annotate(Count('dam_company__company'))
+                                                    'is_active').order_by().annotate(Count('dam_company__company'))
             null_company_count = Company.objects.filter(agency=request.user).exclude(
                 id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
-                                                                                  'is_active').distinct('pk')
+                                                                                    'is_active').distinct('pk')
             context = {
                 'company_count': company_count,
                 'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
-
 
 @permission_classes([IsAuthenticated])
 class ShareMediaUrl(APIView):

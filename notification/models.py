@@ -22,6 +22,7 @@ class Notifications(BaseModel):
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     notification = models.CharField(max_length=1000)
     is_seen = models.BooleanField(default=False)
+    
 
     # def save(self, *args, **kwargs):
     # notification_count = Notifications.objects.filter(is_seen=False,user=self.user).count()
