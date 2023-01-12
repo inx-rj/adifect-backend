@@ -28,7 +28,8 @@ from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERV
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from django.db.models import Subquery, Q
-
+from notification.models import Notifications
+from notification.serializers import NotificationsSerializer
 
 
 
@@ -45,7 +46,7 @@ class MemberApprovedJobViewSet(viewsets.ModelViewSet):
         job_review = queryset.filter(status=3).count()
         job_progress = queryset.filter(status=2).count()
         job_completed = queryset.filter(status=4).count()
-        serializer = self.serializer_class(queryset, many=True, context={request: request})
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
         context = {
             'Total_Job_count': job_count,
             'In_progress_jobs': job_progress,
@@ -93,8 +94,9 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
             else:
                 job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
             if request.GET.get('status'):
-                job_data = job_data.filter(job_applied__status=request.GET.get('status'))    
-            
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            if request.GET.get('ordering'):    
+                job_data = job_data.order_by(request.GET.get('ordering'))
             paginated_data = self.paginate_queryset(job_data)
             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
             return self.get_paginated_response(data=serializer.data)
@@ -138,7 +140,7 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
     queryset = InviteMember.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency')
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency').exclude(status=2)
         # serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=queryset, status=status.HTTP_200_OK)
 
@@ -167,7 +169,7 @@ class MemberMarketerJobViewSet(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
-@permission_classes([IsApproverMember | IsAdminMember | IsMarketerMember])
+@permission_classes([IsApproverMember | IsAdminMember | IsMarketerMember | InHouseMember])
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
@@ -328,7 +330,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
             return Response(context)
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class MemberStageViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('order')
@@ -357,7 +359,7 @@ class MemberStageViewSet(viewsets.ModelViewSet):
 
 
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class MemberMyProjectViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
     queryset = JobApplied.objects.filter(job__is_trashed=False).exclude(job=None)
@@ -782,7 +784,7 @@ class MemberInviteMemberUserList(APIView):
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-@permission_classes([IsAdminMember])
+@permission_classes([IsAdminMember | IsMarketerMember])
 class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = Job.objects.filter(status=0).order_by('-modified')
@@ -1151,7 +1153,17 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
-        queryset = DamMedia.objects.filter(
+        if request.GET.get('dam__company'):
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__company=request.GET.get('dam__company')) &
+                (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
+                '-created')[:4]
+
+        if request.GET.get('dam__agency'):
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__agency=request.GET.get('dam__agency')) &
+                (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
+                '-created')[:4]
+        else:
+             queryset = self.filter_queryset(self.get_queryset()).filter(
             Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True)).order_by(
             '-created')[:4]
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
@@ -1241,21 +1253,28 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=False, url_path='count', url_name='count')
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
-        user_id = request.GET.get('id', None)
+        user_id = request.GET.get('user_id', None)
+        company_id = request.GET.get('company_id', None)
+        dam_data = DAM.objects.filter()
+        dammedia_data = DamMedia.objects.filter()                                    
+        if company_id:
+            dam_data = dam_data.filter(company=company_id)
+            dammedia_data = dammedia_data.filter(dam__company=company_id)
+                                       
         if id:
-            fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, parent=id,
+            fav_folder = dam_data.filter(agency=user_id, is_favourite=True, parent=id,
                                             is_trashed=False).count()
-            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
+            total_image = dammedia_data.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
-            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
+            total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=user_id, parent=id, is_trashed=False).count()
+            total_collection = dam_data.filter(type=2, agency=user_id, parent=id, is_trashed=False).count()
         else:
-            fav_folder = DAM.objects.filter(agency=user_id, is_favourite=True, parent__isnull=True).count()
-            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
+            fav_folder = dam_data.filter(agency=user_id, is_favourite=True, parent__isnull=True).count()
+            total_image = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=user_id).count()
-            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
+            total_collection = dam_data.filter(type=2, agency=user_id,parent__isnull=True).count()
+            total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
 
         context = {'fav_folder': fav_folder,
@@ -1440,7 +1459,7 @@ class JobAttachmentsView(APIView):
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
-        user_id = request.GET.get('id', None)
+        user_id = request.GET.get('user_id', None)
         if id:
             company_count = Company.objects.filter(agency=user_id,dam_company__parent=id)
             initial_count = company_count.values_list('id',flat=True)
@@ -1454,10 +1473,15 @@ class CompanyImageCount(APIView):
             }
             return Response(context, status=status.HTTP_200_OK)
         else:
-            company_count = Company.objects.filter(agency=user_id).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
+            company_count = company_initial.values('dam_company__company', 'name', 'id',
+                                                   'is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(agency=request.user).exclude(
+                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+                                                                                  'is_active').distinct('pk')
             context = {
-            'company_count': company_count,
-            'null_company_count': [],
+                'company_count': company_count,
+                'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
 
@@ -1504,7 +1528,17 @@ class CompanyCountView(APIView):
                        }
             return Response(context)
         return Response({"message":"Please add company id"},status=status.HTTP_200_OK)
-    
+
+
+
+
+class MemberNotificationViewset(viewsets.ModelViewSet):
+    serializer_class = NotificationsSerializer
+    queryset = Notifications.objects.all()
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['user', 'is_seen']
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):

@@ -327,7 +327,7 @@ class CreatorJobsCountViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         job_data = self.filter_queryset(self.get_queryset()).filter(user=request.user,
                                                                     user__is_account_closed=False).order_by("-modified")
-        job_count = job_data.count()
+        job_count = job_data.exclude(Q(status=0) & Q(status=1)).count()
         in_review = job_data.filter(status=2)
         in_review_count = in_review.count()
         context = {
@@ -372,15 +372,20 @@ class JobAttachmentsView(APIView):
 class JobFeedbackViewset(viewsets.ModelViewSet):
     serializer_class = JobFeedbackSerializer
     queryset = JobFeedback.objects.all()
-    ordering_fields = ['modified','created']
-    ordering = ['modified','created']
-    filter_backends = [DjangoFilterBackend]
+    ordering_fields = ['modified','created','rating']
+    ordering = ['modified','created','rating']
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     filterset_fields = ['receiver_user', 'sender_user', 'rating', 'job']
+    search_fields = ['feedback', ]
+    pagination_class = FiveRecordsPagination
+
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
-        return Response(data=serializer.data)
+        queryset = self.filter_queryset(self.get_queryset()).filter(receiver_user=request.user)
+        paginated_data = self.paginate_queryset(queryset)
+
+        serializer = self.serializer_class(paginated_data, many=True, context={request: 'request'})
+        return self.get_paginated_response(data=serializer.data)
 
 
     def create(self, request, *args, **kwargs):

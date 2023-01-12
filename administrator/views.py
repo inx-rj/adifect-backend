@@ -9,7 +9,7 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer
+    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer, HelpChatSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +20,7 @@ from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
-    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments
+    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments,Help, HelpAttachments, HelpChat, HelpChatAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -37,16 +37,17 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia, DAM
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer, \
-    InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer
+    InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer, DamWithMediaRootSerializer, DamMediaSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
-    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
+    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL, HELP_EMAIL_SUPPORT
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from authentication.manager import IsAdmin, IsAdminMember, IsApproverMember
 import datetime as dt
+from django.db.models import Count
 from django.db.models import Subquery
-
+from notification.models import Notifications
 
 # Create your views here.
 
@@ -76,7 +77,7 @@ class ProfileEdit(APIView):
     # pagination_class = FiveRecordsPagination
 
     def get(self, request, *args, **kwargs):
-        queryset = CustomUser.objects.filter(email=self.request.user.email, is_trashed=False)
+        queryset = CustomUser.objects.filter(id=self.request.user.id, is_trashed=False)
         serializer = EditProfileSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
         # paginated_data = FiveRecordsPagination(queryset)
@@ -250,7 +251,6 @@ def dam_images_list(dam_images, job_id):
 
             if dam_inital.limit_usage_toggle == 'true':
                 if dam_inital.limit_usage < dam_inital.limit_used:
-                    print("limit exceeded")
                     exceeded_files.append(dam_inital)
                 else:
                     JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
@@ -329,7 +329,7 @@ class JobViewSet(viewsets.ModelViewSet):
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company','user']
+    filterset_fields = ['company','user', 'job_applied__status']
 
 
     def list(self, request, *args, **kwargs):
@@ -361,6 +361,10 @@ class JobViewSet(viewsets.ModelViewSet):
         else:
             job_data = self.filter_queryset(self.get_queryset()).filter(user__is_account_closed=False).order_by(
                 "-modified")
+            if request.GET.get('status'):
+                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            if request.GET.get('ordering'):
+                job_data = job_data.order_by(request.GET.get('ordering'))
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsThumbnailSerializer(paginated_data, many=True, context={'request': request})
 
@@ -381,21 +385,18 @@ class JobViewSet(viewsets.ModelViewSet):
         templte_sample_image = request.FILES.getlist('template_sample_image')
         dam_images = request.data.getlist('dam_images')
         dam_sample_images = request.data.getlist('dam_sample_images')
-
-
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
             if template_name:
                 if Job.objects.filter(template_name=template_name, is_trashed=False).exclude(
                         template_name=None).exists():
-                    print(template_name)
                     context = {
                         'message': 'Job Template Already Exist',
                         'status': status.HTTP_400_BAD_REQUEST,
                         'errors': serializer.errors,
                         'data': serializer.data,
                     }
-                    return Response(context)
+                    return Response(context,status=status.HTTP_400_BAD_REQUEST)
             '''
             if serializer.validated_data.get('status', None) == 0:
                 if self.queryset.filter(user=request.user, status=0).exists():
@@ -569,6 +570,8 @@ class JobViewSet(viewsets.ModelViewSet):
 
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
+
+                    Notifications.objects.create(user=users.user,notification=f'There has been some edit to your applied job - {job_id.title}')
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     to_email = To(users.user.email)
                     skills = ''
@@ -654,8 +657,10 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = None
                 if not status_job:
                     test_status = JobActivity.Type.Proposal
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
                 if status_job == 2:
                     test_status = JobActivity.Type.Accept
                 if status_job == 1:
@@ -684,26 +689,46 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 
                 if not proposed_price:
                     color = ''
-
-                agency = serializer.validated_data.get('job')
-                from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To(agency.user.email)
-                skills = ''
-                for i in agency.skills.all():
-                    skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                              f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
-                              f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
-                              f'{i.skill_name}</button></div>'
-                try:
-                    subject = "Job proposal"
-                    content = Content("text/html",
-                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                    data = send_email(from_email, to_email, subject, content)
-                except Exception as e:
-                    print("error")
-                    print(e)
-                data = None
-            return Response(context)
+                # user = JobApplied.objects.filter(user=request.user).first()
+                user = serializer.validated_data.get('job').user
+                if serializer.validated_data.get('job').user:
+                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode =1).first()
+                    if data:
+                            try:
+                                to = data.mode_value
+                                twilio_number = TWILIO_NUMBER
+                                data = send_text_message(f'You have been invited to join Adifect.',
+                                                        twilio_number, to)
+                            except Exception as e:
+                                print("error")
+                                print(e)
+                    else:
+                        if serializer.validated_data.get('job').user:
+                            data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
+                            email_value = data.mode_value
+                        agency = serializer.validated_data.get('job')
+                        from_email = Email(SEND_GRID_FROM_EMAIL)
+                        if email_value:
+                            to_email = To(email_value)
+                        else:    
+                            to_email = To(agency.user.email)
+                        skills = ''
+                        for i in agency.skills.all():
+                            skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                                    f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
+                                    f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
+                                    f'{i.skill_name}</button></div>'
+                        try:
+                            subject = "Job proposal"
+                            content = Content("text/html",
+                                            f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                            data = send_email(from_email, to_email, subject, content)
+                        except Exception as e:
+                            print("error")
+                            print(e)
+                        data = None
+                    return Response(context)
+                return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -752,24 +777,43 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
 
             if not proposed_price:
                 color = ''
-
-            agency = serializer.validated_data.get('job')
-            from_email = Email(SEND_GRID_FROM_EMAIL)
-            to_email = To(agency.user.email)
-            skills = ''
-            for i in agency.skills.all():
-                skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                          f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
-                          f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
-                          f'{i.skill_name}</button></div>'
-            try:
-                subject = "Job proposal"
-                content = Content("text/html",
-                                  f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                data = send_email(from_email, to_email, subject, content)
-            except Exception as e:
-                print(e)
-            data = None
+            user = serializer.validated_data.get('job').user
+            if serializer.validated_data.get('job').user:
+                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
+                    if data:
+                            try:
+                                to = data.mode_value
+                                twilio_number = TWILIO_NUMBER
+                                data = send_text_message(f'You have been invited to join Adifect.',
+                                                        twilio_number, to)
+                            except Exception as e:
+                                print("error")
+                                print(e)
+                    else:
+                        if serializer.validated_data.get('job').user:
+                            data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
+                            email_value = data.mode_value
+                        agency = serializer.validated_data.get('job')
+                        from_email = Email(SEND_GRID_FROM_EMAIL)
+                        if email_value:
+                            to_email = To(email_value)
+                        else:    
+                            to_email = To(agency.user.email)
+                    skills = ''
+                    for i in agency.skills.all():
+                        skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                                f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
+                                f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
+                                f'{i.skill_name}</button></div>'
+                    try:
+                        subject = "Job proposal"
+                        content = Content("text/html",
+                                        f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                    except Exception as e:
+                        print(e)
+                    data = None
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
         else:
             context = {
                 'message': 'You cannot update the proposal',
@@ -891,6 +935,52 @@ class JobActivityViewSet(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminJobActivityViewSet(viewsets.ModelViewSet):
+    serializer_class = JobActivitySerializer
+    queryset = JobActivity.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['job', 'user', 'job__user', ]
+
+    # search_fields = ['=status', ]
+    # pagination_class = FiveRecordsPagination
+    # http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            if serializer.validated_data['activity_status'] == 1:
+                attachment = request.FILES.getlist('chat_attachments')
+                if attachment:
+                    latest_chat = JobActivityChat.objects.latest('id')
+                    for i in attachment:
+                        JobActivityAttachments.objects.create(job_activity_chat=latest_chat, chat_attachment=i)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # @permission_classes([IsAuthenticated])
@@ -2126,6 +2216,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=latest_work,
                                                            work_activity='submit_approval',
                                                            message_work=latest_work.message)
+
             if attachment:
                 for ind, i in enumerate(attachment):
                     JobWorkAttachments.objects.create(job_work=latest_work, work_attachments=i)
@@ -2146,6 +2237,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
+                        Notifications.objects.create(user=j.user.user,notification=f'{latest_work.job_applied.user} has submitted job work for {latest_work.job_applied.job.title}')
+
                         JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
                         activity = JobActivity.objects.create(job=job, activity_status=3,
@@ -2195,6 +2288,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 revision_stage = Workflow_Stages.objects.filter(id__in=stages_id_list).order_by('order').first()
                 revision_member = MemberApprovals.objects.filter(job_work=instance, workflow_stage=revision_stage)
                 for i in revision_member:
+                    Notifications.objects.create(user=i.approver.user.user,
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
                     JobWorkApprovalEmail(i.approver.user.user, instance)
                 update = revision_member.update(status=0)
                 if update:
@@ -2207,6 +2302,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
             else:
                 rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
                 for i in rejected_member.workflow_stage.approvals.all():
+                    Notifications.objects.create(user=i.user.user,
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
                     JobWorkApprovalEmail(i.user.user, instance)
                 update = MemberApprovals.objects.filter(job_work=instance,
                                                         workflow_stage=rejected_member.workflow_stage).update(
@@ -2272,7 +2369,10 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                         for i in instance.job_work.job_submit_Work.all():
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,
+                                                 notification=f'{instance.approver.user.user.get_full_name()} is approved your  work for {instance.job_work.job_applied.job.title}')
                     JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,instance)
+
                     # SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
 
                 if serializer.validated_data['status'] == 2:
@@ -2289,6 +2389,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
 
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,
+                                                 notification=f'{instance.approver.user.user.get_full_name()} has requested to edit  your  work for {instance.job_work.job_applied.job.title}')
                     JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
@@ -2331,6 +2433,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             for j in new_stage[0].approvals.all():
                                 created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                          workflow_stage=new_stage[0])
+                                Notifications.objects.create(user=j.user.user,
+                                                             notification=f'{instance.job_work.job_applied.user.get_full_name()} is submit  your  work for {instance.job_work.job_applied.job.title}')
                                 JobWorkApprovalEmail(j.user.user, instance.job_work)
                             if created:
                                 JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,None,created)
@@ -2524,19 +2628,34 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
 
                     except Exception as e:
                         print(e)
-            agency_user = instance.job.user.email
-            from_email = Email(SEND_GRID_FROM_EMAIL)
-            to_email = To(agency_user)
-            skills = ''
-            for i in instance.job.skills.all():
-                skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
-            try:
-                subject = "Job Completed."
-                content = Content("text/html",
-                                  f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                data = send_email(from_email, to_email, subject, content)
-            except Exception as e:
-                print(e)
+
+            Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}')
+            user = instance.job.user
+            if user:
+                data = user.user_communication_mode.filter(is_preferred=True,communication_mode = 1).first()
+                if data:
+                        try:
+                            to = data.mode_value
+                            twilio_number = TWILIO_NUMBER
+                            data = send_text_message(f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}.',
+                                                        twilio_number, to)
+                        except Exception as e:
+                            print("error")
+                            print(e)
+                else:
+                    agency_user = instance.job.user.email
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(agency_user)
+                    skills = ''
+                    for i in instance.job.skills.all():
+                        skills += f'<div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">{i.skill_name}</button></div>'
+                    try:
+                        subject = "Job Completed."
+                        content = Content("text/html",
+                                        f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                    except Exception as e:
+                        print(e)
             
             user = instance.user.email
             from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -2591,6 +2710,8 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
+            print(request.data)
+            print("hiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type'] == 3:
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
@@ -3105,7 +3226,6 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             dam_data = self.queryset.get(id=pk)
             serializer = DamWithMediaSerializer(dam_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files', None)
@@ -3115,8 +3235,39 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
-                                                agency=serializer.validated_data['agency'],company=serializer.validated_data['company'])
+                                                agency=serializer.validated_data['agency'], company = serializer.validated_data.get('company', None))
                     DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
+            # elif serializer.validated_data['type']==1:
+            #     print("yesssssssssssssssssss")
+            #     if request.data['parent'] is not None:
+            #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     elif request.data['parent'] is None:
+            #          if DAM.objects.filter(name=request.data['name']):
+            #             print("heloooooooooooooooooooooooooooooo")
+            #             context = {
+            #                 'message': 'Folder with this name already exist',
+            #                 'status': status.HTTP_400_BAD_REQUEST,
+            #                 'errors': serializer.errors,
+            #             }
+            #     else:
+            #         self.perform_create(serializer)
+            #         dam_id = DAM.objects.latest('id')
+            #         for index,i in enumerate(dam_files):
+            #             DamMedia.objects.create(dam=dam_id,title=dam_name[index],media=i)
+            #         context = {
+            #             'message': 'Media Uploaded Successfully',
+            #             'status': status.HTTP_201_CREATED,
+            #             'errors': serializer.errors,
+            #             'data': serializer.data,
+            #         }
+            #         return Response(context)
+
             else:
                 self.perform_create(serializer)
                 dam_id = DAM.objects.latest('id')
@@ -3131,7 +3282,6 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -3312,3 +3462,1010 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             return Response(context, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+@permission_classes([IsAuthenticated])
+class AdminJobAttachmentsView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        job = request.GET.get('job', None)
+        level = request.GET.get('level', None)
+
+        job_attachments = JobAttachments.objects.filter(job=job)
+        job_attachments_data = JobAttachmentsSerializer(job_attachments, many=True, context={'request': request})
+        job_activity = JobActivityAttachments.objects.filter(job_activity_chat__job_activity__job=job)
+        job_activity_attachments = JobActivityAttachmentsSerializer(job_activity, many=True,
+                                                                    context={'request': request})
+        job_work_approved = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="approved",work_activity__job_activity_chat__job=job)
+        job_work_approved_attachments = JobWorkActivityAttachmentsSerializer(job_work_approved, many=True, context={'request': request})
+        job_work_rejected = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="rejected",work_activity__job_activity_chat__job=job)
+        job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True, context={'request': request})
+        job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job)
+        job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
+        final_approved_data = JobWorkAttachments.objects.filter(job_work__job_applied__job=job,job_work__status=1)
+        final_approved = JobWorkAttachmentsSerializer(final_approved_data,many=True,context={'request': request})
+        context = {
+            'job_attachments': job_attachments_data.data,
+            'job_activity_attachments': job_activity_attachments.data,
+            'approved_job_work_attachments': job_work_approved_attachments.data,
+            'rejected_job_work_attachments': job_work_rejected_attachments.data,
+            'job_applied_attachments': job_applied_attachments.data,
+            'final_approved_data':final_approved.data
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsAuthenticated])
+class DamRootViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.filter(parent=None)
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type']
+    search_fields = ['name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+@permission_classes([IsAuthenticated])
+class DamMediaViewSet(viewsets.ModelViewSet):
+    serializer_class = DamMediaSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created', 'limit_used']
+    ordering = ['modified', 'created', 'limit_used']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
+    search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
+    http_method_names = ['get', 'put', 'delete', 'post']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
+    def get_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = DamMedia.objects.filter(id__in=order_list)
+                serializer_data = self.serializer_class(data, many=True, context={'request': request})
+                return Response(serializer_data.data)
+            context = {
+                'message': 'Data Not Found',
+                'status': status.HTTP_404_NOT_FOUND,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['delete'], detail=False, url_path='delete_multiple', url_name='delete_multiple')
+    def delele_multiple(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = DamMedia.objects.filter(id__in=order_list).delete()
+                if data:
+                    context = {
+                        'message': 'Deleted Successfully',
+                        'status': status.HTTP_204_NO_CONTENT,
+                        'errors': False,
+                    }
+                    return Response(context, status=status.HTTP_200_OK)
+        except Exception as e:
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+
+        if serializer.is_valid():
+            if request.data['company']:
+                DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+                self.perform_update(serializer)
+            self.perform_update(serializer)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
+    def latest_records(self, request, *args, **kwargs):
+        queryset = DamMedia.objects.filter(Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True)).order_by(
+            '-created')[:4]
+        serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    @action(methods=['post'], detail=False, url_path='move_collection', url_name='move_collection')
+    def move_collection(self, request, *args, **kwargs):
+        data = request.POST.get('dam_images', None)
+        dam_intial = 0
+        for i in data.split(','):
+            if not request.data.get('parent', None) == 'null':
+                dam_id = DAM.objects.create(type=3, parent_id=request.data.get('parent', None),
+                                            agency_id=request.data.get('user'))
+                dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
+                dam_intial += 1
+            else:
+                dam_id = DAM.objects.create(type=3, agency_id=request.data.get('user'))
+                dam_media = DamMedia.objects.filter(pk=i).update(dam=dam_id)
+                dam_intial += 1
+            if dam_intial:
+                context = {
+                    'message': 'Media Uploaded Successfully',
+                    'status': status.HTTP_201_CREATED,
+                }
+                return Response(context)
+            return Response({"message": "Unable to move"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@permission_classes([IsAuthenticated])
+class AdminQuestionFilterAPI(APIView):
+    queryset = Question.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        job_id = request.data.get('job_id', None)
+        order_by = request.data.get('order_by', None)
+        status1 = request.data.get('status', None)
+        question_search = request.data.get('question', None)
+        if status1 or status1 == 0:
+            status1 = str(status1)
+        if question_search:
+            question_filter_data = self.queryset.filter(
+                Q(job_applied__job_id=job_id) & Q(
+                    question__icontains=question_search)).order_by('-modified')
+            second_serializer = QuestionSerializer(question_filter_data, many=True)
+            context = {
+                'data': second_serializer.data,
+                'message': 'success',
+                'error': False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
+        if order_by == "oldest":
+            # ------ for oldest ----#
+            messages = self.queryset
+            if status1 == '0':
+                # ------ all questions ----#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id))
+            if status1 == '1':
+                # ------ answered questions ------#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id) & Q(status=1))
+            if status1 == '2':
+                # ---- unaswered questions -------#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id) & Q(status=2))
+            messages = messages.order_by('modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            context = {
+                'data': serializer.data,
+                'message': 'success',
+                'error': False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
+        if order_by == 'newest':
+            # ------- for newest -----#
+            messages = self.queryset
+            if status1 == '0':
+                # ------ all questions ----#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id))
+            if status1 == '1':
+                # ------ answered questions ------#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id) & Q(status=1))
+            if status1 == '2':
+                # ---- unaswered questions -------#
+                messages = self.queryset.filter(
+                    Q(job_applied__job_id=job_id) & Q(status=2))
+            messages = messages.order_by('-modified')
+            serializer = QuestionSerializer(messages, many=True, context={'request': request})
+            context = {
+                'data': serializer.data,
+                'message': 'success',
+                'error': False,
+                'status': status.HTTP_200_OK
+            }
+            return Response(context)
+        return Response({'message': "Something Went Wrong", 'status': status.HTTP_200_OK, 'error': True},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class DamMediaFilterViewSet(viewsets.ModelViewSet):
+    serializer_class = DamMediaSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created', 'limit_used']
+    ordering = ['modified', 'created']
+    filterset_fields = ['dam_id', 'title', 'id']
+    search_fields = ['title']
+
+    @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
+    def favourites(self, request, pk=None, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            fav_folder = DAM.objects.filter(type=1,is_favourite=True, parent=id)
+            fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True)
+            fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
+            fav_images = DAM.objects.filter(parent=id, type=3, is_favourite=True)
+            fav_images_data = DamWithMediaSerializer(fav_images, many=True, context={'request': request})
+        else:
+            fav_folder = DAM.objects.filter(type=1, is_favourite=True)
+            fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
+            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True,)
+            fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
+            fav_images = DAM.objects.filter(type=3, is_favourite=True, )
+            fav_images_data = DamWithMediaSerializer(fav_images, many=True, context={'request': request})
+
+        context = {
+            'fav_folder': fav_folder_data.data,
+            'fav_collection': fav_collection_data.data,
+            'fav_images': fav_images_data.data
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=False, url_path='count', url_name='count')
+    def count(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        company = request.GET.get('company', None)
+        if id:
+            fav_folder = DAM.objects.filter(is_favourite=True, parent=id,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3, dam__parent=id,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__parent=id,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2, parent=id, is_trashed=False).count()
+        if id and company:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(is_favourite=True,company__in=order_list, parent=id,
+                                            is_trashed=False).count()
+            print(fav_folder)
+            total_image = DamMedia.objects.filter(dam__type=3,dam__company__in=order_list, dam__parent=id,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__company__in=order_list, dam__parent=id,
+                                                  is_trashed=False, is_video=True).count()
+            print(total_image)
+            total_collection = DAM.objects.filter(type=2,company__in=order_list, parent=id, is_trashed=False).count()
+        if company and not id:
+            order_list = company.split(",")
+            fav_folder = DAM.objects.filter(parent__isnull=True, is_favourite=True,company__in=order_list,
+                                            is_trashed=False).count()
+            total_image = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__company__in=order_list,
+                                                  is_trashed=False, is_video=False).count()
+            total_video = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__company__in=order_list,
+                                                  is_trashed=False, is_video=True).count()
+            total_collection = DAM.objects.filter(type=2,parent__isnull=True, company__in=order_list, is_trashed=False).count()
+
+        if not id and not company:
+            fav_folder = DAM.objects.filter(is_favourite=True, parent__isnull=True).count()
+            total_image = DamMedia.objects.filter(dam__type=3,  is_trashed=False,
+                                                  is_video=False, dam__parent__isnull=True).count()
+            total_collection = DAM.objects.filter(type=2,parent__isnull=True).count()
+            total_video = DamMedia.objects.filter(dam__type=3,is_trashed=False,
+                                                  is_video=True, dam__parent__isnull=True).count()
+        context = {'fav_folder': fav_folder,
+                   'total_image': total_image,
+                   'total_collection': total_collection,
+                   'total_video': total_video,
+                   'status': status.HTTP_201_CREATED,
+                   }
+        return Response(context)
+
+@permission_classes([IsAuthenticated])
+class DamDuplicateViewSet(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', 'created']
+    filterset_fields = ['id', 'parent', 'type']
+    search_fields = ['=name']
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        if request.GET.get('root'):
+            queryset = self.filter_queryset(self.get_queryset()).filter(parent=None)
+        else:
+            queryset = self.filter_queryset(self.get_queryset())
+        serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+@permission_classes([IsAuthenticated])
+class DAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DAM.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['created', 'dam_media__job_count']
+    ordering = ['created', 'dam_media__job_count']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_video', 'is_favourite']
+    search_fields = ['name']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('parent', None)
+        data = self.request.GET.get('ordering', None)
+        queryset = self.queryset
+        if not is_parent:
+            queryset = queryset.filter(parent__isnull=True)
+        if data == '-dam_media__job_count':
+            return queryset.order_by('-dam_media__created')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        company = request.GET.get('company', None)
+        order_list = None
+        if company:
+            order_list = company.split(",")
+        photo = None
+        video = None
+        collection = None
+        folder = None
+        if photos:
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=False,company__in=order_list,
+                                                                        is_trashed=False)
+                photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=False,
+                                                                        is_trashed=False)
+                photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+        if videos:
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=True,company__in=order_list,
+                                                                    is_trashed=False)
+                videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=True,
+                                                                        is_trashed=False)
+                videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+        if collections:
+            if company:
+                data = set(self.filter_queryset(self.get_queryset()).filter(type=2,company__in=order_list,
+                                                                        is_trashed=False).values_list('pk', flat=True))
+                collections = set(list(data))
+                filter_data = DAM.objects.filter(id__in=data)
+                collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+                collection = collections_data.data
+            else:
+                data = set(self.filter_queryset(self.get_queryset()).filter(type=2,
+                                                                            is_trashed=False).values_list('pk', flat=True))
+                collections = set(list(data))
+                filter_data = DAM.objects.filter(id__in=data)
+                collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+                collection = collections_data.data
+        if folders:
+            if company:
+                data = self.filter_queryset(self.get_queryset()).filter(type=1, company__in=order_list,
+                                                                    is_trashed=False)
+                folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                folder = folders_data.data
+            else:
+                data = self.filter_queryset(self.get_queryset()).filter(type=1,
+                                                                        is_trashed=False)
+                folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
+                folder = folders_data.data
+
+        if not photos and not videos and not collections and not company:
+            data1 = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamWithMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+            data = set(self.filter_queryset(self.get_queryset()).filter(type=2,
+                                                                        is_trashed=False).values_list('pk', flat=True))
+            filter_data = DAM.objects.filter(id__in=data)
+            collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+            collection = collections_data.data
+            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,
+                                                                     is_trashed=False)
+            folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
+            folder = folders_data.data
+        
+        if company and not photos and not videos and not collections:
+            data1 = self.filter_queryset(self.get_queryset()).filter(company__in=order_list, type=3, is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(company__in=order_list,type=3, is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamWithMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+            data = set(self.filter_queryset(self.get_queryset()).filter(company__in=order_list, type=2,
+                                                                        is_trashed=False).values_list('pk', flat=True))
+            filter_data = DAM.objects.filter(id__in=data)
+            collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
+            collection = collections_data.data
+            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,
+                                                                     is_trashed=False)
+            folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
+            folder = folders_data.data
+
+        
+        context = {
+            'photos': photo,
+            'videos': video,
+            'collections': collection,
+            'folders': folder
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsAuthenticated])
+class CompanyImageCount(APIView):
+    def get(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            company_count = Company.objects.filter(dam_company__parent=id)
+            initial_count = company_count.values_list('id',flat=True)
+            company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+
+            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
+            context = {
+            'company_count': company_count,
+            'null_company_count': null_company_count,
+            }
+            return Response(context, status=status.HTTP_200_OK)
+        else:
+            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
+            company_count = company_initial.values('dam_company__company', 'name', 'id',
+                                                   'is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(agency=request.user).exclude(
+                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+                                                                                  'is_active').distinct('pk')
+            context = {
+                'company_count': company_count,
+                'null_company_count': null_company_count,
+            }
+            return Response(context, status=status.HTTP_200_OK)
+
+
+@permission_classes([IsAuthenticated])
+class ShareMediaUrl(APIView):
+
+    def post(self, request, *args, **kwargs):
+        media = request.data.get('media', None)
+        email = request.data.get('email', None)
+        media_names = request.data.get('mediaNames', None)
+        from_email = Email(SEND_GRID_FROM_EMAIL)
+        to_email = To(email)
+        try:
+            img_url = ''
+            for index, url in enumerate(media):
+                img_url += f'<p>{url}</p><b>{media_names[index]}</b><br/>'
+            subject = "image link"
+            content = Content("text/html",
+                              f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> Adifect Media Links <b>{img_url}</b> </div>')
+            mail = send_email(from_email, to_email, subject, content)
+            if mail:
+                return Response({'message': 'Media has been successfullly shared.'},
+                                status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HelpModelViewset(viewsets.ModelViewSet):
+    serializer_class = HelpSerializer
+    queryset = Help.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = Help.objects.filter(user=request.user).order_by('-created')
+        serializer = HelpSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('help_new_attachments')
+            latest_image = Help.objects.latest('id')
+            if attachment:
+                for i in attachment:
+                    HelpAttachments.objects.create(attachment=latest_image, help_new_attachments=i)
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(HELP_EMAIL_SUPPORT)
+            attachments = ''
+            for j in latest_image.help_attachments.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.help_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.subject} </h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">{latest_image.message} </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.user.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.user.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@permission_classes([IsAuthenticated])
+class InHouseMemberViewset(viewsets.ModelViewSet):
+    serializer_class = InviteMemberSerializer
+    queryset = InviteMember.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company','user__user']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        return Response(data=serializer.data)
+
+
+
+
+@permission_classes([IsAuthenticated])
+class WorksFlowViewSet(viewsets.ModelViewSet):
+    serializer_class = WorksFlowSerializer
+    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company', 'is_blocked']
+    search_fields = ['=company']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        workflow_data = queryset.filter(agency__is_account_closed=False)
+        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        try:
+            serializer = self.serializer_class(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                workflow_latest = WorksFlow.objects.latest('id')
+                if request.data.get('stage', None):
+                    for i in request.data['stage']:
+                        name = i['stage_name']
+                        if name:
+                            stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                    is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
+                                                    workflow=workflow_latest, order=i['order'],
+                                                    approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                    nudge_time=i['nudge_time'])
+                            stage.save()
+                            if i['approvals']:
+                                approvals = i['approvals']
+                                stage.approvals.add(*approvals)
+                            if i['is_observer']:
+                                observer = i['observer']
+                                stage.observer.add(*observer)
+                context = {
+                    'message': "Workflow Created Successfully",
+                    'status': status.HTTP_201_CREATED,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+
+                return Response(context)
+            context = {
+                'message': "Error!",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+                'data': [],
+            }
+            return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            if not Job.objects.filter(workflow=instance):
+                serializer = WorksFlowSerializer(instance, data=request.data, partial=partial)
+                if serializer.is_valid():
+                    self.perform_update(serializer)
+                    if request.data.get('stage', None):
+                        for i in request.data['stage']:
+                            name = i['stage_name']
+                            if name:
+                                if i['stage_id'] == '':
+                                    new_stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
+                                                                is_observer=i['is_observer'],
+                                                                workflow=instance, order=i['order'],
+                                                                is_all_approval=i['is_all_approval'],
+                                                                approval_time=i['approval_time'],
+                                                                is_nudge=i['is_nudge'], nudge_time=i['nudge_time'])
+                                    new_stage.save()
+                                    if i['approvals']:
+                                        approvals = i['approvals']
+                                        new_stage.approvals.add(*approvals)
+                                    if i['is_observer']:
+                                        observer = i['observer']
+                                        new_stage.observer.add(*observer)
+                                else:
+                                    stage = Workflow_Stages.objects.filter(pk=i['stage_id'], workflow=instance)
+                                    if stage:
+                                        update = stage.update(name=name, is_approval=i['is_approval'],
+                                                              is_observer=i['is_observer'],
+                                                              is_all_approval=i['is_all_approval'], order=i['order'],
+                                                              approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                              nudge_time=i['nudge_time'])
+                                        stage = stage.first()
+                                        if i['approvals']:
+                                            approvals = i['approvals']
+                                            stage.approvals.clear()
+                                            stage.approvals.add(*approvals)
+                                        else:
+                                            stage.approvals.clear()
+                                        if i['is_observer']:
+                                            observer = i['observer']
+                                            stage.observer.clear()
+                                            stage.observer.add(*observer)
+                                        else:
+                                            stage.observer.clear()
+                    context = {
+                        'message': "Workflow Updated Successfully",
+                        'status': status.HTTP_201_CREATED,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context)
+                context = {
+                    'message': "error",
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context)
+            context = {
+                'message': "This workflow is currently in use and cannot be edited",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': 'ERROR',
+                'data': [],
+            }
+            return Response(context)
+        except Exception as e:
+            print(e)
+            context = {
+                'message': "Something Went Wrong",
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': "Error",
+                'data': [],
+            }
+            return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        workflow_id = instance.id
+        if instance.job_workflow.all():
+            return Response({'message': 'workflow assign to job cannot delete.', 'status': status.HTTP_404_NOT_FOUND},
+                            status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        if workflow_id:
+            Workflow_Stages.objects.filter(workflow_id=workflow_id).delete()
+        context = {
+            'message': 'WorkFlow Deleted successfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminJobTemplatesViewSet(viewsets.ModelViewSet):
+    serializer_class = JobTemplateSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    queryset = JobTemplate.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['company']
+    search_fields = ['=company', ]
+
+    # pagination_class = FiveRecordsPagination
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        job_data = queryset.order_by('-modified')
+        serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    def retrieve(self, request, pk=None):
+        id = pk
+        if id is not None:
+            job_data = JobTemplate.objects.get(id=id)
+            serializer = JobTemplateWithAttachmentsSerializer(job_data, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        image = request.FILES.getlist('image')
+        sample_image = request.FILES.getlist('sample_image')
+        remove_image_ids = request.data.getlist('remove_image', None)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        dam_images = request.data.getlist('dam_images')
+        dam_sample_work = request.data.getlist('dam_sample_work')
+
+        if serializer.is_valid():
+            template_name = serializer.validated_data.get('template_name', None)
+            job_template_id = JobTemplate.objects.latest('id')
+            if template_name:
+                if JobTemplate.objects.filter(
+                        ~Q(pk=instance.pk) & Q(template_name=template_name) & Q(is_trashed=False)).exclude(
+                    template_name=None).exists():
+                    context = {
+                        'message': 'Job Template Already Exist',
+                        'status': status.HTTP_400_BAD_REQUEST,
+                        'errors': serializer.errors,
+                        'data': serializer.data,
+                    }
+                    return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            self.perform_update(serializer)
+            update_job_template = Job.objects.filter(template_name=template_name).update(template_name=template_name)
+            # ------- ----- -- -- --- -- task -- --- -- --- ----  --- ----#
+            if request.data.get('tasks', None):
+                for i in json.loads(request.data['tasks']):
+                    name = i['title']
+                    if name:
+                        if 'id' in i:
+                            JobTemplateTasks.objects.filter(id=i['id']).update(title=i['title'],
+                                                                               due_date=i['due_date'])
+                        else:
+                            JobTemplateTasks.objects.create(job_template=instance, title=name, due_date=i['due_date'])
+            # ------ --- -- - --- ---- end ---  --- -- - --- ---  ----  --#
+
+            if remove_image_ids:
+                for id in remove_image_ids:
+                    JobTemplateAttachments.objects.filter(id=id).delete()
+            if image:
+                image_error = validate_job_attachments(image)
+                if image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"}, status=status.HTTP_400_BAD_REQUEST)
+                for i in image:
+                    JobTemplateAttachments.objects.create(job_template=instance, job_template_images=i)
+            dam_images_templates(dam_images, job_template_id)
+            dam_sample_template_images_list(dam_sample_work, job_template_id)
+
+            if sample_image:
+                sample_image_error = validate_job_attachments(sample_image)
+                if sample_image_error != 0:
+                    return Response({'message': "Invalid Job Attachments images"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                for i in sample_image:
+                    JobTemplateAttachments.objects.create(job_template=instance, work_sample_images=i)
+            context = {
+                'message': 'Updated Succesfully',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        context = {
+            'message': 'Something Went Wrong',
+            'status': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+            'data': serializer.data,
+        }
+        return Response(context)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for i in JobTemplateAttachments.objects.filter(job_template=instance):
+            i.delete()
+        update_job_template = Job.objects.filter(template_name=instance.template_name).update(template_name=None,
+                                                                                              status=2)
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminRelatedJobsAPI(APIView):
+
+    def get(self, request, *args, **kwargs):
+        if kwargs['company_id']:
+            queryset = Job.objects.filter(status=2, company_id=kwargs['company_id'])
+            if queryset:
+                serializer = RelatedJobsSerializer(queryset, many=True)
+                context = {
+                    'message': 'Related Jobs',
+                    'status': status.HTTP_200_OK,
+                    'data': serializer.data,
+                }
+                return Response(context)
+
+        context = {
+            'message': 'No data found',
+            'status': status.HTTP_200_OK,
+            'data': [],
+        }
+        return Response(context)
+
+
+
+class HelpchatViewset(viewsets.ModelViewSet):
+    serializer_class = HelpChatSerializer
+    queryset = HelpChat.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('chat_new_attachments')
+            latest_image = HelpChat.objects.latest('id')
+            if attachment:
+                for i in attachment:
+                    HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
+            receiver_email = latest_image.receiver
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode =1).first()
+            if data:
+                    try:
+                        to = data.mode_value
+                        twilio_number = TWILIO_NUMBER
+                        data = send_text_message(f'You have been invited to join Adifect.',
+                                                twilio_number, to)
+                    except Exception as e:
+                        print("error")
+                        print(e)
+            else:
+                
+                data = receiver_email.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
+                email_value = data.mode_value
+                from_email = Email(SEND_GRID_FROM_EMAIL)
+                if email_value:
+                    to_email = To(email_value)
+                else:    
+                    to_email = To(receiver_email.email)
+            attachments = ''
+            for j in latest_image.chat_attachments_user.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.chat_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.receiver.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.receiver.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+        
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@permission_classes([IsAuthenticated])
+class AdminHelpModelViewset(viewsets.ModelViewSet):
+    serializer_class = HelpSerializer
+    queryset = Help.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.queryset.order_by('-created')
+        serializer = HelpSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+
+
+class AgencyHelpchatViewset(viewsets.ModelViewSet):
+    serializer_class = HelpChatSerializer
+    queryset = HelpChat.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.queryset.filter(Q(sender=request.user) | Q(receiver=request.user))
+        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            attachment = request.FILES.getlist('chat_new_attachments')
+            latest_image = HelpChat.objects.latest('id')
+            if attachment:
+                for i in attachment:
+                    HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
+            from_email = Email(SEND_GRID_FROM_EMAIL)
+            to_email = To(HELP_EMAIL_SUPPORT)
+            attachments = ''
+            for j in latest_image.chat_attachments_user.all():
+                attachments += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.chat_new_attachments.url}"/>'
+            try:
+                subject = "Help content"
+                content = Content("text/html",
+                                    f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.sender.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.sender.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+
+                data = send_email(from_email, to_email, subject, content)
+            except Exception as e:
+                print(e)
+            context = {
+                'message': 'Created Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            context = {
+                'message': 'Error !',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': serializer.errors,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)

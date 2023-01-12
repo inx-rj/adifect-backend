@@ -3,7 +3,7 @@ import os
 from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal, AgencyLevel
 from rest_framework.fields import SerializerMethodField
 
 from authentication.serializers import UserSerializer
@@ -571,4 +571,10 @@ class MyProjectSerializer(serializers.ModelSerializer):
 class TestModalSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestModal
+        fields = '__all__'
+
+class AgencyLevelSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AgencyLevel
         fields = '__all__'

@@ -1,10 +1,12 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity, JobActivityAttachments, \
-    JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments, JobFeedback
+    JobWorkActivityAttachments, JobAppliedAttachments, JobWorkAttachments, JobFeedback, JobTemplate
 from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializer, JobActivitySerializer, \
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer,JobWorkAttachmentsSerializer, JobFeedbackSerializer
+from notification.models import Notifications
+from notification.serializers import NotificationsSerializer
 from rest_framework import status
 from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
@@ -24,7 +26,7 @@ from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company,
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
-    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -539,9 +541,21 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        print(instance.user.user.id)
         level = request.data.get('levels', None)
+        new_observer = request.data.get('new_observer', None)
+        assign_to = request.data.get('assigned_to', None)
         if level:
             is_update = AgencyLevel.objects.filter(id=instance.user.id).update(levels=int(level))
+            if instance.user.levels==1:
+                if Workflow_Stages.objects.filter(observer=instance.user.id).exists():
+                    for i in Workflow_Stages.objects.filter(observer__user__user_id=instance.user.user.id):
+                        i.observer.remove(instance.user.user.id)
+                        i.observer.add(int(new_observer))
+                if assign_to:
+                    job_assigned = Job.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                    job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(assigned_to=int(assign_to))
+                    Notifications.objects.create(user=instance.user.user,notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties')
             if is_update:
                 context = {
                     'message': 'Updated Successfully...',
@@ -565,15 +579,36 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             return Response({'message:'}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
 
+        instance = self.get_object()
+        agency_level = instance.user.id
+        user_id = None
+        if instance.user.user is not None:
+            user_id = instance.user.user.id
+        levels = instance.user.levels
+        self.perform_destroy(instance)
+        agency_level = AgencyLevel.objects.filter(id=agency_level).delete()
+        if levels == 4:
+            user = CustomUser.objects.filter(id=user_id).delete()
+        else:
+            if not InviteMember.objects.filter(user__user=user_id) and user_id :
+               CustomUser.objects.filter(id=user_id).delete()
         context = {
-            'message': 'Deleted Succesfully',
-            'status': status.HTTP_204_NO_CONTENT,
-            'errors': False,
-        }
+                'message': 'Deleted Succesfully',
+                'status': status.HTTP_204_NO_CONTENT,
+                'errors': False,
+            }
         return Response(context)
+
+        # instance = self.get_object()
+        # self.perform_destroy(instance)
+
+        # context = {
+        #     'message': 'Deleted Succesfully',
+        #     'status': status.HTTP_204_NO_CONTENT,
+        #     'errors': False,
+        # }
+        # return Response(context)
 
 
 class UpdateInviteMemberStatus(APIView):
@@ -582,16 +617,21 @@ class UpdateInviteMemberStatus(APIView):
         data = {}
         id = kwargs.get('id', None)
         encoded_id = int(StringEncoder.decode(self, id))
+
+
+
         status = kwargs.get('status', None)
         encoded_status = int(StringEncoder.decode(self, status))
         exculsive = kwargs.get('exculsive', None)
         encoded_exculsive = int(StringEncoder.decode(self, exculsive))
+        if InviteMember.objects.filter(pk=encoded_id, is_modified=True):
+                    return Response({'message': 'You are not Authorize.'})
         if id and status:
             data = InviteMember.objects.filter(pk=encoded_id, is_trashed=False)
             if data and exculsive:
                 user = CustomUser.objects.filter(pk=data.first().user.id, is_trashed=False).update(
                     is_exclusive=encoded_exculsive)
-            update = data.update(status=encoded_status)
+            update = data.update(status=encoded_status,is_modified=True)
             if update:
                 if encoded_status == 1:
                     data = {"message": "Thank you for your response, Invite Accepted.", "status": "success"}
@@ -643,15 +683,19 @@ class SignUpViewInvite(APIView):
                     email_verified=True,
                     role=3
                 )
+               
                 user.set_password(data['password'])
                 user.save()
-                # To get user id and update the invite table
                 id = kwargs.get('invite_id', None)
                 encoded_id = int(StringEncoder.decode(self, id))
                 user_id = CustomUser.objects.latest('id')
                 agency_level = AgencyLevel.objects.filter(pk=encoded_id, is_trashed=False).update(user=user)
                 invite = InviteMember.objects.filter(user_id=encoded_id).update(status=1)
-
+                user_email = data['email']
+                user_username = data['username']
+                agency_user = InviteMember.objects.filter(user__user__email=user_email).values("agency_id")
+                Notifications.objects.create(user_id=agency_user[0]["agency_id"],notification=f'User {user_username} with email {user_email} has accepted your invitation for creator role')
+                # To get user id and update the invite table
                 return Response({'message': 'User Registered Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -759,8 +803,6 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_files = request.FILES.getlist('dam_files', None)
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
-            print(request.data)
-            print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             if serializer.validated_data['type'] == 3:
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
@@ -1076,10 +1118,11 @@ class DamMediaViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=partial)
 
         if serializer.is_valid():
-            if request.data['company']:
+            if request.data.get('company'):
                 DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
                 self.perform_update(serializer)
-            self.perform_update(serializer)
+            else:
+                self.perform_update(serializer)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -1265,7 +1308,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = DAM.objects.filter(type=2, agency=request.user).count()
+            total_collection = DAM.objects.filter(type=2, agency=request.user,parent__isnull=True).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
         context = {'fav_folder': fav_folder,
@@ -1493,9 +1536,9 @@ def ApprovalReminder(approver, work, reminder=None):
         img_url = ''
         for j in JobWorkAttachments.objects.filter(job_work=work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}"/>'
-        subject = f'Job Work Approver Reminder - {reminder}'
+        subject = f'Job Work Approver Reminder '
         content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please Approve or Request an Edit of this asset within 12 hours of receiving this approval request.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">{work.message}</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">Hello {approver.username},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">Please Approve or Request an Edit of this asset within {reminder} hours of receiving this approval request.</div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><img style="width: 40px;height: 40px;border-radius: 50%;" src="{profile_image}" /><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;">{work.job_applied.user.username} delivered the work</span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;margin-bottom: 0px;padding: 10px 14px;">{work.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;">{work.message}</div><div style="padding: 11px 54px 0px">{img_url}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{work.job_applied.job.id}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(Email(SEND_GRID_FROM_EMAIL), approver.email, subject, content)
     except Exception as e:
         print(e)
@@ -1525,21 +1568,21 @@ class NudgeReminder(APIView):
                 if '6' in i.workflow_stage.nudge_time and not '6' in i.nudge_status if i.nudge_status is not None else '':
                     if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(6))):
                         # send email
-                        ApprovalReminder(i.approver.user.user, i.job_work, '2')
+                        ApprovalReminder(i.approver.user.user, i.job_work, '6')
                         i.nudge_status = i.nudge_status + '6,'
                         i.save()
 
                 if '9' in i.workflow_stage.nudge_time and not '9' in i.nudge_status if i.nudge_status is not None else '':
                     if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(9))):
                         # send email
-                        ApprovalReminder(i.approver.user.user, i.job_work, '1')
+                        ApprovalReminder(i.approver.user.user, i.job_work, '9')
                         i.nudge_status = i.nudge_status + '9,'
                         i.save()
 
                 if '12' in i.workflow_stage.nudge_time and not '12' in i.nudge_status if i.nudge_status is not None else '':
                     if timezone.now() >= i.created + timedelta(hours=(int(i.workflow_stage.approval_time) - int(12))):
                         # send email
-                        ApprovalReminder(i.approver.user.user, i.job_work)
+                        ApprovalReminder(i.approver.user.user, i.job_work,'12')
                         i.nudge_status = i.nudge_status + '12,'
                         i.save()
             return Response({'message': 'Reminder Email Sent Successfully'},
@@ -1566,11 +1609,39 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        favourites = request.GET.get('favourite', None)
+
+
         if id:
+
+            q_photos = Q()
             company_count = Company.objects.filter(agency=request.user,dam_company__parent=id)
+            if photos:
+                print('hiiiiiiiiiiiiiiii')
+                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
+                # company_count = company_count.filter(dam_company__type=3, is_video=False)
+            q_videos = Q()
+            if videos:
+                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+            q_collections=Q()
+            if collections :
+                q_collections = Q(dam_company__type=2)
+                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+            q_folders = Q()
+            if folders:
+                q_folders = Q(dam_company__type=1)
+            q_favourites = Q()
+            if favourites:
+                q_favourites = Q(dam_company__is_favourite=True)
+                # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+            company_count = company_count.filter(q_photos|q_videos|q_collections|q_folders)
             initial_count = company_count.values_list('id',flat=True)
             company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-
             # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
             null_company_count = Company.objects.filter(agency=request.user , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
             context = {
@@ -1578,13 +1649,101 @@ class CompanyImageCount(APIView):
             'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
+
         else:
-            company_count = Company.objects.filter(agency=request.user).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            company_initial = Company.objects.filter(agency=request.user,dam_company__parent=None)
+            q_photos = Q()
+            if photos:
+                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
+                print(q_photos,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+                # company_count = company_count.filter(dam_company__type=3, is_video=False)
+            q_videos = Q()
+            if videos:
+                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+            q_collections = Q()
+            if collections:
+                q_collections = Q(dam_company__type=2)
+                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+            q_folders = Q()
+            if folders:
+                q_folders = Q(dam_company__type=1)
+            company_initial = company_initial.filter(q_photos | q_videos | q_collections | q_folders)
+            company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+            null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')
+
             context = {
             'company_count': company_count,
-            'null_company_count': [],
+            'null_company_count': null_company_count,
             }
             return Response(context, status=status.HTTP_200_OK)
+        #     company_count1 = 0
+        #     company_count2 = 0
+        #     company_count3 = 0
+        #     company_count4 = 0
+        #     company_count = Company.objects.filter(agency=request.user,dam_company__parent=id) 
+
+        #     if photos:
+                
+        #         company_filter1 = company_count.filter(dam_company__type=3, dam_company__is_video=False)
+        #         company_count1 = company_filter1.count()
+        #         company_name1 = company_filter1.values('name', 'id')
+        #         collected_data = company_name1 + company_count1
+        #         print(collected_data)
+        #         print("hereeeeeeeeeeeeeeeeeeeee")
+        #     if videos:
+        #         company_count2 = company_count.filter( dam_company__type=3,dam_company__is_video=True).count
+        #     if collections :
+        #         company_count3 = company_count.filter(dam_company__type=2,is_trashed=False)
+        #     if folders:
+        #         company_count4 = company_count.filter(dam_company__type=1,is_trashed=False)
+        #     final_count = collected_data
+        #     initial_count = company_count.values_list('id',flat=True)
+        #     company_count = company_count.values('dam_company__company','name','id','is_active','dam_company_').order_by().annotate(Count('dam_company__company'))
+
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
+        #     context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        #     'final_count' : collected_data,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+
+        # else:
+        #     company_initial1 = 0
+        #     company_initial2 = 0
+        #     company_initial3 = 0
+        #     company_initial4 = 0
+        #     collected_data = 0
+        #     company_initial = Company.objects.filter(agency=request.user,dam_company__parent=None)
+
+        #     if photos:
+        #         company_filter1 = company_initial.filter(dam_company__type=3, dam_company__is_video=False)
+        #         for company in company_filter1:
+        #             print(company)
+        #         company_name1 = company_filter1.values('name', 'id')
+        #         company_count1 = company_name1.count()
+        #         collected_data = company_name1 , company_count1
+        #         # print(collected_data)
+        #         print("hereeeeeeeeeeeeeeeeeeeee")
+        #     if videos:
+        #         company_initial2 = company_initial.filter( dam_company__type=3,dam_company__is_video=True).count()
+        #     if collections :
+        #         company_initial3 = company_initial.filter(dam_company__type=2,is_trashed=False).count()
+        #     if folders:
+        #         company_initial4 = company_initial.filter(dam_company__type=1,is_trashed=False).count()
+        #     final_count = collected_data
+        #     company_count= company_initial.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(id__in=list(company_initial.values_list('id',flat=True))).values('dam_company__company','name','id','is_active').distinct('pk')
+
+
+        #     context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        #     'final_count' : final_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
 
             
 
@@ -1592,13 +1751,15 @@ class CompanyImageCount(APIView):
 class JobFeedbackViewset(viewsets.ModelViewSet):
     serializer_class = JobFeedbackSerializer
     queryset = JobFeedback.objects.all()
-    ordering_fields = ['modified','created']
-    ordering = ['modified','created']
-    filter_backends = [DjangoFilterBackend]
+    ordering_fields = ['modified','created','rating']
+    ordering = ['modified','created','rating']
+    filter_backends = [DjangoFilterBackend,OrderingFilter,SearchFilter]
     filterset_fields = ['receiver_user', 'sender_user', 'rating', 'job']
+    search_fields = ['feedback', ]
+
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(receiver_user=request.user)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 
@@ -1660,3 +1821,67 @@ def send_reminder_email():
     except  Exception as e :
         print(e)
         return True
+    
+    
+class AgencyNotificationViewset(viewsets.ModelViewSet):
+    serializer_class = NotificationsSerializer
+    queryset = Notifications.objects.all()
+    ordering_fields = ['modified','created']
+    ordering = ['modified','created']
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    filterset_fields = ['user', 'is_seen']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        context= {'data':serializer.data,'count':queryset.filter(is_seen=False).count()}
+        return Response(context)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid(raise_exception=True):
+            self.perform_update(serializer)
+            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class GetAdminMembers(APIView):
+    def get(self, request,*args, **kwargs):
+        queryset = InviteMember.objects.filter(agency=request.user,user__levels=1,is_trashed=False,user__isnull=False,agency__is_account_closed=False).order_by('-modified')
+        serializer = InviteMemberSerializer(queryset, many=True)
+        context = {
+            "user":self.request.user.id,
+            "data":serializer.data,
+            "status":status.HTTP_200_OK,
+        }
+        return Response(context,status=status.HTTP_200_OK)
+
+# class ChangeMemberRole(APIView):
+#     queryset = InviteMember.objects.all()
+#     def put(self, request,pk=None, *args, **kwargs):
+#         if request.data['level']:
+#             data = AgencyLevel.objects.update(user=request.data['user'],levels=request.data['level'])
+#             context = {
+#                     'data':data,
+#                     'message': 'Media Uploaded Successfully',
+#                     'status': status.HTTP_201_CREATED,
+#                 }
+#         else:
+#             context = {
+#                     'message': 'Something went wrong',
+#                     'status': status.HTTP_400_BAD_REQUEST,
+#                 }
+#         return Response(context)
+

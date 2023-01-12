@@ -147,6 +147,8 @@ class InviteMember(BaseModel):
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, related_name='invite_company_list', null=True,
                                 blank=True)
     is_blocked = models.BooleanField(default=False)
+    is_modified = models.BooleanField(default=False)
+
     class Meta:
         verbose_name_plural = 'Invite Members'
 

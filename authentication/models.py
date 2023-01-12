@@ -57,6 +57,7 @@ class CustomUser(AbstractUser):
     sub_title = models.CharField(max_length=200, null=True, blank=True)
     Language = models.CharField(max_length=20, null=True, blank=True)
     website = models.CharField(max_length=50, null=True, blank=True)
+    is_inactive = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         try:

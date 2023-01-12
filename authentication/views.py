@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from django.db.models import Q
 import os
 # third-party
@@ -204,6 +205,8 @@ class LoginView(GenericAPIView):
                 'message': 'Please confirm your email to access your account'
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_inactive == True:
+            CustomUser.objects.filter(id=request.user.id).update(is_inactive=False)
 
         useremail = user.email
         # user_level
@@ -443,13 +446,13 @@ class EmailChange(APIView):
                 context = {
                     'message': 'Please enter new Email.'
                 }
-                return Response(context)
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
             if CustomUser.objects.filter(email=email).exclude(id=request.user.id):
                 context = {
                     'message': 'Email Already Registered.'
                 }
-                return Response(context)
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(old_email)
@@ -542,7 +545,6 @@ class ProfileChangePassword(APIView):
 
 @permission_classes([IsAuthenticated])
 class CloseAccount(APIView):
-
     def post(self, request, *args, **kwargs):
 
         try:
@@ -554,7 +556,27 @@ class CloseAccount(APIView):
                 }
                 return Response(context, status=status.HTTP_400_BAD_REQUEST)
             user = CustomUser.objects.filter(id=request.user.id).update(is_account_closed=True)
+            request.user.delete()
             return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
+        except KeyError as e:
+            return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@permission_classes([IsAuthenticated])
+class InActiveAccount(APIView):
+
+    def post(self, request, *args, **kwargs):
+
+        try:
+            password = request.data.get('password', None)
+            user = CustomUser.objects.filter(id=request.user.id).first()
+            if not user.check_password(password):
+                context = {
+                    'message': 'Please enter valid login details.'
+                }
+                return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            user = CustomUser.objects.filter(id=request.user.id).update(is_inactive=True)
+            return Response({'message': 'Your account is Inactive now.'}, status=status.HTTP_200_OK)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -714,6 +736,15 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            if serializer.validated_data.get('communication_mode') == 0:
+                if UserCommunicationMode.objects.filter(communication_mode=0,
+                                                        mode_value=serializer.validated_data.get(
+                                                            'mode_value')).exists():
+                    return Response({'message': "Email is Already added."}, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.validated_data.get('communication_mode') == 1:
+                if UserCommunicationMode.objects.filter(communication_mode=1, mode_value=serializer.validated_data.get(
+                        'mode_value')).exists():
+                    return Response({'message': "Phone number is Already added."}, status=status.HTTP_400_BAD_REQUEST)
             user = self.queryset.filter(user=request.user, is_preferred=True)
             if serializer.validated_data['is_preferred'] is True:
                 user.update(is_preferred=False)
@@ -754,5 +785,23 @@ class UserCommunicationViewSet(viewsets.ModelViewSet):
         return Response(context)
         
 
+def block_tokens_for_user(user):
+    token = RefreshToken(user)
+    token.blacklist()
+    print("hiityyy")
+    return True
 
 
+
+@permission_classes([IsAuthenticated])
+class logout_test(APIView):
+    def get(self, request, *args, **kwargs):
+
+        try:
+            print('hit')
+            print(request.GET.get('token'))
+            block_tokens_for_user(request.GET.get('token'))
+            print("done")
+            return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
+        except KeyError as e:
+            return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)

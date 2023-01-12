@@ -35,6 +35,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
     'members',
     'django_celery_beat',
     'django_celery_results',
+    'notification',
 
     # 'category'
 ]
@@ -90,6 +92,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'adifect.wsgi.application'
+ASGI_APPLICATION = "adifect.asgi.application"
+
+#
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [("127.0.0.1", 6379)],
+#         },
+#     },
+# }
+
+
 
 # ------ django celery -----#
 # CELERY_RESULT_BACKEND = "django-db"
@@ -106,6 +121,16 @@ result_backend = "django-db"
 CELERY_BROKER_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}")],
+        },
+    },
+}
+
 # ----- end -----#
 
 # Database
@@ -185,6 +210,9 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
+#---- send grid help support  email ----#
+HELP_EMAIL_SUPPORT = os.environ.get('HELP_EMAIL_SUPPORT')
+
 
 FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
 BACKEND_SITE_URL = f"https://{os.environ.get('BACKEND_SITE_URL')}"
