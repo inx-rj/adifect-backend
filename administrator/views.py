@@ -332,6 +332,7 @@ class JobViewSet(viewsets.ModelViewSet):
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'user', 'job_applied__status']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
 
     def list(self, request, *args, **kwargs):
         # user_role = request.user.role
@@ -3994,32 +3995,79 @@ class CompanyImageCount(APIView):
         # }
         # return Response(context, status=status.HTTP_200_OK)
         id = request.GET.get('id', None)
-        if id:
-            company_count = Company.objects.filter(dam_company__parent=id)
-            initial_count = company_count.values_list('id', flat=True)
-            company_count = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
-                Count('dam_company__company'))
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        favourites = request.GET.get('favourite', None)
+        result = []
 
-            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(dam_company__parent=None).exclude(
-                id__in=list(initial_count)).values('dam_company__company', 'name', 'id', 'is_active').distinct('pk')
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+        company_data = Company.objects.filter(is_active=True)
+        if id:
+            parent = id
         else:
-            company_initial = Company.objects.filter(dam_company__parent=None)
-            company_count = company_initial.values('dam_company__company', 'name', 'id',
-                                                   'is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=request.user).exclude(
-                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
-                                                                                  'is_active').distinct('pk')
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+            parent = None
+        q_photos = Q()
+        if photos:
+            print('hiiiiiiiiiiiiiiii')
+            q_photos = Q(Q(type=3) & Q(is_video=False))
+            print(q_photos)
+            # company_count = company_count.filter(dam_company__type=3, is_video=False)
+        q_videos = Q()
+        if videos:
+            q_videos = Q(Q(type=3) & Q(is_video=True))
+            # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+        q_collections = Q()
+        if collections:
+            q_collections = Q(type=2)
+            # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+        q_folders = Q()
+        if folders:
+            q_folders = Q(type=1)
+        q_favourites = Q()
+        if favourites:
+            q_favourites = Q(is_favourite=True)
+        for i in company_data:
+            # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+            result.append({f'name':{i.name},'id':{i.id},'count':company_count})
+        # if id:
+        #     company_count = Company.objects.filter(dam_company__parent=id)
+        #     initial_count = company_count.values_list('id', flat=True)
+        #     company_count = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
+        #         Count('dam_company__company'))
+        #     company_count1 = Company.objects.all()
+        #     initial_count1 = company_count1.values_list('id', flat=True)
+        #     company_count1 = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
+        #         Count('dam_company__company'))
+        #
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(dam_company__parent=None).exclude(
+        #         id__in=list(initial_count1)).values('dam_company__company', 'name', 'id', 'is_active').distinct('pk')
+        #     context = {
+        #         'company_final_count': company_count1,
+        #         'company_count': company_count,
+        #         'null_company_count': null_company_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+        # else:
+        #     company_initial = Company.objects.filter(dam_company__parent=None)
+        #     company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
+        #     company_initial1 = Company.objects.filter(dam_company__parent=None)
+        #     company_count1 = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial1.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
+        context = {
+            'company_data': result,
+            'status': status.HTTP_200_OK,
+        }
+        return Response(context, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])

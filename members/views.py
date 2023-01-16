@@ -75,28 +75,68 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
+# @permission_classes([IsAuthenticated])
+# class MemberJobListViewSet(viewsets.ModelViewSet):
+#     serializer_class = JobsWithAttachmentsSerializer
+#     queryset = Workflow_Stages.objects.all()
+#     pagination_class = FiveRecordsPagination
+#     filter_backends = [DjangoFilterBackend, SearchFilter]
+#     # filterset_fields = ['status']
+#     search_fields = ['stage_workflow__job_workflow_title','stage_workflow__job_workflow_description','stage_workflow__job_workflow_skills__skill_name','stage_workflow__job_workflow_tags']
+
+#     def list(self, request, *args, **kwargs):
+#         user = request.user
+#         if request.GET.get('company'): 
+#             if  InviteMember.objects.filter(company=request.GET.get('company'),user__user=request.user,user__levels=3):
+#                 workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
+#                                                 workflow__isnull=False, is_trashed=False).values_list('workflow_id',
+#                                                                                                         flat=True)
+#                 job_data = Job.objects.filter(workflow_id__in=list(workflow_id),company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+#             else:
+#                 job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+#             if request.GET.get('status'):
+#                 job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+#             if request.GET.get('ordering'):    
+#                 job_data = job_data.order_by(request.GET.get('ordering'))
+#             paginated_data = self.paginate_queryset(job_data)
+#             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+#             return self.get_paginated_response(data=serializer.data)
+#         return Response({'details': 'No Company Found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     def retrieve(self, request, pk=None):
+#         if pk:
+#             job_data = Job.objects.filter(id=pk).first()
+#             serializer = self.serializer_class(job_data, context={'request': request})
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
 @permission_classes([IsAuthenticated])
 class MemberJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
-    queryset = Workflow_Stages.objects.all()
+    queryset = Job.objects.all().exclude(status=0)
     pagination_class = FiveRecordsPagination
-    # filter_backends = [DjangoFilterBackend, SearchFilter]
-    # filterset_fields = ['status']
+    filter_backends = [DjangoFilterBackend, SearchFilter,OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', '-created']
+    filterset_fields = ['company','job_applied__status']
+    search_fields = ['title','description','skills__skill_name','tags']
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        if request.GET.get('company'): 
+        if request.GET.get('company'):
             if  InviteMember.objects.filter(company=request.GET.get('company'),user__user=request.user,user__levels=3):
-                workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
-                                                workflow__isnull=False, is_trashed=False).values_list('workflow_id',
-                                                                                                        flat=True)
-                job_data = Job.objects.filter(workflow_id__in=list(workflow_id),company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+                job_data = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
+                                                workflow__isnull=False,workflow__stage_workflow__approvals__user__user=user)
             else:
-                job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
-            if request.GET.get('status'):
-                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
-            if request.GET.get('ordering'):    
-                job_data = job_data.order_by(request.GET.get('ordering'))
+                job_data = self.filter_queryset(self.get_queryset())
+            # if request.GET.get('status'):
+            #     job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            # if request.GET.get('ordering'):    
+            #     job_data = job_data.order_by(request.GET.get('ordering'))
             paginated_data = self.paginate_queryset(job_data)
             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
             return self.get_paginated_response(data=serializer.data)
@@ -108,6 +148,10 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
             serializer = self.serializer_class(job_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
 
 
 @permission_classes([IsAuthenticated])
@@ -367,7 +411,7 @@ class MemberMyProjectViewSet(viewsets.ModelViewSet):
     filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
     ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
     ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
-    search_fields = ['=status', ]
+    search_fields = ['status', 'job__tags', 'job__skills__skill_name', 'job__description', 'job__title']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
@@ -409,6 +453,7 @@ class JobViewSet(viewsets.ModelViewSet):
     job_template_attach = JobTemplateAttachmentsSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company','is_active','status']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
@@ -1405,7 +1450,7 @@ class JobHouseMember(viewsets.ModelViewSet):
     ordering_fields = ['created', 'modified', 'job_due_date','job__created']
     ordering = ['created', 'modified', 'job_due_date','job__created']
     filterset_fields = ['id', 'is_active','job_applied__status','job_applied__user','company']
-    search_fields = ['title']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
@@ -1566,3 +1611,29 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     #         'fav_images': fav_images_data.data
     #     }
     #     return Response(context, status=status.HTTP_200_OK)
+
+
+
+@permission_classes([InHouseMember])
+class MyProjectAllJob(APIView):
+
+    def get(self, request, *args, **kwargs):
+        queryset = JobApplied.objects.filter(is_trashed=False, user=request.user).exclude(status=1)
+        job_list = []
+        applied = queryset.filter(status=0).first()
+        if applied is not None:
+            job_list.append(applied.id)
+        hired = queryset.filter(status=2).first()
+        if hired is not None:
+            job_list.append(hired.id)
+        in_review = queryset.filter(status=3).first()
+        if in_review is not None:
+            job_list.append(in_review.id)
+        complete = queryset.filter(status=4).first()
+        if complete is not None:
+            job_list.append(complete.id)
+        if job_list:
+            latest_job = JobApplied.objects.filter(id__in=list(job_list))
+            serializer = MyProjectSerializer(latest_job, many=True, context={'request': request})
+            return Response(data=serializer.data)
+        return Response(data={'message': 'no data found'}, status=status.HTTP_400_BAD_REQUEST)

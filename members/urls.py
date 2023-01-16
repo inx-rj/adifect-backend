@@ -27,6 +27,7 @@ router.register(r'job-house-member', views.JobHouseMember, basename='job_house_m
 router.register(r'member-notification', views.MemberNotificationViewset, basename='member_notification')
 
 urlpatterns = [
+        path('inhouse-my-project/', views.MyProjectAllJob.as_view(), name='inhouse_my_project'),
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
         path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
         path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),

@@ -85,6 +85,13 @@ class CompanyViewSet(viewsets.ModelViewSet):
                 }
                 return Response(context, status=status.HTTP_200_OK)
             else:
+                if instance.job_company.all():
+                    if serializer.validated_data['is_active']:
+                        context = {
+                            'message': 'Updated Successfully........',
+                            'status': status.HTTP_200_OK,
+                        }
+                        return Response(context,status=status.HTTP_200_OK)
                 context = {
                     'message': 'This company is assigned to a Job, so the status cannot be Edited!',
                     'status': status.HTTP_400_BAD_REQUEST,
@@ -1655,78 +1662,88 @@ class CompanyImageCount(APIView):
         collections = request.GET.get('collections', None)
         folders = request.GET.get('folders', None)
         favourites = request.GET.get('favourite', None)
+        result = []
 
+        company_data = Company.objects.filter(agency=request.user, is_active=True)
         if id:
-
-            q_photos = Q()
-            company_count = Company.objects.filter(agency=request.user, dam_company__parent=id)
-            if photos:
-                print('hiiiiiiiiiiiiiiii')
-                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
-                # company_count = company_count.filter(dam_company__type=3, is_video=False)
-            q_videos = Q()
-            if videos:
-                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
-                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
-            q_collections = Q()
-            if collections:
-                q_collections = Q(dam_company__type=2)
-                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
-            q_folders = Q()
-            if folders:
-                q_folders = Q(dam_company__type=1)
-            q_favourites = Q()
-            if favourites:
-                q_favourites = Q(dam_company__is_favourite=True)
-                # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-            company_count = company_count.filter(q_photos | q_videos | q_collections | q_folders)
-            initial_count = company_count.values_list('id', flat=True)
-            company_count = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
-                Count('dam_company__company'))
-            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=request.user, dam_company__parent=None).exclude(
-                id__in=list(initial_count)).values('dam_company__company', 'name', 'id', 'is_active').distinct('pk')
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
-
+            parent = id
         else:
-            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
-            q_photos = Q()
-            if photos:
-                q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
-                print(q_photos, 'phtoto')
-                # company_count = company_count.filter(dam_company__type=3, is_video=False)
-            q_videos = Q()
-            if videos:
-                q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
-                print(q_photos, 'video')
+            parent = None
 
-                # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
-            q_collections = Q()
-            if collections:
-                q_collections = Q(dam_company__type=2)
-                print(collections, 'collection')
+        q_photos = Q()
+        if photos:
+            print('hiiiiiiiiiiiiiiii')
+            q_photos = Q(Q(type=3) & Q(is_video=False))
+            print(q_photos)
+            # company_count = company_count.filter(dam_company__type=3, is_video=False)
+        q_videos = Q()
+        if videos:
+            q_videos = Q(Q(type=3) & Q(is_video=True))
+            # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+        q_collections = Q()
+        if collections:
+            q_collections = Q(type=2)
+            # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+        q_folders = Q()
+        if folders:
+            q_folders = Q(type=1)
+        q_favourites = Q()
+        if favourites:
+            q_favourites = Q(is_favourite=True)
+        for i in company_data:
+             # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+             company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+             result.append({f'name':{i.name},'id':{i.id},'count':company_count})
+                 # company_count = DAM.objects.filter(q_photos | q_videos | q_collections | q_folders & q_company)
+        #     initial_count = company_count.values_list('id', flat=True)
+        #     company_count = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
+        #         Count('dam_company__company'))
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user, dam_company__parent=None).exclude(
+        #         id__in=list(initial_count)).values('dam_company__company', 'name', 'id', 'is_active').distinct('pk')
+        #     context = {
+        #         'company_count': company_count,
+        #         'null_company_count': null_company_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+        #
+        # else:
+        #     company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
+        #     q_photos = Q()
+        #     if photos:
+        #         q_photos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=False))
+        #         print(q_photos, 'phtoto')
+        #         # company_count = company_count.filter(dam_company__type=3, is_video=False)
+        #     q_videos = Q()
+        #     if videos:
+        #         q_videos = Q(Q(dam_company__type=3) & Q(dam_company__is_video=True))
+        #         print(q_photos, 'video')
+        #
+        #         # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+        #     q_collections = Q()
+        #     if collections:
+        #         q_collections = Q(dam_company__type=2)
+        #         print(collections, 'collection')
+        #
+        #         # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+        #     q_folders = Q()
+        #     if folders:
+        #         q_folders = Q(dam_company__type=1)
+        #         print(folders, 'collection')
+        #     company_initial = company_initial.filter(q_photos | q_videos | q_collections | q_folders)
+        #     company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
 
-                # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
-            q_folders = Q()
-            if folders:
-                q_folders = Q(dam_company__type=1)
-                print(folders, 'collection')
-            company_initial = company_initial.filter(q_photos | q_videos | q_collections | q_folders)
-            company_count = company_initial.values('dam_company__company', 'name', 'id',
-                                                   'is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=request.user).exclude(
-                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
-                                                                                  'is_active').distinct('pk')
-
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+        context = {
+            'company_data': result,
+            'status':status.HTTP_200_OK,
+            # 'company_count': company_count,
+            # 'null_company_count': null_company_count,
+        }
+        return Response(context, status=status.HTTP_200_OK)
         #     company_count1 = 0
         #     company_count2 = 0
         #     company_count3 = 0
