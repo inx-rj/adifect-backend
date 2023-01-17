@@ -24,10 +24,10 @@ router.register(r'member-dam-duplicate', views.MemberDamDuplicateViewSet, basena
 router.register(r'member-dam-media-filter', views.MemberDAMFilter, basename='member_dam_media_filter')
 router.register(r'member-dam-filter', views.MemberDamMediaFilterViewSet, basename='member_dam_filter')
 router.register(r'job-house-member', views.JobHouseMember, basename='job_house_member')
+router.register(r'inhouse-my-project', views.MyJobsViewSet, basename='inhouse_my_project')
 router.register(r'member-notification', views.MemberNotificationViewset, basename='member_notification')
 
 urlpatterns = [
-        path('inhouse-my-project/', views.MyProjectAllJob.as_view(), name='inhouse_my_project'),
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),
         path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
         path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),

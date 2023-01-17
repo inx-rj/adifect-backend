@@ -697,8 +697,10 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 if not proposed_price:
                     color = ''
                 # user = JobApplied.objects.filter(user=request.user).first()
+                print('not woooorrrkinngggggggggggggggggg')
                 user = serializer.validated_data.get('job').user
                 if serializer.validated_data.get('job').user:
+                    print('qqqqqqqqqqqqqqqqqqqqqqqqqqqq')
                     data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                     if data:
                         try:
@@ -710,16 +712,16 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                             print("error")
                             print(e)
                     else:
+                        agency = serializer.validated_data.get('job')
                         if serializer.validated_data.get('job').user:
                             data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
                             if data:
                                 email_value = data.mode_value
+                                print(email_value,'aaaaaaaaaccccccccccccccccccccccccccc')
                                 if email_value:
                                     to_email = To(email_value)
-                                else:
-                                    to_email = To(agency.user.email)
-                        agency = serializer.validated_data.get('job')
-                        to_email = To(agency.user.email)
+                            else:
+                                to_email = To(agency.user.email)
                         print('aaaaaaaaabbbbbbbbbbbbbbbbbbbbbbb')
                         from_email = Email(SEND_GRID_FROM_EMAIL)
                         # if email_value:
@@ -792,6 +794,7 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
             if not proposed_price:
                 color = ''
             user = serializer.validated_data.get('job').user
+            print('aaaaaaaaaaannnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn')
             if serializer.validated_data.get('job').user:
                 data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                 if data:
@@ -804,16 +807,18 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                         print("error")
                         print(e)
                 else:
+                    agency = serializer.validated_data.get('job')
                     if serializer.validated_data.get('job').user:
                         data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
+                        print(data,'ccccccccccccccccccccccccccccc')
                         if data:
                             email_value = data.mode_value
                             if email_value:
                                 to_email = To(email_value)
-                            else:
-                                to_email = To(agency.user.email)
-                    agency = serializer.validated_data.get('job')
-                    to_email = To(agency.user.email)
+                                print(email_value,'llllllllllllllllllllllllllllllllll')
+                        else:
+                            to_email = To(agency.user.email)
+                            print('sssssssssssssssssssssssssssssssssss')
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     # if email_value:
                     #     to_email = To(email_value)
