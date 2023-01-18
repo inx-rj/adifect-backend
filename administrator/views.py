@@ -9,7 +9,9 @@ from .serializers import EditProfileSerializer, CategorySerializer, JobSerialize
     JobTemplateSerializer, JobTemplateWithAttachmentsSerializer, JobTemplateAttachmentsSerializer, \
     QuestionSerializer, AnswerSerializer, SearchFilterSerializer, UserSkillsSerializer, JobActivitySerializer, \
     JobActivityChatSerializer, UserPortfolioSerializer, SubmitJobWorkSerializer, MemberApprovalsSerializer, \
-    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer, HelpChatSerializer
+    JobsWithAttachmentsThumbnailSerializer, JobActivityUserSerializer, JobActivityAttachmentsSerializer, \
+    JobWorkActivityAttachmentsSerializer, JobWorkAttachmentsSerializer, HelpSerializer, HelpAttachmentsSerializer, \
+    HelpChatSerializer
 from authentication.models import CustomUser, CustomUserPortfolio
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +22,8 @@ from rest_framework import viewsets
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     JobAppliedAttachments, PreferredLanguage, JobTasks, JobTemplate, JobTemplateAttachments, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
-    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments,Help, HelpAttachments, HelpChat, HelpChatAttachments
+    JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments, Help, HelpAttachments, HelpChat, \
+    HelpChatAttachments
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -37,7 +40,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia, DAM
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer, \
-    InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer, DamWithMediaRootSerializer, DamMediaSerializer
+    InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer, DamWithMediaRootSerializer, \
+    DamMediaSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -48,6 +52,7 @@ import datetime as dt
 from django.db.models import Count
 from django.db.models import Subquery
 from notification.models import Notifications
+
 
 # Create your views here.
 
@@ -179,10 +184,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(is_trashed=False).order_by('-modified')
 
 
-
 class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
+
 
 # @permission_classes([IsAdmin | IsApproverMember])
 @permission_classes([IsAuthenticated])
@@ -295,8 +300,6 @@ def dam_sample_images_list(dam_sample_images, job_id):
         return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
     # to_email = To(job_details.user.email)
@@ -320,17 +323,16 @@ def In_house_creator_email(job_details):
     return data
 
 
-
 @permission_classes([IsAuthenticated])
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter(company__is_active=True)
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company','user', 'job_applied__status']
-
+    filterset_fields = ['company', 'user', 'job_applied__status']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
 
     def list(self, request, *args, **kwargs):
         # user_role = request.user.role
@@ -351,7 +353,7 @@ class JobViewSet(viewsets.ModelViewSet):
         elif request.GET.get('progress'):
             job_data = self.filter_queryset(self.get_queryset()).filter(
                 Q(user__is_account_closed=False) & Q(
-                Q(job_applied__status=2) | Q(job_applied__status=3))).order_by(
+                    Q(job_applied__status=2) | Q(job_applied__status=3))).order_by(
                 "-modified")
         elif request.GET.get('completed'):
             job_data = self.filter_queryset(self.get_queryset()).filter(
@@ -396,7 +398,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         'errors': serializer.errors,
                         'data': serializer.data,
                     }
-                    return Response(context,status=status.HTTP_400_BAD_REQUEST)
+                    return Response(context, status=status.HTTP_400_BAD_REQUEST)
             '''
             if serializer.validated_data.get('status', None) == 0:
                 if self.queryset.filter(user=request.user, status=0).exists():
@@ -467,11 +469,10 @@ class JobViewSet(viewsets.ModelViewSet):
                             JobTemplateAttachments.objects.create(job_template=Job_template_id, work_sample_images=i)
             JobActivity.objects.create(job=job_id, activity_type=JobActivity.Type.Create)
 
-
-            #----- FOR IN HOUSE MEMBER ------#
+            # ----- FOR IN HOUSE MEMBER ------#
             if job_id.is_house_member:
                 for i in job_id.house_member.all():
-                    job_details = JobApplied.objects.create(job=job_id,status=2,user=i.user.user,is_seen=True)
+                    job_details = JobApplied.objects.create(job=job_id, status=2, user=i.user.user, is_seen=True)
                     In_house_creator_email(job_details)
 
             context = {
@@ -571,7 +572,9 @@ class JobViewSet(viewsets.ModelViewSet):
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
 
-                    Notifications.objects.create(user=users.user,notification=f'There has been some edit to your applied job - {job_id.title}')
+                    Notifications.objects.create(user=users.user,
+                                                 notification=f'There has been some edit to your applied job - {job_id.title}',
+                                                 notification_type='job_edited', redirect_id=job_id.id)
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     to_email = To(users.user.email)
                     skills = ''
@@ -629,7 +632,7 @@ def validate_job_attachments(images):
 @permission_classes([IsAuthenticated])
 class JobAppliedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__company__is_active=True)
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def list(self, request, *args, **kwargs):
@@ -657,10 +660,14 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = None
                 if not status_job:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,
+                                                 notification=f'you have new job proposal from {serializer.validated_data["user"].username}',
+                                                 notification_type='job_proposal', redirect_id=data['job'])
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=serializer.validated_data['job'].user,notification=f'you have new job proposal from {serializer.validated_data["user"].username}')
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,
+                                                 notification=f'you have new job proposal from {serializer.validated_data["user"].username}',
+                                                 notification_type='job_proposal', redirect_id=data['job'])
                 if status_job == 2:
                     test_status = JobActivity.Type.Accept
                 if status_job == 1:
@@ -692,43 +699,48 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 # user = JobApplied.objects.filter(user=request.user).first()
                 user = serializer.validated_data.get('job').user
                 if serializer.validated_data.get('job').user:
-                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode =1).first()
+                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                     if data:
-                            try:
-                                to = data.mode_value
-                                twilio_number = TWILIO_NUMBER
-                                data = send_text_message(f'You have been invited to join Adifect.',
-                                                        twilio_number, to)
-                            except Exception as e:
-                                print("error")
-                                print(e)
+                        try:
+                            to = data.mode_value
+                            twilio_number = TWILIO_NUMBER
+                            data = send_text_message(f'You have been invited to join Adifect.',
+                                                     twilio_number, to)
+                        except Exception as e:
+                            print("error")
+                            print(e)
                     else:
-                        if serializer.validated_data.get('job').user:
-                            data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
-                            email_value = data.mode_value
                         agency = serializer.validated_data.get('job')
+                        if serializer.validated_data.get('job').user:
+                            data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
+                            if data:
+                                email_value = data.mode_value
+                                if email_value:
+                                    to_email = To(email_value)
+                            else:
+                                to_email = To(agency.user.email)
                         from_email = Email(SEND_GRID_FROM_EMAIL)
-                        if email_value:
-                            to_email = To(email_value)
-                        else:    
-                            to_email = To(agency.user.email)
+                        # if email_value:
+                        #     to_email = To(email_value)
+                        # else:    
+                        #     to_email = To(agency.user.email)
                         skills = ''
                         for i in agency.skills.all():
                             skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                                    f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
-                                    f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
-                                    f'{i.skill_name}</button></div>'
+                                      f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
+                                      f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
+                                      f'{i.skill_name}</button></div>'
                         try:
                             subject = "Job proposal"
                             content = Content("text/html",
-                                            f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                              f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                             data = send_email(from_email, to_email, subject, content)
                         except Exception as e:
                             print("error")
                             print(e)
                         data = None
                     return Response(context)
-                return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
+                return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -779,41 +791,46 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 color = ''
             user = serializer.validated_data.get('job').user
             if serializer.validated_data.get('job').user:
-                    data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
-                    if data:
-                            try:
-                                to = data.mode_value
-                                twilio_number = TWILIO_NUMBER
-                                data = send_text_message(f'You have been invited to join Adifect.',
-                                                        twilio_number, to)
-                            except Exception as e:
-                                print("error")
-                                print(e)
-                    else:
-                        if serializer.validated_data.get('job').user:
-                            data = user.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
-                            email_value = data.mode_value
-                        agency = serializer.validated_data.get('job')
-                        from_email = Email(SEND_GRID_FROM_EMAIL)
-                        if email_value:
-                            to_email = To(email_value)
-                        else:    
-                            to_email = To(agency.user.email)
-                    skills = ''
-                    for i in agency.skills.all():
-                        skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                                f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
-                                f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
-                                f'{i.skill_name}</button></div>'
+                data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
+                if data:
                     try:
-                        subject = "Job proposal"
-                        content = Content("text/html",
-                                        f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                        data = send_email(from_email, to_email, subject, content)
+                        to = data.mode_value
+                        twilio_number = TWILIO_NUMBER
+                        data = send_text_message(f'You have been invited to join Adifect.',
+                                                 twilio_number, to)
                     except Exception as e:
+                        print("error")
                         print(e)
-                    data = None
-            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
+                else:
+                    agency = serializer.validated_data.get('job')
+                    if serializer.validated_data.get('job').user:
+                        data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
+                        if data:
+                            email_value = data.mode_value
+                            if email_value:
+                                to_email = To(email_value)
+                        else:
+                            to_email = To(agency.user.email)
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    # if email_value:
+                    #     to_email = To(email_value)
+                    # else:
+                    #     to_email = To(agency.user.email)
+                skills = ''
+                for i in agency.skills.all():
+                    skills += f'<div style="margin:0px 0px 0px 0px;height: 44px;float:left;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                              f'30px;font-style: normal;font-weight: 600;font-size: 12px;line-height: 18px;text-align: ' \
+                              f'center;border: none;color: #2472fc;margin-right: 4px;padding: 8px 10px 8px 10px;">' \
+                              f'{i.skill_name}</button></div>'
+                try:
+                    subject = "Job proposal"
+                    content = Content("text/html",
+                                      f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Hello, {agency.user.get_full_name()}</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a new Job Proposal for the job below:</div><div style="border: 1px solid rgba(36,114,252,.16);border-radius:8px;float: left;margin-bottom: 15px;"><div style="padding:20px"><div><h1 style="font:24px">{agency.title}</h1></div><div style="font-size:16px;line-height:19px;color:#a0a0a0">Posted on: <span>06-02-2022</span></div><div style="padding:13px 0;font-size:16px;color:#384860">{agency.description[:200]}</div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;;float: left;">Original Price :</span><span style="margin-left: 0px;">${agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Original due date :</span><span style="margin-left: 0px">{agency.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed Price :</span><span style="margin-left: 0px;{color}">${proposed_price if proposed_price else agency.price}</span></div><div style="font-size:16px;line-height:19px;color:#384860;font-weight:700;width:100%;float:left;margin-bottom: 10px;"><span style="margin-right:6px;float: left;">Proposed due date :</span><span style="margin-left: 0px;{color}">{proposed_due_date if proposed_price else agency.job_due_date}</span></div><div style="float:left;width:100% !important;">{skills}</div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the Job Proposal.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{agency.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job Proposal</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                    data = send_email(from_email, to_email, subject, content)
+                except Exception as e:
+                    print(e)
+                data = None
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             context = {
                 'message': 'You cannot update the proposal',
@@ -868,10 +885,11 @@ class LatestJobAPI(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
+            applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False, job__company__is_active=True).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
-            latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today(),is_house_member=False)
+            latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today(),
+                                                             is_house_member=False)
             user_role = request.user.role
             if not user_role == 0:
                 latest_job = latest_job.exclude(is_active=0)
@@ -907,7 +925,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(job__user=request.user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__user=request.user,job__company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -935,7 +953,6 @@ class JobActivityViewSet(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @permission_classes([IsAuthenticated])
@@ -952,7 +969,7 @@ class AdminJobActivityViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -980,7 +997,6 @@ class AdminJobActivityViewSet(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 # @permission_classes([IsAuthenticated])
@@ -1139,7 +1155,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.filter(user=request.user).order_by('-modified')
         serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -1243,7 +1259,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
 class JobDraftViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.filter(status=0)
+    queryset = Job.objects.filter(status=0,company__is_active=True)
 
     def list(self, request, *args, **kwargs):
         job_data = self.queryset.filter(user=request.user).first()
@@ -1264,7 +1280,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
-    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = WorksFlow.objects.filter(is_trashed=False,company__is_active=True).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
@@ -1289,7 +1305,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                             stage = Workflow_Stages(name=name, is_approval=i['is_approval'],
                                                     is_observer=i['is_observer'], is_all_approval=i['is_all_approval'],
                                                     workflow=workflow_latest, order=i['order'],
-                                                    approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
+                                                    approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                    nudge_time=i['nudge_time'])
                             stage.save()
                             if i['approvals']:
                                 approvals = i['approvals']
@@ -1339,7 +1356,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                                                                 is_observer=i['is_observer'],
                                                                 workflow=instance, order=i['order'],
                                                                 is_all_approval=i['is_all_approval'],
-                                                                approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
+                                                                approval_time=i['approval_time'],
+                                                                is_nudge=i['is_nudge'], nudge_time=i['nudge_time'])
                                     new_stage.save()
                                     if i['approvals']:
                                         approvals = i['approvals']
@@ -1353,7 +1371,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                                         update = stage.update(name=name, is_approval=i['is_approval'],
                                                               is_observer=i['is_observer'],
                                                               is_all_approval=i['is_all_approval'], order=i['order'],
-                                                              approval_time=i['approval_time'],is_nudge=i['is_nudge'],nudge_time=i['nudge_time'])
+                                                              approval_time=i['approval_time'], is_nudge=i['is_nudge'],
+                                                              nudge_time=i['nudge_time'])
                                         stage = stage.first()
                                         if i['approvals']:
                                             approvals = i['approvals']
@@ -1431,7 +1450,7 @@ class JobProposal(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
+            query_set = JobApplied.objects.filter(job_id=job_id,job__company__is_active=True).exclude(status=JobApplied.Status.HIRE)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
@@ -1514,7 +1533,7 @@ class ProposalUnseenCount(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id, is_seen=False).count()
+            query_set = JobApplied.objects.filter(job_id=job_id, is_seen=False, job__company__is_active=True).count()
             data = {'message': 'success', 'not_seen_count': query_set,
                     'status': status.HTTP_200_OK, 'error': False}
         else:
@@ -1524,7 +1543,7 @@ class ProposalUnseenCount(APIView):
 
 class StagesViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
-    queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = Workflow_Stages.objects.filter(is_trashed=False,workflow__company__is_active=True).order_by('-modified')
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -1644,7 +1663,7 @@ class JobStatusUpdate(APIView):
         job_id = kwargs.get('Job_id')
         is_active = kwargs.get('status')
         if job_id and (is_active or is_active == 0):
-            job_update = Job.objects.filter(pk=job_id).update(is_active=is_active)
+            job_update = Job.objects.filter(pk=job_id,company__is_active=True).update(is_active=is_active)
             if job_update:
                 context = {
                     'message': "Job Updated Successfully",
@@ -1815,7 +1834,7 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
     search_fields = ['=user', ]
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.exclude(status=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -1895,7 +1914,7 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.exclude(status=0).order_by('-modified')
         job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
@@ -1924,7 +1943,7 @@ class AgencyWorkflowViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         serializer = WorksFlowSerializer(queryset, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -1942,7 +1961,7 @@ class AgencyCompanyListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         serializer = CompanySerializer(queryset, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -1960,7 +1979,7 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'put', 'patch']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         # serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -2024,7 +2043,7 @@ class CreatorJobListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__company__is_active=True)
         paginated_data = self.paginate_queryset(queryset)
         job_id = queryset.values_list('job_id', flat=True)
         job_data = Job.objects.filter(id__in=list(job_id))
@@ -2055,7 +2074,7 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
 
 class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
-    queryset = JobApplied.objects.filter(job__is_trashed=False)
+    queryset = JobApplied.objects.filter(job__is_trashed=False,job__company__is_active=True)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     # ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified']
     # ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified']
@@ -2125,7 +2144,7 @@ class TestApi(APIView):
 # ---------------------------------------------------- end ------------------------------------------------ #
 # --------------------------------------------------------------- new Job Submit ------------------------------------------------------------#
 
-def JobWorkSubmitEmail(user, work,approved=None,moved=None):
+def JobWorkSubmitEmail(user, work, approved=None, moved=None):
     try:
         if not work.job_applied.user.profile_img:
             profile_image = ''
@@ -2133,11 +2152,11 @@ def JobWorkSubmitEmail(user, work,approved=None,moved=None):
             profile_image = work.job_applied.user.profile_img.url
         img_url = ''
         if approved:
-            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{int(approved.workflow_stage.order)+1} '
+            message = f'You work is approved by {approved.approver.user.user.username} for Stage-{int(approved.workflow_stage.order) + 1} '
         else:
             message = 'You have Submitted this work for Approval!'
         if moved:
-            message = f'You work is Moved for Stage-{int(moved.workflow_stage.order)+1} '
+            message = f'You work is Moved for Stage-{int(moved.workflow_stage.order) + 1} '
 
         for j in JobWorkAttachments.objects.filter(job_work=work):
             img_url += f'<img style="width: 100.17px;height:100px;margin: 10px 10px 0px 0px;border-radius: 16px;" src="{j.work_attachments.url}" />'
@@ -2237,7 +2256,9 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
-                        Notifications.objects.create(user=j.user.user,notification=f'{latest_work.job_applied.user} has submitted job work for {latest_work.job_applied.job.title}')
+                        Notifications.objects.create(user=j.user.user,
+                                                     notification=f'{latest_work.job_applied.user} has submitted job work for {latest_work.job_applied.job.title}',
+                                                     notification_type='job_submit_work', redirect_id=latest_work.job_applied.job.id)
 
                         JobWorkApprovalEmail(j.user.user, latest_work)
                     if created:
@@ -2289,7 +2310,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 revision_member = MemberApprovals.objects.filter(job_work=instance, workflow_stage=revision_stage)
                 for i in revision_member:
                     Notifications.objects.create(user=i.approver.user.user,
-                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}',
+                                                 notification_type='job_submit_work', redirect_id=instance.job_applied.job.id)
                     JobWorkApprovalEmail(i.approver.user.user, instance)
                 update = revision_member.update(status=0)
                 if update:
@@ -2303,7 +2325,8 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                 rejected_member = MemberApprovals.objects.filter(job_work=instance, status=2).first()
                 for i in rejected_member.workflow_stage.approvals.all():
                     Notifications.objects.create(user=i.user.user,
-                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}')
+                                                 notification=f'{instance.job_applied.user} is re-submit job work for {instance.job_applied.job.title}',
+                                                 notification_type='job_submit_work', redirect_id=instance.job_applied.job.id)
                     JobWorkApprovalEmail(i.user.user, instance)
                 update = MemberApprovals.objects.filter(job_work=instance,
                                                         workflow_stage=rejected_member.workflow_stage).update(
@@ -2362,25 +2385,29 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                 if serializer.validated_data['status'] == 1:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
-                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
-                                                   work_activity='approved', approver=instance,
-                                                   workflow_stage=instance.workflow_stage)
+                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity,
+                                                                   job_work=instance.job_work,
+                                                                   work_activity='approved', approver=instance,
+                                                                   workflow_stage=instance.workflow_stage)
                     if instance.job_work.job_submit_Work.all():
                         for i in instance.job_work.job_submit_Work.all():
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
                     Notifications.objects.create(user=instance.job_work.job_applied.user,
-                                                 notification=f'{instance.approver.user.user.get_full_name()} is approved your  work for {instance.job_work.job_applied.job.title}')
-                    JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,instance)
+                                                 notification=f'{instance.approver.user.user.get_full_name()} is approved your  work for {instance.job_work.job_applied.job.title}',
+                                                 notification_type='job_work_approver',
+                                                 redirect_id=instance.job_work.job_applied.job.id)
+                    JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work, instance)
 
                     # SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=1)
 
                 if serializer.validated_data['status'] == 2:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,
                                                           user=instance.job_work.job_applied.user)
-                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity, job_work=instance.job_work,
-                                                   work_activity='rejected', approver=instance,
-                                                   workflow_stage=instance.workflow_stage)
+                    work_activity = JobWorkActivity.objects.create(job_activity_chat=activity,
+                                                                   job_work=instance.job_work,
+                                                                   work_activity='rejected', approver=instance,
+                                                                   workflow_stage=instance.workflow_stage)
                     SubmitJobWork.objects.filter(pk=instance.job_work.id).update(status=2)
                     MemberApprovals.objects.filter(job_work=instance.job_work,
                                                    workflow_stage=instance.workflow_stage).update(status=2)
@@ -2390,7 +2417,9 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                                                       work_attachment=i.work_attachments)
 
                     Notifications.objects.create(user=instance.job_work.job_applied.user,
-                                                 notification=f'{instance.approver.user.user.get_full_name()} has requested to edit  your  work for {instance.job_work.job_applied.job.title}')
+                                                 notification=f'{instance.approver.user.user.get_full_name()} has requested to edit  your  work for {instance.job_work.job_applied.job.title}',
+                                                 notification_type='job_work_approver',
+                                                 redirect_id=instance.job_work.job_applied.job.id)
                     JobWorkEditEmail(instance.job_work.job_applied.user, instance.job_work)
 
             stage_id_list = []
@@ -2434,10 +2463,12 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                                 created = MemberApprovals.objects.create(job_work=instance.job_work, approver=j,
                                                                          workflow_stage=new_stage[0])
                                 Notifications.objects.create(user=j.user.user,
-                                                             notification=f'{instance.job_work.job_applied.user.get_full_name()} is submit  your  work for {instance.job_work.job_applied.job.title}')
+                                                             notification=f'{instance.job_work.job_applied.user.get_full_name()} is submit  your  work for {instance.job_work.job_applied.job.title}',
+                                                             notification_type='job_completed',
+                                                             redirect_id=instance.job_work.job_applied.job.id)
                                 JobWorkApprovalEmail(j.user.user, instance.job_work)
                             if created:
-                                JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work,None,created)
+                                JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work, None, created)
                                 activity = JobActivity.objects.create(job=instance.job_work.job_applied.job,
                                                                       activity_status=3,
                                                                       user=instance.job_work.job_applied.user)
@@ -2507,7 +2538,7 @@ class JobWorkStatus(APIView):
                                                                status=0).values_list('task_id', flat=True)
 
                 if len(list(task_id)) == 0:
-                    task_id='0'
+                    task_id = '0'
                 if condition_first:
                     if len(list(task_id)) == len(list(condition_first)):
                         context = {'Disable': True,
@@ -2595,7 +2626,7 @@ class JobActivityUserList(APIView):
 @permission_classes([IsAuthenticated])
 class JobCompletedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__company__is_active=True)
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
@@ -2618,10 +2649,11 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
             work_attachment = JobWorkAttachments.objects.filter(job_work__job_applied=instance, job_work__status=1)
             if work_attachment:
                 for i in work_attachment:
-                    dam = DAM.objects.create(agency=instance.job.user, type=3, applied_creator=instance.user,company=instance.job.company)
+                    dam = DAM.objects.create(agency=instance.job.user, type=3, applied_creator=instance.user,
+                                             company=instance.job.company)
                     try:
                         dam_media = DamMedia.objects.create(dam=dam, title=str(i.work_attachments.name).split('/')[-1],
-                                                            media=i.work_attachments,tags=instance.job.tags)
+                                                            media=i.work_attachments, tags=instance.job.tags)
                         if instance.job.skills is not None:
                             dam_media.skills.add(*instance.job.skills.all())
                             dam_media.save()
@@ -2629,19 +2661,22 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     except Exception as e:
                         print(e)
 
-            Notifications.objects.create(user=instance.user,notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}')
+            Notifications.objects.create(user=instance.user,
+                                         notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}',
+                                         notification_type='job_completed', redirect_id=instance.job.id)
             user = instance.job.user
             if user:
-                data = user.user_communication_mode.filter(is_preferred=True,communication_mode = 1).first()
+                data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                 if data:
-                        try:
-                            to = data.mode_value
-                            twilio_number = TWILIO_NUMBER
-                            data = send_text_message(f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}.',
-                                                        twilio_number, to)
-                        except Exception as e:
-                            print("error")
-                            print(e)
+                    try:
+                        to = data.mode_value
+                        twilio_number = TWILIO_NUMBER
+                        data = send_text_message(
+                            f'{instance.job.user.get_full_name()} is complete your job-{instance.job.title}.',
+                            twilio_number, to)
+                    except Exception as e:
+                        print("error")
+                        print(e)
                 else:
                     agency_user = instance.job.user.email
                     from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -2652,11 +2687,11 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     try:
                         subject = "Job Completed."
                         content = Content("text/html",
-                                        f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                          f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have a job that has just been completed!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#59cf65;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{instance.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{instance.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#59cf65;padding:8px 20px 8px 20px">{instance.get_status_display()}</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{instance.job.job_due_date}</span></div><div style="display:flex"><div>{skills}<div style="padding:0 7px"></div><div></div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view the completed job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/{instance.job.id}"><button style="height:56px;padding:15px 44px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px">View Completed Job</button></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
                         data = send_email(from_email, to_email, subject, content)
                     except Exception as e:
                         print(e)
-            
+
             user = instance.user.email
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(user)
@@ -2690,7 +2725,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -2945,6 +2980,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+
 @permission_classes([IsAuthenticated])
 class MemberDAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -2952,7 +2988,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -3205,6 +3241,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+
 @permission_classes([IsAuthenticated])
 class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
@@ -3212,7 +3249,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency','company']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company']
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
@@ -3226,6 +3263,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             dam_data = self.queryset.get(id=pk)
             serializer = DamWithMediaSerializer(dam_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         dam_files = request.FILES.getlist('dam_files', None)
@@ -3235,7 +3273,8 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
-                                                agency=serializer.validated_data['agency'], company = serializer.validated_data.get('company', None))
+                                                agency=serializer.validated_data['agency'],
+                                                company=serializer.validated_data.get('company', None))
                     DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             # elif serializer.validated_data['type']==1:
             #     print("yesssssssssssssssssss")
@@ -3282,6 +3321,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -3476,21 +3516,25 @@ class AdminJobAttachmentsView(APIView):
         job_activity = JobActivityAttachments.objects.filter(job_activity_chat__job_activity__job=job)
         job_activity_attachments = JobActivityAttachmentsSerializer(job_activity, many=True,
                                                                     context={'request': request})
-        job_work_approved = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="approved",work_activity__job_activity_chat__job=job)
-        job_work_approved_attachments = JobWorkActivityAttachmentsSerializer(job_work_approved, many=True, context={'request': request})
-        job_work_rejected = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="rejected",work_activity__job_activity_chat__job=job)
-        job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True, context={'request': request})
+        job_work_approved = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="approved",
+                                                                      work_activity__job_activity_chat__job=job)
+        job_work_approved_attachments = JobWorkActivityAttachmentsSerializer(job_work_approved, many=True,
+                                                                             context={'request': request})
+        job_work_rejected = JobWorkActivityAttachments.objects.filter(work_activity__work_activity="rejected",
+                                                                      work_activity__job_activity_chat__job=job)
+        job_work_rejected_attachments = JobWorkActivityAttachmentsSerializer(job_work_rejected, many=True,
+                                                                             context={'request': request})
         job_applied = JobAppliedAttachments.objects.filter(job_applied__job=job)
         job_applied_attachments = JobAppliedAttachmentsSerializer(job_applied, many=True, context={'request': request})
-        final_approved_data = JobWorkAttachments.objects.filter(job_work__job_applied__job=job,job_work__status=1)
-        final_approved = JobWorkAttachmentsSerializer(final_approved_data,many=True,context={'request': request})
+        final_approved_data = JobWorkAttachments.objects.filter(job_work__job_applied__job=job, job_work__status=1)
+        final_approved = JobWorkAttachmentsSerializer(final_approved_data, many=True, context={'request': request})
         context = {
             'job_attachments': job_attachments_data.data,
             'job_activity_attachments': job_activity_attachments.data,
             'approved_job_work_attachments': job_work_approved_attachments.data,
             'rejected_job_work_attachments': job_work_rejected_attachments.data,
             'job_applied_attachments': job_applied_attachments.data,
-            'final_approved_data':final_approved.data
+            'final_approved_data': final_approved.data
         }
         return Response(context, status=status.HTTP_200_OK)
 
@@ -3511,6 +3555,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
 
 @permission_classes([IsAuthenticated])
 class DamMediaViewSet(viewsets.ModelViewSet):
@@ -3708,7 +3753,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def favourites(self, request, pk=None, *args, **kwargs):
         id = request.GET.get('id', None)
         if id:
-            fav_folder = DAM.objects.filter(type=1,is_favourite=True, parent=id)
+            fav_folder = DAM.objects.filter(type=1, is_favourite=True, parent=id)
             fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
             fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True)
             fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
@@ -3717,7 +3762,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         else:
             fav_folder = DAM.objects.filter(type=1, is_favourite=True)
             fav_folder_data = DamWithMediaSerializer(fav_folder, many=True, context={'request': request})
-            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True,)
+            fav_collection = DamMedia.objects.filter(dam__parent=id, image_favourite=True, )
             fav_collection_data = DamWithMediaSerializer(fav_collection, many=True, context={'request': request})
             fav_images = DAM.objects.filter(type=3, is_favourite=True, )
             fav_images_data = DamWithMediaSerializer(fav_images, many=True, context={'request': request})
@@ -3743,31 +3788,32 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = DAM.objects.filter(type=2, parent=id, is_trashed=False).count()
         if id and company:
             order_list = company.split(",")
-            fav_folder = DAM.objects.filter(is_favourite=True,company__in=order_list, parent=id,
+            fav_folder = DAM.objects.filter(is_favourite=True, company__in=order_list, parent=id,
                                             is_trashed=False).count()
             print(fav_folder)
-            total_image = DamMedia.objects.filter(dam__type=3,dam__company__in=order_list, dam__parent=id,
+            total_image = DamMedia.objects.filter(dam__type=3, dam__company__in=order_list, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__company__in=order_list, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             print(total_image)
-            total_collection = DAM.objects.filter(type=2,company__in=order_list, parent=id, is_trashed=False).count()
+            total_collection = DAM.objects.filter(type=2, company__in=order_list, parent=id, is_trashed=False).count()
         if company and not id:
             order_list = company.split(",")
-            fav_folder = DAM.objects.filter(parent__isnull=True, is_favourite=True,company__in=order_list,
+            fav_folder = DAM.objects.filter(parent__isnull=True, is_favourite=True, company__in=order_list,
                                             is_trashed=False).count()
-            total_image = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__company__in=order_list,
+            total_image = DamMedia.objects.filter(dam__type=3, dam__parent__isnull=True, dam__company__in=order_list,
                                                   is_trashed=False, is_video=False).count()
-            total_video = DamMedia.objects.filter(dam__type=3,dam__parent__isnull=True, dam__company__in=order_list,
+            total_video = DamMedia.objects.filter(dam__type=3, dam__parent__isnull=True, dam__company__in=order_list,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = DAM.objects.filter(type=2,parent__isnull=True, company__in=order_list, is_trashed=False).count()
+            total_collection = DAM.objects.filter(type=2, parent__isnull=True, company__in=order_list,
+                                                  is_trashed=False).count()
 
         if not id and not company:
             fav_folder = DAM.objects.filter(is_favourite=True, parent__isnull=True).count()
-            total_image = DamMedia.objects.filter(dam__type=3,  is_trashed=False,
+            total_image = DamMedia.objects.filter(dam__type=3, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = DAM.objects.filter(type=2,parent__isnull=True).count()
-            total_video = DamMedia.objects.filter(dam__type=3,is_trashed=False,
+            total_collection = DAM.objects.filter(type=2, parent__isnull=True).count()
+            total_video = DamMedia.objects.filter(dam__type=3, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
@@ -3776,6 +3822,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                    'status': status.HTTP_201_CREATED,
                    }
         return Response(context)
+
 
 @permission_classes([IsAuthenticated])
 class DamDuplicateViewSet(viewsets.ModelViewSet):
@@ -3796,6 +3843,7 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
 
 @permission_classes([IsAuthenticated])
 class DAMFilter(viewsets.ModelViewSet):
@@ -3833,7 +3881,7 @@ class DAMFilter(viewsets.ModelViewSet):
         folder = None
         if photos:
             if company:
-                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=False,company__in=order_list,
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=False, company__in=order_list,
                                                                         is_trashed=False)
                 photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
                 photo = photos_data.data
@@ -3844,8 +3892,8 @@ class DAMFilter(viewsets.ModelViewSet):
                 photo = photos_data.data
         if videos:
             if company:
-                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=True,company__in=order_list,
-                                                                    is_trashed=False)
+                data = self.filter_queryset(self.get_queryset()).filter(type=3, is_video=True, company__in=order_list,
+                                                                        is_trashed=False)
                 videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
                 video = videos_data.data
             else:
@@ -3855,15 +3903,17 @@ class DAMFilter(viewsets.ModelViewSet):
                 video = videos_data.data
         if collections:
             if company:
-                data = set(self.filter_queryset(self.get_queryset()).filter(type=2,company__in=order_list,
-                                                                        is_trashed=False).values_list('pk', flat=True))
+                data = set(self.filter_queryset(self.get_queryset()).filter(type=2, company__in=order_list,
+                                                                            is_trashed=False).values_list('pk',
+                                                                                                          flat=True))
                 collections = set(list(data))
                 filter_data = DAM.objects.filter(id__in=data)
                 collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
                 collection = collections_data.data
             else:
                 data = set(self.filter_queryset(self.get_queryset()).filter(type=2,
-                                                                            is_trashed=False).values_list('pk', flat=True))
+                                                                            is_trashed=False).values_list('pk',
+                                                                                                          flat=True))
                 collections = set(list(data))
                 filter_data = DAM.objects.filter(id__in=data)
                 collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
@@ -3871,7 +3921,7 @@ class DAMFilter(viewsets.ModelViewSet):
         if folders:
             if company:
                 data = self.filter_queryset(self.get_queryset()).filter(type=1, company__in=order_list,
-                                                                    is_trashed=False)
+                                                                        is_trashed=False)
                 folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
                 folder = folders_data.data
             else:
@@ -3898,13 +3948,13 @@ class DAMFilter(viewsets.ModelViewSet):
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
-        
+
         if company and not photos and not videos and not collections:
             data1 = self.filter_queryset(self.get_queryset()).filter(company__in=order_list, type=3, is_video=False,
                                                                      is_trashed=False)
             photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
             photo = photos_data.data
-            data2 = self.filter_queryset(self.get_queryset()).filter(company__in=order_list,type=3, is_video=True,
+            data2 = self.filter_queryset(self.get_queryset()).filter(company__in=order_list, type=3, is_video=True,
                                                                      is_trashed=False)
             videos_data = DamWithMediaSerializer(data2, many=True, context={'request': request})
             video = videos_data.data
@@ -3918,7 +3968,6 @@ class DAMFilter(viewsets.ModelViewSet):
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
 
-        
         context = {
             'photos': photo,
             'videos': video,
@@ -3931,31 +3980,91 @@ class DAMFilter(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
+        # company_initial = Company.objects.filter(agency=request.user)
+        # company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                         'is_active').order_by().annotate(Count('dam_company__company'))
+        # null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #     id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                         'is_active').distinct('pk')
+        # context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        # }
+        # return Response(context, status=status.HTTP_200_OK)
         id = request.GET.get('id', None)
-        if id:
-            company_count = Company.objects.filter(dam_company__parent=id)
-            initial_count = company_count.values_list('id',flat=True)
-            company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        favourites = request.GET.get('favourite', None)
+        result = []
 
-            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
-            context = {
-            'company_count': company_count,
-            'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+        company_data = Company.objects.filter(is_active=True)
+        if id:
+            parent = id
         else:
-            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
-            company_count = company_initial.values('dam_company__company', 'name', 'id',
-                                                   'is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=request.user).exclude(
-                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
-                                                                                  'is_active').distinct('pk')
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+            parent = None
+        q_photos = Q()
+        if photos:
+            print('hiiiiiiiiiiiiiiii')
+            q_photos = Q(Q(type=3) & Q(is_video=False))
+            print(q_photos)
+            # company_count = company_count.filter(dam_company__type=3, is_video=False)
+        q_videos = Q()
+        if videos:
+            q_videos = Q(Q(type=3) & Q(is_video=True))
+            # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+        q_collections = Q()
+        if collections:
+            q_collections = Q(type=2)
+            # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+        q_folders = Q()
+        if folders:
+            q_folders = Q(type=1)
+        q_favourites = Q()
+        if favourites:
+            q_favourites = Q(is_favourite=True)
+        for i in company_data:
+            # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
+            result.append({f'name':{i.name},'id':{i.id},'count':company_count})
+        # if id:
+        #     company_count = Company.objects.filter(dam_company__parent=id)
+        #     initial_count = company_count.values_list('id', flat=True)
+        #     company_count = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
+        #         Count('dam_company__company'))
+        #     company_count1 = Company.objects.all()
+        #     initial_count1 = company_count1.values_list('id', flat=True)
+        #     company_count1 = company_count.values('dam_company__company', 'name', 'id', 'is_active').order_by().annotate(
+        #         Count('dam_company__company'))
+        #
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(dam_company__parent=None).exclude(
+        #         id__in=list(initial_count1)).values('dam_company__company', 'name', 'id', 'is_active').distinct('pk')
+        #     context = {
+        #         'company_final_count': company_count1,
+        #         'company_count': company_count,
+        #         'null_company_count': null_company_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+        # else:
+        #     company_initial = Company.objects.filter(dam_company__parent=None)
+        #     company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
+        #     company_initial1 = Company.objects.filter(dam_company__parent=None)
+        #     company_count1 = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial1.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
+        context = {
+            'company_data': result,
+            'status': status.HTTP_200_OK,
+        }
+        return Response(context, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -4011,7 +4120,7 @@ class HelpModelViewset(viewsets.ModelViewSet):
             try:
                 subject = "Help content"
                 content = Content("text/html",
-                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.subject} </h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">{latest_image.message} </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.user.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.user.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.subject} </h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">{latest_image.message} </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.user.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.user.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
 
                 data = send_email(from_email, to_email, subject, content)
             except Exception as e:
@@ -4033,20 +4142,17 @@ class HelpModelViewset(viewsets.ModelViewSet):
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 @permission_classes([IsAuthenticated])
 class InHouseMemberViewset(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['company','user__user']
+    filterset_fields = ['company', 'user__user']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False,company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
-
-
 
 
 @permission_classes([IsAuthenticated])
@@ -4058,7 +4164,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency__is_account_closed=False)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -4206,7 +4312,6 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         return Response(context)
 
 
-
 @permission_classes([IsAuthenticated])
 class AdminJobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
@@ -4319,7 +4424,6 @@ class AdminJobTemplatesViewSet(viewsets.ModelViewSet):
         return Response(context)
 
 
-
 @permission_classes([IsAuthenticated])
 class AdminRelatedJobsAPI(APIView):
 
@@ -4343,7 +4447,6 @@ class AdminRelatedJobsAPI(APIView):
         return Response(context)
 
 
-
 class HelpchatViewset(viewsets.ModelViewSet):
     serializer_class = HelpChatSerializer
     queryset = HelpChat.objects.all()
@@ -4364,24 +4467,24 @@ class HelpchatViewset(viewsets.ModelViewSet):
                     HelpChatAttachments.objects.create(chat_attachments=latest_image, chat_new_attachments=i)
             receiver_email = latest_image.receiver
             from_email = Email(SEND_GRID_FROM_EMAIL)
-            data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode =1).first()
+            data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
             if data:
-                    try:
-                        to = data.mode_value
-                        twilio_number = TWILIO_NUMBER
-                        data = send_text_message(f'You have been invited to join Adifect.',
-                                                twilio_number, to)
-                    except Exception as e:
-                        print("error")
-                        print(e)
+                try:
+                    to = data.mode_value
+                    twilio_number = TWILIO_NUMBER
+                    data = send_text_message(f'You have been invited to join Adifect.',
+                                             twilio_number, to)
+                except Exception as e:
+                    print("error")
+                    print(e)
             else:
-                
-                data = receiver_email.user_communication_mode.filter(is_preferred=True,communication_mode=0).first()
+
+                data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
                 email_value = data.mode_value
                 from_email = Email(SEND_GRID_FROM_EMAIL)
                 if email_value:
                     to_email = To(email_value)
-                else:    
+                else:
                     to_email = To(receiver_email.email)
             attachments = ''
             for j in latest_image.chat_attachments_user.all():
@@ -4394,7 +4497,7 @@ class HelpchatViewset(viewsets.ModelViewSet):
                 data = send_email(from_email, to_email, subject, content)
             except Exception as e:
                 print(e)
-        
+
             context = {
                 'message': 'Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -4411,7 +4514,6 @@ class HelpchatViewset(viewsets.ModelViewSet):
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 @permission_classes([IsAuthenticated])
 class AdminHelpModelViewset(viewsets.ModelViewSet):
     serializer_class = HelpSerializer
@@ -4421,7 +4523,6 @@ class AdminHelpModelViewset(viewsets.ModelViewSet):
         queryset = self.queryset.order_by('-created')
         serializer = HelpSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
-
 
 
 class AgencyHelpchatViewset(viewsets.ModelViewSet):
@@ -4450,7 +4551,7 @@ class AgencyHelpchatViewset(viewsets.ModelViewSet):
             try:
                 subject = "Help content"
                 content = Content("text/html",
-                                    f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.sender.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.sender.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                                  f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.sender.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.sender.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
 
                 data = send_email(from_email, to_email, subject, content)
             except Exception as e:

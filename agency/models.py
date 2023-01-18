@@ -233,7 +233,7 @@ class DamMedia(BaseModel):
 
     def save(self, **kwargs):
 
-        if str(self.media).endswith((".mp4",".mp3",".mov")):
+        if str(self.media).endswith((".mp4",".mp3",".mov",".MP4", ".MP3", ".MOV")):
             self.thumbnail=self.media
             self.is_video= True
             self.dam.is_video= True

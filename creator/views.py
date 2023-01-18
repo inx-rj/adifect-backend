@@ -140,7 +140,7 @@ class MyJobsViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
     ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
     filterset_fields = ['status', 'job__company']
-    search_fields = ['=status', ]
+    search_fields = ['status', 'job__tags', 'job__skills__skill_name', 'job__description', 'job__title']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 

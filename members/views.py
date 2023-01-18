@@ -75,28 +75,68 @@ class JobActivityMemberViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.data)
 
 
+# @permission_classes([IsAuthenticated])
+# class MemberJobListViewSet(viewsets.ModelViewSet):
+#     serializer_class = JobsWithAttachmentsSerializer
+#     queryset = Workflow_Stages.objects.all()
+#     pagination_class = FiveRecordsPagination
+#     filter_backends = [DjangoFilterBackend, SearchFilter]
+#     # filterset_fields = ['status']
+#     search_fields = ['stage_workflow__job_workflow_title','stage_workflow__job_workflow_description','stage_workflow__job_workflow_skills__skill_name','stage_workflow__job_workflow_tags']
+
+#     def list(self, request, *args, **kwargs):
+#         user = request.user
+#         if request.GET.get('company'): 
+#             if  InviteMember.objects.filter(company=request.GET.get('company'),user__user=request.user,user__levels=3):
+#                 workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
+#                                                 workflow__isnull=False, is_trashed=False).values_list('workflow_id',
+#                                                                                                         flat=True)
+#                 job_data = Job.objects.filter(workflow_id__in=list(workflow_id),company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+#             else:
+#                 job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+#             if request.GET.get('status'):
+#                 job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+#             if request.GET.get('ordering'):    
+#                 job_data = job_data.order_by(request.GET.get('ordering'))
+#             paginated_data = self.paginate_queryset(job_data)
+#             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+#             return self.get_paginated_response(data=serializer.data)
+#         return Response({'details': 'No Company Found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     def retrieve(self, request, pk=None):
+#         if pk:
+#             job_data = Job.objects.filter(id=pk).first()
+#             serializer = self.serializer_class(job_data, context={'request': request})
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
 @permission_classes([IsAuthenticated])
 class MemberJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
-    queryset = Workflow_Stages.objects.all()
+    queryset = Job.objects.all().exclude(status=0)
     pagination_class = FiveRecordsPagination
-    # filter_backends = [DjangoFilterBackend, SearchFilter]
-    # filterset_fields = ['status']
+    filter_backends = [DjangoFilterBackend, SearchFilter,OrderingFilter]
+    ordering_fields = ['modified', 'created']
+    ordering = ['modified', '-created']
+    filterset_fields = ['company','job_applied__status']
+    search_fields = ['title','description','skills__skill_name','tags']
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        if request.GET.get('company'): 
+        if request.GET.get('company'):
             if  InviteMember.objects.filter(company=request.GET.get('company'),user__user=request.user,user__levels=3):
-                workflow_id = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
-                                                workflow__isnull=False, is_trashed=False).values_list('workflow_id',
-                                                                                                        flat=True)
-                job_data = Job.objects.filter(workflow_id__in=list(workflow_id),company=request.GET.get('company')).exclude(status=0).order_by('-modified')
+                job_data = self.filter_queryset(self.get_queryset()).filter(workflow__is_trashed=False,
+                                                workflow__isnull=False,workflow__stage_workflow__approvals__user__user=user)
             else:
-                job_data = Job.objects.filter(company=request.GET.get('company')).exclude(status=0).order_by('-modified')
-            if request.GET.get('status'):
-                job_data = job_data.filter(job_applied__status=request.GET.get('status'))
-            if request.GET.get('ordering'):    
-                job_data = job_data.order_by(request.GET.get('ordering'))
+                job_data = self.filter_queryset(self.get_queryset())
+            # if request.GET.get('status'):
+            #     job_data = job_data.filter(job_applied__status=request.GET.get('status'))
+            # if request.GET.get('ordering'):    
+            #     job_data = job_data.order_by(request.GET.get('ordering'))
             paginated_data = self.paginate_queryset(job_data)
             serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
             return self.get_paginated_response(data=serializer.data)
@@ -108,6 +148,10 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
             serializer = self.serializer_class(job_data, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({'details': 'No Job Found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
 
 
 @permission_classes([IsAuthenticated])
@@ -367,7 +411,7 @@ class MemberMyProjectViewSet(viewsets.ModelViewSet):
     filterset_fields = ['job', 'status', 'job__company', 'job__is_active']
     ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
     ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
-    search_fields = ['=status', ]
+    search_fields = ['status', 'job__tags', 'job__skills__skill_name', 'job__description', 'job__title']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
@@ -409,6 +453,7 @@ class JobViewSet(viewsets.ModelViewSet):
     job_template_attach = JobTemplateAttachmentsSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company','is_active','status']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
@@ -1405,7 +1450,7 @@ class JobHouseMember(viewsets.ModelViewSet):
     ordering_fields = ['created', 'modified', 'job_due_date','job__created']
     ordering = ['created', 'modified', 'job_due_date','job__created']
     filterset_fields = ['id', 'is_active','job_applied__status','job_applied__user','company']
-    search_fields = ['title']
+    search_fields = ['company__name', 'title', 'description', 'tags', 'skills__skill_name']
     pagination_class = FiveRecordsPagination
     http_method_names = ['get']
 
@@ -1458,32 +1503,78 @@ class JobAttachmentsView(APIView):
 @permission_classes([IsAuthenticated])
 class CompanyImageCount(APIView):
     def get(self, request, *args, **kwargs):
-        id = request.GET.get('id', None)
-        user_id = request.GET.get('user_id', None)
-        if id:
-            company_count = Company.objects.filter(agency=user_id,dam_company__parent=id)
-            initial_count = company_count.values_list('id',flat=True)
-            company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
 
-            # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=user_id , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
-            context = {
-            'company_count': company_count,
-            'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+        id = request.GET.get('id', None)
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        collections = request.GET.get('collections', None)
+        folders = request.GET.get('folders', None)
+        favourites = request.GET.get('favourite', None)
+        result = []
+
+        company_data = Company.objects.filter(invite_company_list__user__user=request.user,is_active=True)
+        if id:
+            parent = id
         else:
-            company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
-            company_count = company_initial.values('dam_company__company', 'name', 'id',
-                                                   'is_active').order_by().annotate(Count('dam_company__company'))
-            null_company_count = Company.objects.filter(agency=request.user).exclude(
-                id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
-                                                                                  'is_active').distinct('pk')
-            context = {
-                'company_count': company_count,
-                'null_company_count': null_company_count,
-            }
-            return Response(context, status=status.HTTP_200_OK)
+            parent = None
+        q_photos = Q()
+        if photos:
+            print('hiiiiiiiiiiiiiiii')
+            q_photos = Q(Q(type=3) & Q(is_video=False))
+            print(q_photos)
+            # company_count = company_count.filter(dam_company__type=3, is_video=False)
+        q_videos = Q()
+        if videos:
+            q_videos = Q(Q(type=3) & Q(is_video=True))
+            # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
+        q_collections = Q()
+        if collections:
+            q_collections = Q(type=2)
+            # company_count = company_count.filter(dam_company__type=2,is_trashed=False)
+        q_folders = Q()
+        if folders:
+            q_folders = Q(type=1)
+        q_favourites = Q()
+        if favourites:
+            q_favourites = Q(is_favourite=True)
+        for i in company_data:
+            # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+            result.append({f'name':{i.name},'id':{i.id},'count':company_count})
+
+        context = {
+            'company_data': result,
+            'status': status.HTTP_200_OK,
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+    
+        # id = request.GET.get('id', None)
+        # user_id = request.GET.get('user_id', None)
+        # if id:
+        #     company_count = Company.objects.filter(agency=user_id,dam_company__parent=id)
+        #     initial_count = company_count.values_list('id',flat=True)
+        #     company_count = company_count.values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+
+        #     # null_company_count = company_count = Company.objects.filter(Q(agency=request.user) & (Q(dam_company__parent=id) | Q(dam_company__parent=None))).values('dam_company__company','name','id','is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=user_id , dam_company__parent=None).exclude(id__in=list(initial_count)).values('dam_company__company','name','id','is_active').distinct('pk')
+        #     context = {
+        #     'company_count': company_count,
+        #     'null_company_count': null_company_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
+        # else:
+        #     company_initial = Company.objects.filter(agency=request.user, dam_company__parent=None)
+        #     company_count = company_initial.values('dam_company__company', 'name', 'id',
+        #                                            'is_active').order_by().annotate(Count('dam_company__company'))
+        #     null_company_count = Company.objects.filter(agency=request.user).exclude(
+        #         id__in=list(company_initial.values_list('id', flat=True))).values('dam_company__company', 'name', 'id',
+        #                                                                           'is_active').distinct('pk')
+        #     context = {
+        #         'company_count': company_count,
+        #         'null_company_count': null_company_count,
+        #     }
+        #     return Response(context, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -1566,3 +1657,29 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     #         'fav_images': fav_images_data.data
     #     }
     #     return Response(context, status=status.HTTP_200_OK)
+
+
+
+
+@permission_classes([IsAuthenticated])
+class MyJobsViewSet(viewsets.ModelViewSet):
+    # serializer_class = JobAppliedSerializer
+    queryset = JobApplied.objects.filter(is_trashed=False, job__is_trashed=False).exclude(status=1).exclude(job=None)
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified', 'created']
+    ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified', 'created']
+    filterset_fields = ['status', 'job__company']
+    search_fields = ['status', 'job__tags', 'job__skills__skill_name', 'job__description', 'job__title']
+    pagination_class = FiveRecordsPagination
+    http_method_names = ['get']
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        queryset = self.filter_queryset(self.get_queryset())
+        job_applied_data = queryset.filter(user=user).values_list('job_id', flat=True)
+        latest_job = Job.objects.filter(id__in=list(job_applied_data))
+        latest_job = sorted(latest_job, key=lambda i: list(job_applied_data).index(i.pk))
+        paginated_data = self.paginate_queryset(latest_job)
+        serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
+        return self.get_paginated_response(data=serializer.data)
+

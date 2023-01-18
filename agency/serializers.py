@@ -308,6 +308,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
     company = SerializerMethodField("get_company")
+ 
     # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia
@@ -434,6 +435,7 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
     company = SerializerMethodField("get_company_name")
+    total_obj = SerializerMethodField("get_total_object")
 
     class Meta:
         model = DAM
@@ -468,6 +470,11 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
         if obj.company is not None:
             return obj.company.name
         return ''
+    
+    def get_total_object(self, obj):
+        if obj:
+            return DAM.objects.filter(parent=obj).count()
+        return ''
 
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
@@ -476,7 +483,8 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     parent =  SerializerMethodField("get_parent")
     upload_by = SerializerMethodField("get_user_name")
     company = SerializerMethodField("get_company_name")
-
+    total_obj = SerializerMethodField("get_total_object")
+    
     class Meta:
         model = DAM
         fields = '__all__'
@@ -513,6 +521,11 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     #         return obj.name
     #     else:
     #         return False
+    def get_total_object(self, obj):
+        if obj:
+            return DAM.objects.filter(parent=obj).count()
+        return ''
+
 class DamWithMediaThumbnailSerializer(serializers.ModelSerializer):
     dam_media = DamMediaThumbnailSerializer(many=True, required=False)
     # location = SerializerMethodField("get_location")
