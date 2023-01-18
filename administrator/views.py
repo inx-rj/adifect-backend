@@ -327,7 +327,7 @@ def In_house_creator_email(job_details):
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter(company__is_active=True)
     job_template_attach = JobTemplateAttachmentsSerializer
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -632,7 +632,7 @@ def validate_job_attachments(images):
 @permission_classes([IsAuthenticated])
 class JobAppliedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__company__is_active=True)
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def list(self, request, *args, **kwargs):
@@ -697,10 +697,8 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 if not proposed_price:
                     color = ''
                 # user = JobApplied.objects.filter(user=request.user).first()
-                print('not woooorrrkinngggggggggggggggggg')
                 user = serializer.validated_data.get('job').user
                 if serializer.validated_data.get('job').user:
-                    print('qqqqqqqqqqqqqqqqqqqqqqqqqqqq')
                     data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                     if data:
                         try:
@@ -717,12 +715,10 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                             data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
                             if data:
                                 email_value = data.mode_value
-                                print(email_value,'aaaaaaaaaccccccccccccccccccccccccccc')
                                 if email_value:
                                     to_email = To(email_value)
                             else:
                                 to_email = To(agency.user.email)
-                        print('aaaaaaaaabbbbbbbbbbbbbbbbbbbbbbb')
                         from_email = Email(SEND_GRID_FROM_EMAIL)
                         # if email_value:
                         #     to_email = To(email_value)
@@ -794,7 +790,6 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
             if not proposed_price:
                 color = ''
             user = serializer.validated_data.get('job').user
-            print('aaaaaaaaaaannnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn')
             if serializer.validated_data.get('job').user:
                 data = user.user_communication_mode.filter(is_preferred=True, communication_mode=1).first()
                 if data:
@@ -810,15 +805,12 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                     agency = serializer.validated_data.get('job')
                     if serializer.validated_data.get('job').user:
                         data = user.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
-                        print(data,'ccccccccccccccccccccccccccccc')
                         if data:
                             email_value = data.mode_value
                             if email_value:
                                 to_email = To(email_value)
-                                print(email_value,'llllllllllllllllllllllllllllllllll')
                         else:
                             to_email = To(agency.user.email)
-                            print('sssssssssssssssssssssssssssssssssss')
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     # if email_value:
                     #     to_email = To(email_value)
@@ -893,7 +885,7 @@ class LatestJobAPI(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False).values_list('job_id',
+            applied_data = JobApplied.objects.filter(user=request.user, is_trashed=False, job__company__is_active=True).values_list('job_id',
                                                                                                       flat=True)
             latest_job = Job.objects.exclude(id__in=list(applied_data))
             latest_job = latest_job.exclude(status=0).filter(job_due_date__gte=dt.datetime.today(),
@@ -933,7 +925,7 @@ class JobActivityViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(job__user=request.user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__user=request.user,job__company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -977,7 +969,7 @@ class AdminJobActivityViewSet(viewsets.ModelViewSet):
     # http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1163,7 +1155,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.filter(user=request.user).order_by('-modified')
         serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -1267,7 +1259,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
 class JobDraftViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.filter(status=0)
+    queryset = Job.objects.filter(status=0,company__is_active=True)
 
     def list(self, request, *args, **kwargs):
         job_data = self.queryset.filter(user=request.user).first()
@@ -1288,7 +1280,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
-    queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = WorksFlow.objects.filter(is_trashed=False,company__is_active=True).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
@@ -1458,7 +1450,7 @@ class JobProposal(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id).exclude(status=JobApplied.Status.HIRE)
+            query_set = JobApplied.objects.filter(job_id=job_id,job__company__is_active=True).exclude(status=JobApplied.Status.HIRE)
             serializer = self.serializer_class(query_set, many=True, context={'request': request})
             data_query = serializer.data
             data = {'message': 'sucess', 'data': data_query, 'status': status.HTTP_200_OK, 'error': False}
@@ -1541,7 +1533,7 @@ class ProposalUnseenCount(APIView):
     def get(self, request, pk, format=None):
         job_id = pk
         if job_id:
-            query_set = JobApplied.objects.filter(job_id=job_id, is_seen=False).count()
+            query_set = JobApplied.objects.filter(job_id=job_id, is_seen=False, job__company__is_active=True).count()
             data = {'message': 'success', 'not_seen_count': query_set,
                     'status': status.HTTP_200_OK, 'error': False}
         else:
@@ -1551,7 +1543,7 @@ class ProposalUnseenCount(APIView):
 
 class StagesViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
-    queryset = Workflow_Stages.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = Workflow_Stages.objects.filter(is_trashed=False,workflow__company__is_active=True).order_by('-modified')
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -1671,7 +1663,7 @@ class JobStatusUpdate(APIView):
         job_id = kwargs.get('Job_id')
         is_active = kwargs.get('status')
         if job_id and (is_active or is_active == 0):
-            job_update = Job.objects.filter(pk=job_id).update(is_active=is_active)
+            job_update = Job.objects.filter(pk=job_id,company__is_active=True).update(is_active=is_active)
             if job_update:
                 context = {
                     'message': "Job Updated Successfully",
@@ -1842,7 +1834,7 @@ class AdminJobListViewSet(viewsets.ModelViewSet):
     search_fields = ['=user', ]
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.exclude(status=0).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
@@ -1922,7 +1914,7 @@ class AgencyJobListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.exclude(status=0).order_by('-modified')
         job_count = job_data.count()
         paginated_data = self.paginate_queryset(job_data)
@@ -1951,7 +1943,7 @@ class AgencyWorkflowViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         serializer = WorksFlowSerializer(queryset, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -1969,7 +1961,7 @@ class AgencyCompanyListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         serializer = CompanySerializer(queryset, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -1987,7 +1979,7 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'put', 'patch']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         # paginated_data = self.paginate_queryset(queryset)
         # serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
@@ -2051,7 +2043,7 @@ class CreatorJobListViewSet(viewsets.ModelViewSet):
     http_method_names = ['get']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(job__company__is_active=True)
         paginated_data = self.paginate_queryset(queryset)
         job_id = queryset.values_list('job_id', flat=True)
         job_data = Job.objects.filter(id__in=list(job_id))
@@ -2082,7 +2074,7 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
 
 class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
     serializer_class = MyProjectSerializer
-    queryset = JobApplied.objects.filter(job__is_trashed=False)
+    queryset = JobApplied.objects.filter(job__is_trashed=False,job__company__is_active=True)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     # ordering_fields = ['modified', 'job__job_due_date', 'job__created', 'job__modified']
     # ordering = ['job__job_due_date', 'job__created', 'job__modified', 'modified']
@@ -2634,7 +2626,7 @@ class JobActivityUserList(APIView):
 @permission_classes([IsAuthenticated])
 class JobCompletedViewSet(viewsets.ModelViewSet):
     serializer_class = JobAppliedSerializer
-    queryset = JobApplied.objects.filter(is_trashed=False)
+    queryset = JobApplied.objects.filter(is_trashed=False,job__company__is_active=True)
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
@@ -4034,7 +4026,7 @@ class CompanyImageCount(APIView):
             q_favourites = Q(is_favourite=True)
         for i in company_data:
             # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
             result.append({f'name':{i.name},'id':{i.id},'count':company_count})
         # if id:
         #     company_count = Company.objects.filter(dam_company__parent=id)
@@ -4158,7 +4150,7 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
     filterset_fields = ['company', 'user__user']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False,company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 
@@ -4172,7 +4164,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency__is_account_closed=False)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)

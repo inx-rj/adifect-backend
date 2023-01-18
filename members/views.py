@@ -1513,7 +1513,6 @@ class CompanyImageCount(APIView):
         result = []
 
         company_data = Company.objects.filter(invite_company_list__user__user=request.user,is_active=True)
-        print(company_data,'aaaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
         if id:
             parent = id
         else:

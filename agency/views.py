@@ -65,7 +65,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Company.objects.filter(agency=user, agency__is_account_closed=False).order_by('-modified')
+        queryset = Company.objects.filter(agency=user, agency__is_account_closed=False,is_active=True).order_by('-modified')
         return queryset
 
     def update(self, request, *args, **kwargs):
@@ -123,7 +123,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class AgencyJobsViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
-    queryset = Job.objects.filter(is_trashed=False).exclude(status=0)
+    queryset = Job.objects.filter(is_trashed=False,company__is_active=True).exclude(status=0)
     pagination_class = FiveRecordsPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_active', 'job_applied__status']
@@ -267,7 +267,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class GetAgencyUnappliedJobs(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
-        unapplied_jobs = Job.objects.filter(user=request.user.id, status=0, is_trashed=False)
+        unapplied_jobs = Job.objects.filter(user=request.user.id, status=0, is_trashed=False,company__is_active=True)
         unapplied_jobs_data = JobsWithAttachmentsSerializer(unapplied_jobs, many=True)
         context = {
             'message': 'pending jobs',
@@ -287,7 +287,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
         serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -446,7 +446,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
                                                                     user__isnull=False,
-                                                                    agency__is_account_closed=False).order_by(
+                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
             '-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -1220,7 +1220,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         draft_data = queryset.filter(user=request.user)
         serializer = self.serializer_class(draft_data, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -1678,6 +1678,7 @@ class CompanyImageCount(APIView):
             # company_count = company_count.filter(dam_company__type=3, is_video=False)
         q_videos = Q()
         if videos:
+            print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
             q_videos = Q(Q(type=3) & Q(is_video=True))
             # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
         q_collections = Q()
@@ -1689,10 +1690,11 @@ class CompanyImageCount(APIView):
             q_folders = Q(type=1)
         q_favourites = Q()
         if favourites:
+            print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
             q_favourites = Q(is_favourite=True)
         for i in company_data:
              # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-             company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+             company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
              result.append({f'name':{i.name},'id':{i.id},'count':company_count})
                  # company_count = DAM.objects.filter(q_photos | q_videos | q_collections | q_folders & q_company)
         #     initial_count = company_count.values_list('id', flat=True)
@@ -1891,15 +1893,17 @@ def send_reminder_email():
 class AgencyNotificationViewset(viewsets.ModelViewSet):
     serializer_class = NotificationsSerializer
     queryset = Notifications.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['user', 'is_seen']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        count= queryset.filter(is_seen=False).count()
+        queryset = queryset[0:10]
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
-        context = {'data': serializer.data, 'count': queryset.filter(is_seen=False).count()}
+        context = {'data': serializer.data, 'count':count}
         return Response(context)
 
     def update(self, request, *args, **kwargs):
