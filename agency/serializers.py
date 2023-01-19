@@ -308,7 +308,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
     company = SerializerMethodField("get_company")
- 
+    get_file_extension = SerializerMethodField("get_files_extension")
     # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia
@@ -318,6 +318,14 @@ class DamMediaSerializer(serializers.ModelSerializer):
         if obj:
             if obj.media is not  None:
                 return str(obj.media.name).split('/')[-1]
+            else:
+                return ''
+        return ''
+    
+    def get_files_extension(self, obj):
+        if obj:
+            if obj.media is not None:
+                return str(obj.media.name).split('.')[-1]
             else:
                 return ''
         return ''

@@ -3786,6 +3786,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_video = DamMedia.objects.filter(dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, parent=id, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, parent=id, is_trashed=False).count()
+
         if id and company:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(is_favourite=True, company__in=order_list, parent=id,
@@ -3797,6 +3799,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             print(total_image)
             total_collection = DAM.objects.filter(type=2, company__in=order_list, parent=id, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, company__in=order_list, parent=id, is_trashed=False).count()
+
         if company and not id:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(parent__isnull=True, is_favourite=True, company__in=order_list,
@@ -3807,6 +3811,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, parent__isnull=True, company__in=order_list,
                                                   is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, parent__isnull=True, company__in=order_list, is_trashed=False).count()                                      
 
         if not id and not company:
             fav_folder = DAM.objects.filter(is_favourite=True, parent__isnull=True).count()
@@ -3815,10 +3820,13 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = DAM.objects.filter(type=2, parent__isnull=True).count()
             total_video = DamMedia.objects.filter(dam__type=3, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
+            total_folder = DAM.objects.filter(type=1, parent__isnull=True).count()
+                                      
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
                    'total_collection': total_collection,
                    'total_video': total_video,
+                   'total_folder': total_folder,
                    'status': status.HTTP_201_CREATED,
                    }
         return Response(context)
@@ -3963,7 +3971,7 @@ class DAMFilter(viewsets.ModelViewSet):
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,
+            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,company__in=order_list,
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
@@ -4026,7 +4034,7 @@ class CompanyImageCount(APIView):
             q_favourites = Q(is_favourite=True)
         for i in company_data:
             # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites)).filter((Q(q_favourites & q_photos)| (Q(q_favourites & q_videos)) | (Q(q_favourites & q_collections)) | (Q(q_favourites & q_photos & q_videos))) & (Q(company=i) & Q(parent=parent))).count()
             result.append({f'name':{i.name},'id':{i.id},'count':company_count})
         # if id:
         #     company_count = Company.objects.filter(dam_company__parent=id)
@@ -4478,11 +4486,10 @@ class HelpchatViewset(viewsets.ModelViewSet):
                     print("error")
                     print(e)
             else:
-
-                data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
-                email_value = data.mode_value
                 from_email = Email(SEND_GRID_FROM_EMAIL)
-                if email_value:
+                data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
+                if data:
+                    email_value = data.mode_value
                     to_email = To(email_value)
                 else:
                     to_email = To(receiver_email.email)

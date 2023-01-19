@@ -1308,6 +1308,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent=id, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, agency=request.user, parent=id, is_trashed=False).count()
+
         if id and company:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, company__in=order_list, parent=id,
@@ -1322,6 +1324,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             print(total_image)
             total_collection = DAM.objects.filter(type=2, agency=request.user, company__in=order_list, parent=id,
                                                   is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, agency=request.user, company__in=order_list, parent=id, is_trashed=False).count()
+
         if company and not id:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(agency=request.user, parent__isnull=True, is_favourite=True,
@@ -1335,6 +1339,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, parent__isnull=True, agency=request.user,
                                                   company__in=order_list, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, agency=request.user, parent__isnull=True, company__in=order_list, is_trashed=False).count()                                      
 
         if not id and not company:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
@@ -1343,10 +1348,13 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent__isnull=True).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
+            total_folder = DAM.objects.filter(type=1,agency=request.user, parent__isnull=True).count()
+
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
                    'total_collection': total_collection,
                    'total_video': total_video,
+                   'total_folder': total_folder,
                    'status': status.HTTP_201_CREATED,
                    }
         return Response(context)
@@ -1495,7 +1503,7 @@ class DAMFilter(viewsets.ModelViewSet):
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1,
+            data4 = self.filter_queryset(self.get_queryset()).filter(agency=self.request.user, type=1,company__in=order_list,
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
@@ -1648,7 +1656,7 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
     filterset_fields = ['company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False)
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False,company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 
@@ -1672,13 +1680,11 @@ class CompanyImageCount(APIView):
 
         q_photos = Q()
         if photos:
-            print('hiiiiiiiiiiiiiiii')
             q_photos = Q(Q(type=3) & Q(is_video=False))
             print(q_photos)
             # company_count = company_count.filter(dam_company__type=3, is_video=False)
         q_videos = Q()
         if videos:
-            print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
             q_videos = Q(Q(type=3) & Q(is_video=True))
             # company_count = company_count.filter(dam_company__type=3,dam_company__is_video=True)
         q_collections = Q()
@@ -1690,11 +1696,10 @@ class CompanyImageCount(APIView):
             q_folders = Q(type=1)
         q_favourites = Q()
         if favourites:
-            print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
             q_favourites = Q(is_favourite=True)
         for i in company_data:
              # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-             company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
+             company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites)).filter((Q(q_favourites & q_photos)| (Q(q_favourites & q_videos)) | (Q(q_favourites & q_collections)) | (Q(q_favourites & q_photos & q_videos))) & (Q(company=i) & Q(parent=parent))).count()
              result.append({f'name':{i.name},'id':{i.id},'count':company_count})
                  # company_count = DAM.objects.filter(q_photos | q_videos | q_collections | q_folders & q_company)
         #     initial_count = company_count.values_list('id', flat=True)
