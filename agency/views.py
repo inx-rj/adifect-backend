@@ -65,7 +65,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Company.objects.filter(agency=user, agency__is_account_closed=False,is_active=True).order_by('-modified')
+        queryset = Company.objects.filter(agency=user, agency__is_account_closed=False).order_by('-modified')
         return queryset
 
     def update(self, request, *args, **kwargs):

@@ -222,7 +222,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     search_fields = ['=is_active']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(is_active=True)
+        queryset = self.filter_queryset(self.get_queryset())
         company = queryset.filter(invite_company_list__user__user=request.user)
         serializer = self.serializer_class(company, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)

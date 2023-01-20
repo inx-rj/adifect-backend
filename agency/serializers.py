@@ -309,6 +309,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     is_favourite =  SerializerMethodField("get_is_favourite")
     company = SerializerMethodField("get_company")
     get_file_extension = SerializerMethodField("get_files_extension")
+    skills = SkillsSerializer(many=True,required=False)
     # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia

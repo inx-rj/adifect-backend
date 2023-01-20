@@ -474,6 +474,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 for i in job_id.house_member.all():
                     job_details = JobApplied.objects.create(job=job_id, status=2, user=i.user.user, is_seen=True)
                     In_house_creator_email(job_details)
+                    Notifications.objects.create(user=i.user.user,notification_type='in_house_assigned', redirect_id=job_id.id,notification=f'You have been assigned to {job_id.title} job.')
 
             context = {
                 'message': 'Job Created Successfully',
