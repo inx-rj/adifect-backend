@@ -606,35 +606,38 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
 
-        instance = self.get_object()
-        agency_level = instance.user.id
-        user_id = None
-        if instance.user.user is not None:
-            user_id = instance.user.user.id
-        levels = instance.user.levels
-        self.perform_destroy(instance)
-        agency_level = AgencyLevel.objects.filter(id=agency_level).delete()
-        if levels == 4:
-            user = CustomUser.objects.filter(id=user_id).delete()
-        else:
-            if not InviteMember.objects.filter(user__user=user_id) and user_id:
-                CustomUser.objects.filter(id=user_id).delete()
-        context = {
-            'message': 'Deleted Succesfully',
-            'status': status.HTTP_204_NO_CONTENT,
-            'errors': False,
-        }
-        return Response(context)
-
         # instance = self.get_object()
+        # agency_level = instance.user.id
+        # user_id = None
+        # if instance.user.user is not None:
+        #     user_id = instance.user.user.id
+        # levels = instance.user.levels
         # self.perform_destroy(instance)
-
+        # agency_level = AgencyLevel.objects.filter(id=agency_level).delete()
+        # if levels == 4:
+        #     user = CustomUser.objects.filter(id=user_id).delete()
+        # else:
+        #     if not InviteMember.objects.filter(user__user=user_id) and user_id:
+        #         CustomUser.objects.filter(id=user_id).delete()
         # context = {
         #     'message': 'Deleted Succesfully',
         #     'status': status.HTTP_204_NO_CONTENT,
         #     'errors': False,
         # }
         # return Response(context)
+
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        # user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
+        # if user:
+
+
+        context = {
+            'message': 'Deleted Succesfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
 
 
 class UpdateInviteMemberStatus(APIView):
@@ -1072,7 +1075,7 @@ class DamRootViewSet(viewsets.ModelViewSet):
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type']
     search_fields = ['name']
-    http_method_names = ['get']
+    # http_method_names = ['get','put']
 
     def list(self, request, *args, **kwargs):
         user = request.user
