@@ -1148,8 +1148,12 @@ class DamMediaViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             if request.data.get('company'):
-                DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
-                self.perform_update(serializer)
+                if request.data.get('company') == "0":
+                    DAM.objects.filter(pk=request.data['dam']).update(company=None)
+                    self.perform_update(serializer)
+                else:
+                    DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+                    self.perform_update(serializer)
             else:
                 self.perform_update(serializer)
             context = {
