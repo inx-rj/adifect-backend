@@ -206,7 +206,11 @@ class LoginView(GenericAPIView):
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
         if user.is_inactive == True:
-            CustomUser.objects.filter(id=request.user.id).update(is_inactive=False)
+            context = {
+                'message': 'Your Account Is Inactive.Kindly! Contact To The Administrator'
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+            # CustomUser.objects.filter(id=request.user.id).update(is_inactive=False)
 
         useremail = user.email
         # user_level

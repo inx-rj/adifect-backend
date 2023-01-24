@@ -627,8 +627,8 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         # return Response(context)
 
         instance = self.get_object()
-        self.perform_destroy(instance)
-        # user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
+        # self.perform_destroy(instance)
+        user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
         # if user:
 
 
@@ -1912,8 +1912,13 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
-        queryset = queryset[0:10]
+        if offset:
+                queryset = queryset[0:offset]
+        else:
+             queryset = queryset[0:5]
+
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         context = {'data': serializer.data, 'count':count}
         return Response(context)
