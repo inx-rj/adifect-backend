@@ -55,6 +55,7 @@ router.register(r'super-admin-dam-media', views.DamMediaViewSet, basename='super
 router.register(r'super-admin-dam-filter', views.DamMediaFilterViewSet, basename='super_admin_dam_filter')
 router.register(r'super-admin-dam-duplicate', views.DamDuplicateViewSet, basename='dam_duplicate')
 router.register(r'super-admin-dam-media-filter', views.DAMFilter, basename='super_admin_dam_media_filter')
+router.register(r'super-admin-collection-filter',views.CollectionDAMFilter, basename='super_admin_collection_filter')
 router.register(r'help', views.HelpModelViewset, basename='help')
 router.register(r'inhouse-user-list', views.InHouseMemberViewset, basename='inhouse_user_list')
 router.register(r'work-flow', views.WorksFlowViewSet, basename='work_flow')
@@ -62,7 +63,7 @@ router.register(r'admin-job-template', views.AdminJobTemplatesViewSet, basename=
 router.register(r'help-chat', views.HelpchatViewset, basename='help_chat')
 router.register(r'admin-help', views.AdminHelpModelViewset, basename='admin_help')
 router.register(r'agency-help-chat', views.AgencyHelpchatViewset, basename='agency_help+_chat')
-
+router.register(r'collection-count',views.CollectionCount, basename='collection_count')
 
 
 #-------------------------------------  END  ---------------------------------------------#

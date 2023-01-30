@@ -38,7 +38,7 @@ from django.db.models import Subquery
 import base64
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import datetime as dt
-
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 # Create your views here.
 @permission_classes([IsAuthenticated])
@@ -627,11 +627,10 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         # return Response(context)
 
         instance = self.get_object()
-        # self.perform_destroy(instance)
-        user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
-        # if user:
-
-
+        user_status = InviteMember.objects.filter(user__user=instance.user.user.id).update(is_inactive=True)
+        if user_status:
+            user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
+      
         context = {
             'message': 'Deleted Succesfully',
             'status': status.HTTP_204_NO_CONTENT,
@@ -812,7 +811,7 @@ class DAMViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'company']
-    search_fields = ['name']
+    search_fields = ['name','dam_media__title']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
@@ -1367,6 +1366,22 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         return Response(context)
 
 
+    @action(methods=['get'], detail=False, url_path='collectioncount', url_name='collectioncount')
+    def collectioncount(self, request, *args, **kwargs):
+        id = request.GET.get('id', None)
+        if id:
+            total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
+                                                    is_video=False,dam=id).count()
+            total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
+                                                    is_video=True,dam=id).count()
+
+        context = {
+                   'total_image': total_image,
+                   'total_video': total_video,
+                   'status': status.HTTP_201_CREATED,
+                   }
+        return Response(context)
+
 @permission_classes([IsAuthenticated])
 class JobActivityMemberViewSet(viewsets.ModelViewSet):
     serializer_class = JobActivitySerializer
@@ -1524,6 +1539,67 @@ class DAMFilter(viewsets.ModelViewSet):
         return Response(context, status=status.HTTP_200_OK)
 
 
+
+class CollectionDAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['created', 'job_count']
+    ordering = ['created', 'job_count']
+    filterset_fields = ['dam_id', 'is_video','image_favourite']
+    search_fields = ['dam__name','title']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('dam_id', None)
+        data = self.request.GET.get('ordering', None)
+        queryset = self.queryset
+        if not is_parent:
+            queryset = queryset.filter(parent__isnull=True)
+        if data == '-job_count':
+            return queryset.order_by('-created')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        
+    
+        photo = None
+        video = None
+
+        
+        if photos:
+                data = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user,
+                                                                        is_video=False,
+                                                                        is_trashed=False)
+                photos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+        if videos:
+                data = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=True,
+                                                                        is_trashed=False)
+                videos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+
+        
+
+        if not photos and not videos:
+            data1 = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+        
+        context = {
+            'photos': photo,
+            'videos': video,
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+
 class ShareMediaUrl(APIView):
 
     def post(self, request, *args, **kwargs):
@@ -1663,7 +1739,7 @@ class InHouseMemberViewset(viewsets.ModelViewSet):
     filterset_fields = ['company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False,company__is_active=True)
+        queryset = self.filter_queryset(self.get_queryset()).filter(user__levels=4, user__user__isnull=False,company__is_active=True,is_inactive=False)
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
         return Response(data=serializer.data)
 
@@ -1826,6 +1902,8 @@ class CompanyImageCount(APIView):
         #     return Response(context, status=status.HTTP_200_OK)
 
 
+
+
 @permission_classes([IsAuthenticated])
 class JobFeedbackViewset(viewsets.ModelViewSet):
     serializer_class = JobFeedbackSerializer
@@ -1971,3 +2049,18 @@ class GetAdminMembers(APIView):
 #                     'status': status.HTTP_400_BAD_REQUEST,
 #                 }
 #         return Response(context)
+
+class CollectionCount(ReadOnlyModelViewSet):
+    queryset = DamMedia.objects.all()
+    def list(self, request, *args, **kwargs):
+        id = request.GET.get('id',None)
+        favourite = self.queryset.filter(dam__agency=request.user, image_favourite=True, dam=id).count()
+        images = self.queryset.filter(dam__agency=request.user, is_video=False, dam=id).count()
+        videos = self.queryset.filter(dam__agency=request.user, is_video=True, dam=id).count()
+
+        context = {'favourites': favourite,
+                   'images': images,
+                   'videos': videos,
+                   }
+        return Response(context)
+

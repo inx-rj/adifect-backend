@@ -148,6 +148,7 @@ class InviteMember(BaseModel):
                                 blank=True)
     is_blocked = models.BooleanField(default=False)
     is_modified = models.BooleanField(default=False)
+    is_inactive = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = 'Invite Members'
@@ -210,7 +211,7 @@ class DamMedia(BaseModel):
     class Type(models.IntegerChoices):
         Public = 1
         Private = 0
-    dam = models.ForeignKey(DAM, on_delete=models.CASCADE, null=True, blank=True, related_name="dam_media")
+    dam = models.ForeignKey(DAM,related_name="dam_media", on_delete=models.CASCADE, null=True, blank=True)
     media = models.FileField(upload_to=fileLocation, blank=True, null=True)
     thumbnail = models.FileField(upload_to=fileLocation, null=True, blank=True)
     is_video = models.BooleanField(default=False)
