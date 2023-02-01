@@ -26,6 +26,9 @@ router.register(r'member-dam-filter', views.MemberDamMediaFilterViewSet, basenam
 router.register(r'job-house-member', views.JobHouseMember, basename='job_house_member')
 router.register(r'inhouse-my-project', views.MyJobsViewSet, basename='inhouse_my_project')
 router.register(r'member-notification', views.MemberNotificationViewset, basename='member_notification')
+router.register(r'member-collection-filter',views.MemberCollectionDAMFilter, basename='member_collection_filter')
+router.register(r'collection-count',views.CollectionCount, basename='collection_count')
+router.register(r'collection-filter',views.CollectionDAMFilter, basename='collection_filter')
 
 urlpatterns = [
         path('members-invite-member-list/', views.MemberInviteMemberUserList.as_view(), name='invite_member_list'),

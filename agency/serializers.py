@@ -303,21 +303,39 @@ class DAMSerializer(serializers.ModelSerializer):
 
 
 class DamMediaSerializer(serializers.ModelSerializer):
+    skill =SerializerMethodField("get_skill")
     files_name = SerializerMethodField("get_files_name")
     files_size = SerializerMethodField("get_files_size")
     upload_by = SerializerMethodField("get_user_name")
     is_favourite =  SerializerMethodField("get_is_favourite")
     company = SerializerMethodField("get_company")
- 
+    get_file_extension = SerializerMethodField("get_files_extension")
+    
+    
     # description =  SerializerMethodField("get_description")
     class Meta:
         model = DamMedia
         fields = '__all__'
 
+
+    def get_skill(self,obj):
+        if obj.skills:
+            skill = SkillsSerializer(obj.skills.all(),many=True)
+            return skill.data
+        return ''
+
     def get_files_name(self, obj):
         if obj:
             if obj.media is not  None:
                 return str(obj.media.name).split('/')[-1]
+            else:
+                return ''
+        return ''
+    
+    def get_files_extension(self, obj):
+        if obj:
+            if obj.media is not None:
+                return str(obj.media.name).split('.')[-1]
             else:
                 return ''
         return ''

@@ -52,7 +52,7 @@ import datetime as dt
 from django.db.models import Count
 from django.db.models import Subquery
 from notification.models import Notifications
-
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 # Create your views here.
 
@@ -474,6 +474,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 for i in job_id.house_member.all():
                     job_details = JobApplied.objects.create(job=job_id, status=2, user=i.user.user, is_seen=True)
                     In_house_creator_email(job_details)
+                    Notifications.objects.create(user=i.user.user,notification_type='in_house_assigned', redirect_id=job_id.id,notification=f'You have been assigned to {job_id.title} job.')
 
             context = {
                 'message': 'Job Created Successfully',
@@ -1768,30 +1769,35 @@ class JobShareDetails(APIView):
         email = request.data.get('email', None)
         if job_id and email:
             user = CustomUser.objects.filter(email=email).first()
-            job_details = Job.objects.filter(pk=job_id).first()
-            if job_details:
-                skills = ''
-                for i in job_details.skills.all():
-                    skills += f'<div style="/* width:100%; */float:left;margin-right: 8px;margin-bottom: 5px;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
-                              f'30px;font-style: normal;font-weight: 600;font-size: 14px;line-height: 18px;text-align: ' \
-                              f'center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">' \
-                              f'{i.skill_name}</button></div> '
-                from_email = Email(SEND_GRID_FROM_EMAIL)
-                to_email = To(email)
-                not_user = ''
-                try:
-                    subject = "Shared Job details"
-                    content = Content("text/html",
-                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 50px"><h1 style="font: 24px;color:#000000"> Hello {user.get_full_name() if user else not_user},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px 0"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description[:200]}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="/* display:flex; */width: 100%;float: left;">{skills}</div></div></div></div><div style="padding:10px 0px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view the new updates.</div><div style="padding:20px 0px;font-size:16px;color:#384860;float: left;width: 100%;margin-bottom: 30px ">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/?redirect=guest-job/{StringEncoder.encode(self, job_details.id)}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px; text-decoration: none;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
-                    data = send_email(from_email, to_email, subject, content)
-                    if data:
-                        return Response({'message': 'mail Send successfully, Please check your mail'},
-                                        status=status.HTTP_200_OK)
-                    else:
+            if email == self.request.user.email:
+                return Response({'message': 'You cannot invite yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+            elif InviteMember.objects.filter(agency=request.user, user__user__email=email):
+                return Response({'message': 'You cannot invite your company member.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                job_details = Job.objects.filter(pk=job_id).first()
+                if job_details:
+                    skills = ''
+                    for i in job_details.skills.all():
+                        skills += f'<div style="/* width:100%; */float:left;margin-right: 8px;margin-bottom: 5px;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
+                                f'30px;font-style: normal;font-weight: 600;font-size: 14px;line-height: 18px;text-align: ' \
+                                f'center;border: none;color: #2472fc;padding: 8px 20px 8px 20px;">' \
+                                f'{i.skill_name}</button></div> '
+                    from_email = Email(SEND_GRID_FROM_EMAIL)
+                    to_email = To(email)
+                    not_user = ''
+                    try:
+                        subject = "Shared Job details"
+                        content = Content("text/html",
+                                        f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif; border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text"style="padding-top: 50px"><h1 style="font: 24px;color:#000000"> Hello {user.get_full_name() if user else not_user},</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">  You have been invited for this Job:</div><div style="box-shadow: 0px 4px 40px rgb(36 114 252 / 6%);border-radius: 0px 8px 8px 0;margin-top: 10px;display: flex;"><div style="width: 13px;background-color: rgb(36, 114, 252);border-radius: 50px;"></div><div><div style="padding: 20px 0"><div><h1 style="font: 24px;color:#000000">{job_details.title}</h1></div><div style="padding: 13px 0px;font-size: 16px;color: #384860;">{job_details.description[:200]}</div><div></div><div  style="font-size: 16px;line-height: 19px;color: rgba(0, 0, 0, 0.7);font-weight: bold;padding: 15px 0px;">Due on:<span style="padding: 0px 12px">{job_details.job_due_date}</span></div><div style="/* display:flex; */width: 100%;float: left;">{skills}</div></div></div></div><div style="padding:10px 0px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view the new updates.</div><div style="padding:20px 0px;font-size:16px;color:#384860;float: left;width: 100%;margin-bottom: 30px ">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"><a href="{FRONTEND_SITE_URL}/?redirect=guest-job/{StringEncoder.encode(self, job_details.id)}"<button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px; text-decoration: none;">View Job</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                        data = send_email(from_email, to_email, subject, content)
+                        if data:
+                            return Response({'message': 'mail Send successfully, Please check your mail'},
+                                            status=status.HTTP_200_OK)
+                        else:
 
-                        return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
-                except Exception as e:
-                    print(e)
+                            return Response({'message': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+                    except Exception as e:
+                        print(e)
         return Response({'message': 'Something went wrong'}, status=status.HTTP_200_OK)
 
         # if not user:
@@ -3621,9 +3627,15 @@ class DamMediaViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             if request.data['company']:
-                DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+                if request.data.get('company') == "0":
+                    DAM.objects.filter(pk=request.data['dam']).update(company=None)
+                    self.perform_update(serializer)
+                else:
+                    DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+                    self.perform_update(serializer)
+            else:
+                DAM.objects.filter(pk=request.data['dam']).update(company=None)
                 self.perform_update(serializer)
-            self.perform_update(serializer)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -3786,6 +3798,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_video = DamMedia.objects.filter(dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, parent=id, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, parent=id, is_trashed=False).count()
+
         if id and company:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(is_favourite=True, company__in=order_list, parent=id,
@@ -3797,6 +3811,8 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             print(total_image)
             total_collection = DAM.objects.filter(type=2, company__in=order_list, parent=id, is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, company__in=order_list, parent=id, is_trashed=False).count()
+
         if company and not id:
             order_list = company.split(",")
             fav_folder = DAM.objects.filter(parent__isnull=True, is_favourite=True, company__in=order_list,
@@ -3807,6 +3823,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
                                                   is_trashed=False, is_video=True).count()
             total_collection = DAM.objects.filter(type=2, parent__isnull=True, company__in=order_list,
                                                   is_trashed=False).count()
+            total_folder = DAM.objects.filter(type=1, parent__isnull=True, company__in=order_list, is_trashed=False).count()                                      
 
         if not id and not company:
             fav_folder = DAM.objects.filter(is_favourite=True, parent__isnull=True).count()
@@ -3815,10 +3832,13 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = DAM.objects.filter(type=2, parent__isnull=True).count()
             total_video = DamMedia.objects.filter(dam__type=3, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
+            total_folder = DAM.objects.filter(type=1, parent__isnull=True).count()
+                                      
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
                    'total_collection': total_collection,
                    'total_video': total_video,
+                   'total_folder': total_folder,
                    'status': status.HTTP_201_CREATED,
                    }
         return Response(context)
@@ -3963,7 +3983,7 @@ class DAMFilter(viewsets.ModelViewSet):
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,
+            data4 = self.filter_queryset(self.get_queryset()).filter(type=1,company__in=order_list,
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
@@ -3975,6 +3995,65 @@ class DAMFilter(viewsets.ModelViewSet):
             'folders': folder
         }
         return Response(context, status=status.HTTP_200_OK)
+
+
+
+
+class CollectionDAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['created', 'job_count']
+    ordering = ['created', 'job_count']
+    filterset_fields = ['dam_id', 'is_video','image_favourite']
+    search_fields = ['dam__name','title']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('dam_id', None)
+        data = self.request.GET.get('ordering', None)
+        queryset = self.queryset
+        if not is_parent:
+            queryset = queryset.filter(parent__isnull=True)
+        if data == '-job_count':
+            return queryset.order_by('-created')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+    
+        photo = None
+        video = None
+        
+        if photos:
+                data = self.filter_queryset(self.get_queryset()).filter(
+                                                                        is_video=False,
+                                                                        is_trashed=False)
+                photos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+        if videos:
+                data = self.filter_queryset(self.get_queryset()).filter(is_video=True,
+                                                                        is_trashed=False)
+                videos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+
+        if not photos and not videos:
+            data1 = self.filter_queryset(self.get_queryset()).filter(is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+        
+        context = {
+            'photos': photo,
+            'videos': video,
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
 
 
 @permission_classes([IsAuthenticated])
@@ -4026,7 +4105,7 @@ class CompanyImageCount(APIView):
             q_favourites = Q(is_favourite=True)
         for i in company_data:
             # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites) & (Q(company=i) & Q(parent=parent))).count()
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders | q_favourites)).filter((Q(q_favourites & q_photos)| (Q(q_favourites & q_videos)) | (Q(q_favourites & q_collections)) | (Q(q_favourites & q_photos & q_videos))) & (Q(company=i) & Q(parent=parent))).count()
             result.append({f'name':{i.name},'id':{i.id},'count':company_count})
         # if id:
         #     company_count = Company.objects.filter(dam_company__parent=id)
@@ -4478,11 +4557,10 @@ class HelpchatViewset(viewsets.ModelViewSet):
                     print("error")
                     print(e)
             else:
-
-                data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
-                email_value = data.mode_value
                 from_email = Email(SEND_GRID_FROM_EMAIL)
-                if email_value:
+                data = receiver_email.user_communication_mode.filter(is_preferred=True, communication_mode=0).first()
+                if data:
+                    email_value = data.mode_value
                     to_email = To(email_value)
                 else:
                     to_email = To(receiver_email.email)
@@ -4570,3 +4648,17 @@ class AgencyHelpchatViewset(viewsets.ModelViewSet):
                 'errors': serializer.errors,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
+class CollectionCount(ReadOnlyModelViewSet):
+    queryset = DamMedia.objects.all()
+    def list(self, request, *args, **kwargs):
+        id = request.GET.get('id',None)
+        favourite = self.queryset.filter(image_favourite=True, dam=id).count()
+        images = self.queryset.filter(is_video=False, dam=id).count()
+        videos = self.queryset.filter(is_video=True, dam=id).count()
+
+        context = {'favourites': favourite,
+                   'images': images,
+                   'videos': videos,
+                   }
+        return Response(context)

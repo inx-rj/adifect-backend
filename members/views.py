@@ -30,7 +30,7 @@ from helper.helper import StringEncoder, send_text_message, send_skype_message, 
 from django.db.models import Subquery, Q
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
-
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 
 # Create your views here.
@@ -249,7 +249,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def create(self, request, *args, **kwargs):
@@ -440,7 +440,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(is_trashed=False,
                                                                     user__isnull=False,
-                                                                    agency__is_account_closed=False).order_by(
+                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
             '-modified').exclude(user__user=self.request.user)
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -449,7 +449,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter(company__is_active=True)
     job_template_attach = JobTemplateAttachmentsSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company','is_active','status']
@@ -1314,6 +1314,8 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
             total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
             total_collection = dam_data.filter(type=2, agency=user_id, parent=id, is_trashed=False).count()
+            total_folder = dam_data.filter(type=1,agency=user_id,parent=id,is_trashed=False).count()
+
         else:
             fav_folder = dam_data.filter(agency=user_id, is_favourite=True, parent__isnull=True).count()
             total_image = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
@@ -1321,11 +1323,13 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
             total_collection = dam_data.filter(type=2, agency=user_id,parent__isnull=True).count()
             total_video = dammedia_data.filter(dam__type=3, dam__agency=user_id, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
+            total_folder = dam_data.filter(type=1, agency=user_id,parent__isnull=True).count()
 
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
                    'total_collection': total_collection,
-                   'total_video': total_video
+                   'total_video': total_video,
+                   'total_folder':total_folder,
                    }
         return Response(context, status=status.HTTP_200_OK)
 
@@ -1407,6 +1411,67 @@ class MemberDAMFilter(viewsets.ModelViewSet):
             'videos': video,
             'collections': collection,
             'folders': folder
+        }
+        return Response(context, status=status.HTTP_200_OK)
+
+
+
+class MemberCollectionDAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['created', 'job_count']
+    ordering = ['created', 'job_count']
+    filterset_fields = ['dam_id', 'is_video','image_favourite']
+    search_fields = ['dam__name','title']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('dam_id', None)
+        data = self.request.GET.get('ordering', None)
+        queryset = self.queryset
+        if not is_parent:
+            queryset = queryset.filter(parent__isnull=True)
+        if data == '-job_count':
+            return queryset.order_by('-created')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+        
+    
+        photo = None
+        video = None
+
+        
+        if photos:
+                data = self.filter_queryset(self.get_queryset()).filter(
+                                                                        is_video=False,
+                                                                        is_trashed=False)
+                photos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                photo = photos_data.data
+        if videos:
+                data = self.filter_queryset(self.get_queryset()).filter(is_video=True,
+                                                                        is_trashed=False)
+                videos_data = DamMediaSerializer(data, many=True, context={'request': request})
+                video = videos_data.data
+
+        
+
+        if not photos and not videos:
+            data1 = self.filter_queryset(self.get_queryset()).filter(is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+        
+        context = {
+            'photos': photo,
+            'videos': video,
         }
         return Response(context, status=status.HTTP_200_OK)
 
@@ -1539,7 +1604,7 @@ class CompanyImageCount(APIView):
             q_favourites = Q(is_favourite=True)
         for i in company_data:
             # company_count = company_count.filter(dam_company__type=1,is_trashed=False)
-            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders) & (Q(company=i) & Q(parent=parent))).count()
+            company_count = DAM.objects.filter((q_photos | q_videos | q_collections | q_folders)).filter((Q(q_favourites & q_photos)| (Q(q_favourites & q_videos)) | (Q(q_favourites & q_collections)) | (Q(q_favourites & q_photos & q_videos))) & (Q(company=i) & Q(parent=parent))).count()
             result.append({f'name':{i.name},'id':{i.id},'count':company_count})
 
         context = {
@@ -1683,3 +1748,73 @@ class MyJobsViewSet(viewsets.ModelViewSet):
         serializer = JobsWithAttachmentsSerializer(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
 
+class CollectionCount(ReadOnlyModelViewSet):
+    queryset = DamMedia.objects.all()
+    def list(self, request, *args, **kwargs):
+        id = request.GET.get('id',None)
+        agency = request.GET.get('agency',None)
+        favourite = self.queryset.filter(dam__agency=agency, image_favourite=True, dam=id).count()
+        images = self.queryset.filter(dam__agency=agency, is_video=False, dam=id).count()
+        videos = self.queryset.filter(dam__agency=agency, is_video=True, dam=id).count()
+
+        context = {'favourites': favourite,
+                   'images': images,
+                   'videos': videos,
+                   }
+        return Response(context)
+
+
+class CollectionDAMFilter(viewsets.ModelViewSet):
+    serializer_class = DAMSerializer
+    queryset = DamMedia.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['created', 'job_count']
+    ordering = ['created', 'job_count']
+    filterset_fields = ['dam_id', 'is_video', 'image_favourite']
+    search_fields = ['dam__name', 'title']
+
+    def get_queryset(self):
+        is_parent = self.request.GET.get('dam_id', None)
+        data = self.request.GET.get('ordering', None)
+        queryset = self.queryset
+        if not is_parent:
+            queryset = queryset.filter(parent__isnull=True)
+        if data == '-job_count':
+            return queryset.order_by('-created')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        photos = request.GET.get('photos', None)
+        videos = request.GET.get('videos', None)
+
+        photo = None
+        video = None
+
+        if photos:
+            data = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user,
+                                                                    is_video=False,
+                                                                    is_trashed=False)
+            photos_data = DamMediaSerializer(data, many=True, context={'request': request})
+            photo = photos_data.data
+        if videos:
+            data = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=True,
+                                                                    is_trashed=False)
+            videos_data = DamMediaSerializer(data, many=True, context={'request': request})
+            video = videos_data.data
+
+        if not photos and not videos:
+            data1 = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=False,
+                                                                     is_trashed=False)
+            photos_data = DamMediaSerializer(data1, many=True, context={'request': request})
+            photo = photos_data.data
+            data2 = self.filter_queryset(self.get_queryset()).filter(dam__agency=self.request.user, is_video=True,
+                                                                     is_trashed=False)
+            videos_data = DamMediaSerializer(data2, many=True, context={'request': request})
+            video = videos_data.data
+
+        context = {
+            'photos': photo,
+            'videos': video,
+        }
+        return Response(context, status=status.HTTP_200_OK)

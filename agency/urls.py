@@ -23,8 +23,8 @@ router.register(r'dam-media-filter', views.DAMFilter, basename='dam_filter')
 router.register(r'inhouse-user-list', views.InHouseMemberViewset, basename='inhouse_user_list')
 router.register(r'job-feedback', views.JobFeedbackViewset, basename='job_feedback')
 router.register(r'agency-notification', views.AgencyNotificationViewset, basename='agency_notification')
-
-
+router.register(r'collection-filter',views.CollectionDAMFilter, basename='collection_filter')
+router.register(r'collection-count',views.CollectionCount, basename='collection_count')
 
 
 urlpatterns = [
