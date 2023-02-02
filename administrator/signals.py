@@ -1,8 +1,9 @@
 from django.db.models.signals import post_save
-from .models import JobActivityChat,JobFeedback,Question
+from .models import JobActivityChat,JobFeedback,Question,JobWorkActivity
 from django.dispatch import receiver
 from notification.models import Notifications
 from django.db.models import Q
+from agency.models import DAM
 
 @receiver(post_save, sender=JobActivityChat)
 def create_chat_activity_Notification(sender, instance, created, **kwargs):
@@ -26,4 +27,23 @@ def create_rating_Notification(sender, instance, created, **kwargs):
 def create_job_question_Notification(sender, instance, created, **kwargs):
     if created:
         data = Notifications.objects.create(user=instance.job_applied.job.user,notification=f'{instance.user.get_full_name()} asked you question for job -{instance.job_applied.job.title}')
+        return True
+
+@receiver(post_save, sender=DAM)
+def create_DAM_Notification(sender, instance, created, **kwargs):
+    if created:
+        if instance.company:
+            for i in instance.company.invite_company_list.all():
+                members_notification = Notifications.objects.create(user=i.user.user,notification=f'{instance.agency.get_full_name()} has created an asset')
+        agency_notification = Notifications.objects.create(user=instance.agency,notification=f'{instance.agency.get_full_name()} has created an asset')
+        print(instance.agency.get_full_name())
+        return True
+
+
+@receiver(post_save, sender=JobWorkActivity)
+def create_WorkSubmit_Notification(sender, instance, created, **kwargs):
+    if created:
+        if instance.work_activity=='submit_approval':
+            members_notification = Notifications.objects.create(user=instance.job_work.job_applied.job.user,notification=f'{instance.job_work.job_applied.user.get_full_name()} has submitted work for {instance.job_work.job_applied.job.title}')
+
         return True

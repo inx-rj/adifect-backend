@@ -1986,7 +1986,7 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['user', 'is_seen']
+    filterset_fields = ['user', 'is_seen', 'company']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

@@ -1694,7 +1694,7 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['user', 'is_seen']
+    filterset_fields = ['user', 'is_seen','company']
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):

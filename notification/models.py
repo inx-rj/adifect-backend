@@ -7,13 +7,13 @@ import asyncio
 import websockets
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from agency.models import Company
 
 # Create your models here.
 
 async def send_notification(id, data_value):
-    async with websockets.connect(f'wss://dev-ws.adifect.com/ws/notifications/{id}/') as websocket:
-    # async with websockets.connect(f'ws://122.160.74.251:8018/ws/notifications/{id}/') as websocket:
+    # async with websockets.connect(f'wss://dev-ws.adifect.com/ws/notifications/{id}/') as websocket:
+    async with websockets.connect(f'ws://122.160.74.251:8018/ws/notifications/{id}/') as websocket:
         await websocket.send(data_value)
         await websocket.recv()
 
@@ -36,6 +36,7 @@ class Notifications(BaseModel):
     notification_type = models.CharField(max_length=60,
                                          choices=TYPE_CHOICES,default='job_proposal')
     redirect_id = models.IntegerField(blank=True, null=True)
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name="company_notifications")
 
 
     # def save(self, *args, **kwargs):
