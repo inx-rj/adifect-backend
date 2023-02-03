@@ -1696,6 +1696,39 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['user', 'is_seen','company']
 
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        offset =int(request.GET.get('offset', default=0))
+        count= queryset.filter(is_seen=False).count()
+        if offset:
+                queryset = queryset[0:offset]
+        else:
+             queryset = queryset[0:5]
+
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        context = {'data': serializer.data, 'count':count}
+        return Response(context)
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid(raise_exception=True):
+            self.perform_update(serializer)
+            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):
     #     id = request.GET.get('id', None)

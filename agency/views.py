@@ -580,7 +580,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         assigned_to=int(assign_to))
                     job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(
                         assigned_to=int(assign_to))
-                    Notifications.objects.create(user=instance.user.user,
+                    Notifications.objects.create(user=instance.user.user,company=instance.company,
                                                  notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties',notification_type='invite_accepted',redirect_id=instance.id)
             if is_update:
                 context = {
