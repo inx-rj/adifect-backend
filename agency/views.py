@@ -22,6 +22,7 @@ from administrator.pagination import FiveRecordsPagination
 from django.db.models import Q
 from django.db.models import Count, Avg
 from rest_framework import generics
+from rest_framework import filters
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
@@ -811,10 +812,14 @@ class DAMViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'company']
-    search_fields = ['name','dam_media__title']
+    search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        parent=request.GET.get('parent',None)
+        if parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1068,12 +1073,12 @@ class DAMViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type']
-    search_fields = ['name']
+    search_fields = ['name', "dam_media__title"]
     # http_method_names = ['get','put']
 
     def list(self, request, *args, **kwargs):
@@ -1090,12 +1095,16 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
-    search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__parent']
+    search_fields = ['dam__type','title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id)
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -2063,4 +2072,6 @@ class CollectionCount(ReadOnlyModelViewSet):
                    'videos': videos,
                    }
         return Response(context)
+
+
 

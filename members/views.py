@@ -854,7 +854,12 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        parent=request.GET.get('parent',None)
+        if parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        else:
+            print('dddddddddddddddddddddddddddddddddddddddd')
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1107,7 +1112,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MemberDamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
@@ -1129,12 +1134,16 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__agency','dam__company']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__agency','dam__company','dam__parent']
     search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 

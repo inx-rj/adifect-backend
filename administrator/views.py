@@ -3254,11 +3254,15 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company']
-    search_fields = ['name']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company','parent']
+    search_fields = ['name','dam_media__title']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        parent=request.GET.get('parent',None)
+        if parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -3547,7 +3551,7 @@ class AdminJobAttachmentsView(APIView):
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
@@ -3569,12 +3573,16 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__parent']
     search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
