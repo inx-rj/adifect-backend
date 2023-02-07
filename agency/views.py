@@ -819,7 +819,7 @@ class DAMViewSet(viewsets.ModelViewSet):
         if parent:
             queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         else:
-            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(agency=request.user) & Q(parent=None) | Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1104,7 +1104,7 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         if dam__parent:
             queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id).exclude(dam__type=2)
         else:
-            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id,dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 

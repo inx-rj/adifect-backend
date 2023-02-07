@@ -189,7 +189,7 @@ class JobAttachments(BaseModel):
         output_thumb = BytesIO()
         if self.job_images:
             if str(self.job_images).endswith((".mp4", ".mp3", ".mov")):
-                self.thumbnail = self.job_images
+                self.job_images_thumbnail = self.job_images
                 self.is_video = True
             else:
                 img = Image.open(self.job_images)
@@ -202,7 +202,7 @@ class JobAttachments(BaseModel):
                                                                 sys.getsizeof(output_thumb), None)
         if self.work_sample_images:
             if str(self.work_sample_images).endswith((".mp4", ".mp3", ".mov")):
-                self.thumbnail = self.work_sample_images
+                self.work_sample_thumbnail = self.work_sample_images
                 self.is_video = True
             else:
                 img_work_sample = Image.open(self.work_sample_images)
