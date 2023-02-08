@@ -310,6 +310,7 @@ class DamMediaSerializer(serializers.ModelSerializer):
     is_favourite =  SerializerMethodField("get_is_favourite")
     company = SerializerMethodField("get_company")
     get_file_extension = SerializerMethodField("get_files_extension")
+    type = SerializerMethodField("get_type")
     
     
     # description =  SerializerMethodField("get_description")
@@ -322,6 +323,12 @@ class DamMediaSerializer(serializers.ModelSerializer):
         if obj.skills:
             skill = SkillsSerializer(obj.skills.all(),many=True)
             return skill.data
+        return ''
+
+    def get_type(self,obj):
+        if obj.dam is not None:
+            if obj.dam.type is not None:
+                return obj.dam.type
         return ''
 
     def get_files_name(self, obj):

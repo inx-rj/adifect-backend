@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="e698c8d9-4551-42c4-8b1d-1f035495f981" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../administrator/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/../administrator/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../agency/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/../agency/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../agency/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/../agency/views.py" afterDir="false" />
-    </list>
+    <list default="true" id="e698c8d9-4551-42c4-8b1d-1f035495f981" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

@@ -2827,9 +2827,12 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                print(order_list,'rrrrrrrrrrrrrrrrrrrrrrrrrrrrr')
+                for i in DamMedia.objects.filter(id__in=order_list):
+                    print(DamMedia.objects.filter(id__in=order_list),'ssssssssssssssssssssssssssssss')
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
+                print( DAM.objects.filter(id__in=order_list),'qqqqqqqqqqqqqqqqqqqqqq')
                 context = {
                     'message': 'Deleted Succesfully',
                     'status': status.HTTP_204_NO_CONTENT,
@@ -3354,7 +3357,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                for i in DamMedia.objects.filter(id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
