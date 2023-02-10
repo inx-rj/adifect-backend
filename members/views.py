@@ -31,6 +31,8 @@ from django.db.models import Subquery, Q
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from datetime import datetime
+from django.utils import timezone
 
 
 # Create your views here.
@@ -1707,7 +1709,10 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
 
 
     def list(self, request, *args, **kwargs):
+        today = datetime.now().date()
         queryset = self.filter_queryset(self.get_queryset())
+        queryset_today =queryset.filter(created__date=today).values()
+        queryset_earlier = queryset.exclude(created__date=today).values()
         offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
         if offset:
@@ -1716,7 +1721,7 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
              queryset = queryset[0:5]
 
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
-        context = {'data': serializer.data, 'count':count}
+        context = {'data': serializer.data, 'count':count,'today':queryset_today,'earlier':queryset_earlier}
         return Response(context)
 
 

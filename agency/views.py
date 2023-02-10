@@ -40,6 +40,8 @@ import base64
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import datetime as dt
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from datetime import datetime
+from django.utils import timezone
 
 # Create your views here.
 @permission_classes([IsAuthenticated])
@@ -1320,6 +1322,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         if id:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
                                             is_trashed=False).count()
+            fav_folder = DamMedia.objects.filter(dam__agency=request.user, image_favourite=True,is_trashed=False).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
@@ -1360,6 +1363,10 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
 
         if not id and not company:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
+            # print(fav_folder1,'sssssssssssssssssssssssss')
+            # fav_folder2 = DamMedia.objects.filter(dam__agency=request.user, image_favourite=True,is_trashed=False).count()
+            # print(fav_folder2,'aaaaaaaaaaaaaaaaaa')
+            # fav_folder=int(fav_folder1)+int(fav_folder2)
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent__isnull=True).count()
@@ -2000,7 +2007,10 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     filterset_fields = ['user', 'is_seen', 'company']
 
     def list(self, request, *args, **kwargs):
+        today = datetime.now().date()
         queryset = self.filter_queryset(self.get_queryset())
+        queryset_today =queryset.filter(created__date=today).values()
+        queryset_earlier = queryset.exclude(created__date=today).values()
         offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
         if offset:
@@ -2009,7 +2019,7 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
              queryset = queryset[0:5]
 
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
-        context = {'data': serializer.data, 'count':count}
+        context = {'data': serializer.data, 'count':count,'today':queryset_today,'earlier':queryset_earlier}
         return Response(context)
 
     def update(self, request, *args, **kwargs):

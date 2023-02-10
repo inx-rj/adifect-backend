@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save,pre_delete, post_delete
 from .models import JobActivityChat,JobFeedback,Question,JobWorkActivity
 from django.dispatch import receiver
 from notification.models import Notifications
@@ -31,6 +31,7 @@ def create_job_question_Notification(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=DAM)
 def create_DAM_Notification(sender, instance, created, **kwargs):
+    print('ssssssssssssssssss')
     if created:
         if instance.company:
             for i in instance.company.invite_company_list.all():
@@ -38,6 +39,19 @@ def create_DAM_Notification(sender, instance, created, **kwargs):
         agency_notification = Notifications.objects.create(user=instance.agency,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
         print(instance.agency.get_full_name())
         return True
+
+# @receiver(post_delete, sender=DAM)
+# def delete_DAM_Notification(sender, instance, deleted, **kwargs):
+#     print('ddddddddddddddddddddddddddd')
+#     if instance.deleted:
+#             members_notification = Notifications.objects.create(user=i.user.user,
+#                                                                     notification=f'{instance.agency.get_full_name()} has deleted an asset',
+#                                                                     notification_type='asset_uploaded')
+#             agency_notification = Notifications.objects.create(user=instance.agency,
+#                                                            notification=f'{instance.agency.get_full_name()} has deleted an asset',
+#                                                            notification_type='asset_uploaded')
+#             print(instance.agency.get_full_name())
+#             return True
 
 
 @receiver(post_save, sender=JobWorkActivity)
