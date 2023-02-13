@@ -845,7 +845,6 @@ class DAMViewSet(viewsets.ModelViewSet):
                                                 company=serializer.validated_data.get('company', None))
                     DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             # elif serializer.validated_data['type']==1:
-            #     print("yesssssssssssssssssss")
             #     if request.data['parent'] is not None:
             #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
             #             print("heloooooooooooooooooooooooooooooo")
@@ -1002,6 +1001,14 @@ class DAMViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
+            if instance.company:
+                for j in instance.company.invite_company_list.all():
+                    members_notification = Notifications.objects.create(user=j.user.user,
+                                                                    notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                                    notification_type='asset_uploaded')
+            agency_notification = Notifications.objects.create(user=instance.agency,
+                                                           notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                           notification_type='asset_uploaded')
             i.delete()
         self.perform_destroy(instance)
         context = {
@@ -1363,7 +1370,6 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
 
         if not id and not company:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
-            # print(fav_folder1,'sssssssssssssssssssssssss')
             # fav_folder2 = DamMedia.objects.filter(dam__agency=request.user, image_favourite=True,is_trashed=False).count()
             # print(fav_folder2,'aaaaaaaaaaaaaaaaaa')
             # fav_folder=int(fav_folder1)+int(fav_folder2)

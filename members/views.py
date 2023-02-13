@@ -858,9 +858,9 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         parent=request.GET.get('parent',None)
         if parent:
-            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+            print('ccccc)')
+            queryset = self.filter_queryset(self.get_queryset())
         else:
-            print('dddddddddddddddddddddddddddddddddddddddd')
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
@@ -1041,6 +1041,14 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
+            if instance.company:
+                for j in instance.company.invite_company_list.all():
+                    members_notification = Notifications.objects.create(user=j.user.user,
+                                                                    notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                                    notification_type='asset_uploaded')
+            Notifications.objects.create(user=instance.agency,
+                                                           notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                           notification_type='asset_uploaded')
             i.delete()
         self.perform_destroy(instance)
         context = {

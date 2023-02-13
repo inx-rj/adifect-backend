@@ -31,7 +31,6 @@ def create_job_question_Notification(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=DAM)
 def create_DAM_Notification(sender, instance, created, **kwargs):
-    print('ssssssssssssssssss')
     if created:
         if instance.company:
             for i in instance.company.invite_company_list.all():
