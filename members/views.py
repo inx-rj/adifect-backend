@@ -31,6 +31,8 @@ from django.db.models import Subquery, Q
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from datetime import datetime
+from django.utils import timezone
 
 
 # Create your views here.
@@ -854,7 +856,12 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        parent=request.GET.get('parent',None)
+        if parent:
+            print('ccccc)')
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -945,7 +952,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                for i in DamMedia.objects.filter(id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -1034,6 +1041,14 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
+            if instance.company:
+                for j in instance.company.invite_company_list.all():
+                    members_notification = Notifications.objects.create(user=j.user.user,
+                                                                    notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                                    notification_type='asset_uploaded')
+            Notifications.objects.create(user=instance.agency,
+                                                           notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                           notification_type='asset_uploaded')
             i.delete()
         self.perform_destroy(instance)
         context = {
@@ -1107,7 +1122,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class MemberDamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
@@ -1129,12 +1144,16 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__agency','dam__company']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__agency','dam__company','dam__parent']
     search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1694,7 +1713,49 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['user', 'is_seen']
+    filterset_fields = ['user', 'is_seen','company']
+
+
+    def list(self, request, *args, **kwargs):
+        today = datetime.now().date()
+        queryset = self.filter_queryset(self.get_queryset())
+        queryset_today =queryset.filter(created__date=today).values()
+        queryset_earlier = queryset.exclude(created__date=today).values()
+        offset =int(request.GET.get('offset', default=0))
+        count= queryset.filter(is_seen=False).count()
+        if offset:
+                queryset = queryset[0:offset]
+        else:
+             queryset = queryset[0:5]
+
+        serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
+        context = {'data': serializer.data, 'count':count,'today':queryset_today,'earlier':queryset_earlier}
+        return Response(context)
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        if serializer.is_valid(raise_exception=True):
+            company_id = request.data.get('company_id', None)
+            if company_id:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False, company=company_id).update(
+                    is_seen=True)
+            else:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            context = {
+                'message': 'Updated Successfully...',
+                'status': status.HTTP_200_OK,
+                'errors': serializer.errors,
+                'data': serializer.data,
+            }
+            return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):

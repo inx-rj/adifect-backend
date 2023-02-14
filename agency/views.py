@@ -22,6 +22,7 @@ from administrator.pagination import FiveRecordsPagination
 from django.db.models import Q
 from django.db.models import Count, Avg
 from rest_framework import generics
+from rest_framework import filters
 
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
@@ -39,6 +40,8 @@ import base64
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import datetime as dt
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from datetime import datetime
+from django.utils import timezone
 
 # Create your views here.
 @permission_classes([IsAuthenticated])
@@ -240,6 +243,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                     i.delete()
                 for i in image:
                     JobAttachments.objects.create(job_id=instance.id, job_images=i)
+
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -580,7 +584,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         assigned_to=int(assign_to))
                     job_template_assigned = JobTemplate.objects.filter(assigned_to=instance.user.user.id).update(
                         assigned_to=int(assign_to))
-                    Notifications.objects.create(user=instance.user.user,
+                    Notifications.objects.create(user=instance.user.user,company=instance.company,
                                                  notification=f'You have been assigned {instance.user.user.get_full_name()}"s duties',notification_type='invite_accepted',redirect_id=instance.id)
             if is_update:
                 context = {
@@ -811,10 +815,14 @@ class DAMViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'company']
-    search_fields = ['name','dam_media__title']
+    search_fields = ['name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        parent=request.GET.get('parent',None)
+        if parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(agency=request.user) & Q(parent=None) | Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -838,7 +846,6 @@ class DAMViewSet(viewsets.ModelViewSet):
                                                 company=serializer.validated_data.get('company', None))
                     DamMedia.objects.create(dam=dam_id, title=dam_name[index], media=i)
             # elif serializer.validated_data['type']==1:
-            #     print("yesssssssssssssssssss")
             #     if request.data['parent'] is not None:
             #         if DAM.objects.filter(Q(name=request.data['name']) & Q(parent=request.data['parent'])):
             #             print("heloooooooooooooooooooooooooooooo")
@@ -906,7 +913,7 @@ class DAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                for i in DamMedia.objects.filter(id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -995,6 +1002,14 @@ class DAMViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
+            if instance.company:
+                for j in instance.company.invite_company_list.all():
+                    members_notification = Notifications.objects.create(user=j.user.user,company=instance.company,
+                                                                    notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                                    notification_type='asset_uploaded')
+            agency_notification = Notifications.objects.create(user=instance.agency,company=instance.company,
+                                                           notification=f'{instance.agency.get_full_name()} has deleted an asset',
+                                                           notification_type='asset_uploaded')                                              
             i.delete()
         self.perform_destroy(instance)
         context = {
@@ -1068,12 +1083,12 @@ class DAMViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
     filterset_fields = ['id', 'parent', 'type']
-    search_fields = ['name']
+    search_fields = ['name', "dam_media__title"]
     # http_method_names = ['get','put']
 
     def list(self, request, *args, **kwargs):
@@ -1090,14 +1105,20 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
-    search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__parent']
+    search_fields = ['dam__type','title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id)
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__agency=request.user.id,dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
+
+    
 
     @action(methods=['get'], detail=False, url_path='get_multiple', url_name='get_multiple')
     def get_multiple(self, request, *args, **kwargs):
@@ -1309,6 +1330,7 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
         if id:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent=id,
                                             is_trashed=False).count()
+            fav_folder = DamMedia.objects.filter(dam__agency=request.user, image_favourite=True,is_trashed=False).count()
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
             total_video = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, dam__parent=id,
@@ -1349,6 +1371,9 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
 
         if not id and not company:
             fav_folder = DAM.objects.filter(agency=request.user, is_favourite=True, parent__isnull=True).count()
+            # fav_folder2 = DamMedia.objects.filter(dam__agency=request.user, image_favourite=True,is_trashed=False).count()
+            # print(fav_folder2,'aaaaaaaaaaaaaaaaaa')
+            # fav_folder=int(fav_folder1)+int(fav_folder2)
             total_image = DamMedia.objects.filter(dam__type=3, dam__agency=request.user, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
             total_collection = DAM.objects.filter(type=2, agency=request.user, parent__isnull=True).count()
@@ -1986,10 +2011,13 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['user', 'is_seen']
+    filterset_fields = ['user', 'is_seen', 'company']
 
     def list(self, request, *args, **kwargs):
+        today = datetime.now().date()
         queryset = self.filter_queryset(self.get_queryset())
+        queryset_today =queryset.filter(created__date=today).values()
+        queryset_earlier = queryset.exclude(created__date=today).values()
         offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
         if offset:
@@ -1998,17 +2026,26 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
              queryset = queryset[0:5]
 
         serializer = self.serializer_class(queryset, many=True, context={request: 'request'})
-        context = {'data': serializer.data, 'count':count}
+        context = {'data': serializer.data, 'count':count,'today':queryset_today,'earlier':queryset_earlier}
         return Response(context)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
+        print(instance,'2222222222222222')
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
+        print(request.data,'qqqqqqqqqqqqqqqqqqqqq')
         if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
-            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            print(request.data,'eeeeeeeeeeeeeeeeeeeeeeeeee')
+            company_id=request.data.get('company_id',None)
+            print(company_id,'azazazazazazazazaza')
+            if company_id:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False,company=company_id).update(is_seen=True)
+            else:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -2063,4 +2100,6 @@ class CollectionCount(ReadOnlyModelViewSet):
                    'videos': videos,
                    }
         return Response(context)
+
+
 

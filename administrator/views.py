@@ -277,6 +277,7 @@ def dam_sample_images_list(dam_sample_images, job_id):
         exceeded_files = []
         for i in dam_sample_images:
             dam_inital = DamMedia.objects.get(id=i)
+            print(dam_inital,'lllllllllllllllllllllllllllll')
             if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
                 dam_inital.job_count += 1
                 dam_inital.save()
@@ -474,8 +475,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 for i in job_id.house_member.all():
                     job_details = JobApplied.objects.create(job=job_id, status=2, user=i.user.user, is_seen=True)
                     In_house_creator_email(job_details)
-                    Notifications.objects.create(user=i.user.user,notification_type='in_house_assigned', redirect_id=job_id.id,notification=f'You have been assigned to {job_id.title} job.')
-
+                    Notifications.objects.create(user=i.user.user,company=job_id.company,notification_type='in_house_assigned', redirect_id=job_id.id,notification=f'You have been assigned to {job_id.title} job.')
             context = {
                 'message': 'Job Created Successfully',
                 'status': status.HTTP_201_CREATED,
@@ -487,7 +487,7 @@ class JobViewSet(viewsets.ModelViewSet):
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         image = request.FILES.getlist('image')
         sample_image = request.FILES.getlist('sample_image')
@@ -573,7 +573,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
 
-                    Notifications.objects.create(user=users.user,
+                    Notifications.objects.create(user=users.user,company=job_id.company,
                                                  notification=f'There has been some edit to your applied job - {job_id.title}',
                                                  notification_type='job_edited', redirect_id=job_id.id)
                     from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -661,12 +661,12 @@ class JobAppliedViewSet(viewsets.ModelViewSet):
                 test_status = None
                 if not status_job:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=serializer.validated_data['job'].user,
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,company=serializer.validated_data['job'].company,
                                                  notification=f'you have new job proposal from {serializer.validated_data["user"].username}',
                                                  notification_type='job_proposal', redirect_id=data['job'])
                 if status_job == 0:
                     test_status = JobActivity.Type.Proposal
-                    Notifications.objects.create(user=serializer.validated_data['job'].user,
+                    Notifications.objects.create(user=serializer.validated_data['job'].user,company=serializer.validated_data['job'].company,
                                                  notification=f'you have new job proposal from {serializer.validated_data["user"].username}',
                                                  notification_type='job_proposal', redirect_id=data['job'])
                 if status_job == 2:
@@ -2262,7 +2262,7 @@ class JobWorkSubmitViewSet(viewsets.ModelViewSet):
                     for j in first_stage.approvals.all():
                         created = MemberApprovals.objects.create(job_work=latest_work, approver=j,
                                                                  workflow_stage=first_stage)
-                        Notifications.objects.create(user=j.user.user,
+                        Notifications.objects.create(user=j.user.user,company=latest_work.job_applied.job.company,
                                                      notification=f'{latest_work.job_applied.user} has submitted job work for {latest_work.job_applied.job.title}',
                                                      notification_type='job_submit_work', redirect_id=latest_work.job_applied.job.id)
 
@@ -2399,8 +2399,8 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                         for i in instance.job_work.job_submit_Work.all():
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
-                    Notifications.objects.create(user=instance.job_work.job_applied.user,
-                                                 notification=f'{instance.approver.user.user.get_full_name()} is approved your  work for {instance.job_work.job_applied.job.title}',
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,company=instance.approver.company,
+                                                 notification=f'{instance.approver.user.user.get_full_name()} has approved your  work for {instance.job_work.job_applied.job.title}',
                                                  notification_type='job_work_approver',
                                                  redirect_id=instance.job_work.job_applied.job.id)
                     JobWorkSubmitEmail(instance.job_work.job_applied.user, instance.job_work, instance)
@@ -2422,7 +2422,7 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
                             JobWorkActivityAttachments.objects.create(work_activity=work_activity,
                                                                       work_attachment=i.work_attachments)
 
-                    Notifications.objects.create(user=instance.job_work.job_applied.user,
+                    Notifications.objects.create(user=instance.job_work.job_applied.user,company=instance.approver.company,
                                                  notification=f'{instance.approver.user.user.get_full_name()} has requested to edit  your  work for {instance.job_work.job_applied.job.title}',
                                                  notification_type='job_work_approver',
                                                  redirect_id=instance.job_work.job_applied.job.id)
@@ -2667,7 +2667,7 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     except Exception as e:
                         print(e)
 
-            Notifications.objects.create(user=instance.user,
+            Notifications.objects.create(user=instance.user,company=instance.company,
                                          notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}',
                                          notification_type='job_completed', redirect_id=instance.job.id)
             user = instance.job.user
@@ -2828,9 +2828,12 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                print(order_list,'rrrrrrrrrrrrrrrrrrrrrrrrrrrrr')
+                for i in DamMedia.objects.filter(id__in=order_list):
+                    print(DamMedia.objects.filter(id__in=order_list),'ssssssssssssssssssssssssssssss')
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
+                print( DAM.objects.filter(id__in=order_list),'qqqqqqqqqqqqqqqqqqqqqq')
                 context = {
                     'message': 'Deleted Succesfully',
                     'status': status.HTTP_204_NO_CONTENT,
@@ -3255,11 +3258,15 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
-    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company']
-    search_fields = ['name']
+    filterset_fields = ['id', 'parent', 'type', 'name', 'is_favourite', 'is_video', 'agency', 'company','parent']
+    search_fields = ['name','dam_media__title']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        parent=request.GET.get('parent',None)
+        if parent:
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -3351,7 +3358,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(dam_id__in=order_list):
+                for i in DamMedia.objects.filter(id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -3548,7 +3555,7 @@ class AdminJobAttachmentsView(APIView):
 @permission_classes([IsAuthenticated])
 class DamRootViewSet(viewsets.ModelViewSet):
     serializer_class = DAMSerializer
-    queryset = DAM.objects.filter(parent=None)
+    queryset = DAM.objects.filter(Q(parent=None) | Q(parent=False))
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created']
     ordering = ['modified', 'created']
@@ -3570,12 +3577,16 @@ class DamMediaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ['modified', 'created', 'limit_used']
     ordering = ['modified', 'created', 'limit_used']
-    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video']
+    filterset_fields = ['dam_id', 'title', 'id', 'image_favourite', 'is_video','dam__parent']
     search_fields = ['title', 'tags', 'skills__skill_name', 'dam__name']
     http_method_names = ['get', 'put', 'delete', 'post']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        dam__parent = request.GET.get('dam__parent', None)
+        if dam__parent:
+            queryset = self.filter_queryset(self.get_queryset()).exclude(dam__type=2)
+        else:
+            queryset = self.filter_queryset(self.get_queryset()).filter(dam__parent=None).exclude(dam__type=2)
         serializer = DamMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -4085,7 +4096,6 @@ class CompanyImageCount(APIView):
             parent = None
         q_photos = Q()
         if photos:
-            print('hiiiiiiiiiiiiiiii')
             q_photos = Q(Q(type=3) & Q(is_video=False))
             print(q_photos)
             # company_count = company_count.filter(dam_company__type=3, is_video=False)
