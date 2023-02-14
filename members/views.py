@@ -1739,8 +1739,14 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
-            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            company_id = request.data.get('company_id', None)
+            if company_id:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False, company=company_id).update(
+                    is_seen=True)
+            else:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,

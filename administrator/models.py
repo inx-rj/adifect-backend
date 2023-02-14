@@ -188,7 +188,7 @@ class JobAttachments(BaseModel):
         output_size = (250, 250)
         output_thumb = BytesIO()
         if self.job_images:
-            if str(self.job_images).endswith((".mp4", ".mp3", ".mov")):
+            if str(self.job_images).endswith((".mp4", ".mp3", ".mov",".MP4",".MP3",".MOV")):
                 self.job_images_thumbnail = self.job_images
                 self.is_video = True
             else:

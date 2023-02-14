@@ -34,8 +34,8 @@ def create_DAM_Notification(sender, instance, created, **kwargs):
     if created:
         if instance.company:
             for i in instance.company.invite_company_list.all():
-                members_notification = Notifications.objects.create(user=i.user.user,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
-        agency_notification = Notifications.objects.create(user=instance.agency,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
+                members_notification = Notifications.objects.create(user=i.user.user,company=instance.company,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
+        agency_notification = Notifications.objects.create(user=instance.agency,company=instance.company,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
         print(instance.agency.get_full_name())
         return True
 

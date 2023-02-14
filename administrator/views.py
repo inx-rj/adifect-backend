@@ -387,7 +387,6 @@ class JobViewSet(viewsets.ModelViewSet):
         template_image = request.FILES.getlist('template_image')
         templte_sample_image = request.FILES.getlist('template_sample_image')
         dam_images = request.data.getlist('dam_images')
-        print(dam_images,'ggggggggggggggggggggggggggggggggggg')
         dam_sample_images = request.data.getlist('dam_sample_images')
         if serializer.is_valid():
             template_name = serializer.validated_data.get('template_name', None)
@@ -491,15 +490,12 @@ class JobViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
         image = request.FILES.getlist('image')
-        print(image,'aaaaaaaaaaaaaaaaaaaaaaaaaaaa')
         sample_image = request.FILES.getlist('sample_image')
         remove_image_ids = request.data.getlist('remove_image', None)
         template_image = request.FILES.getlist('template_image')
         templte_sample_image = request.FILES.getlist('template_sample_image')
         dam_images = request.data.getlist('dam_images')
-        print(dam_images,'sssssssssssssssssssssssssssssssssss')
         dam_sample_images = request.data.getlist('dam_sample_images')
-        print(dam_sample_images,'xxxxxxxxxxxxxxxxxxxxxxxx')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
             if not JobApplied.objects.filter(Q(job=instance) & (Q(status=2) | Q(status=3) | Q(status=4))):
@@ -522,7 +518,6 @@ class JobViewSet(viewsets.ModelViewSet):
                     for id in remove_image_ids:
                         JobAttachments.objects.filter(id=id).delete()
                 if image:
-                    print(image,'bbbbbbbbbbbbbbbbbbbbbbbbbbb')
                     image_error = validate_job_attachments(image)
                     if image_error != 0:
                         return Response({'message': "Invalid Job Attachments images"},

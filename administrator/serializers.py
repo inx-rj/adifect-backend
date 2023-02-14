@@ -99,12 +99,34 @@ class SkillsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class JobAttachmentsSerializer(serializers.ModelSerializer):
+    job_image_name = SerializerMethodField("get_image_name")
+    work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+
+
+    class Meta:
+        model = JobAttachments
+        fields = '__all__'
+    
+    def get_image_name(self, obj):
+        if obj.job_images:
+            return str(obj.job_images).split('/')[-1]
+        return None
+
+    def get_work_sample_image_name(self, obj):
+        if obj.work_sample_images:
+            return str(obj.work_sample_images).split('/')[-1]
+        return None
+
+
+
 class JobSerializer(serializers.ModelSerializer):
     image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
                                   validators=[validate_file_extension])
     sample_image = serializers.FileField(write_only=True, allow_empty_file=True, required=False,
                                          validators=[validate_file_extension])
     workflow_name = SerializerMethodField("get_worksflow_name")
+    # workflow_images = SerializerMethodField("get_workflow_images")
 
     class Meta:
         model = Job
@@ -113,6 +135,25 @@ class JobSerializer(serializers.ModelSerializer):
             'expected_delivery_date': {'required': True},
             'skills': {'required': False},
         }
+
+    # def get_workflow_images(self,obj):
+    #         try:
+    #             if obj:
+    #                 if JobAttachments.objects.filter(user=obj.user.job).exists():
+    #                     workflow_images = JobAttachments.objects.filter(user=obj.user.job)
+    #                     print("here",web_links)
+    #                     web_links = JobAttachmentsSerializer(workflow_images, many=True)
+    #                     return web_links.data
+    #                 else:
+    #                     return False
+    #             else:
+    #                 return ''
+    #         except Exception as err:
+    #             return ''
+
+
+
+
 
     def get_worksflow_name(self, obj):
         try:
@@ -175,23 +216,24 @@ class JobAttachmentsThumbnailSerializer(serializers.ModelSerializer):
         return None
 
 
-class JobAttachmentsSerializer(serializers.ModelSerializer):
-    job_image_name = SerializerMethodField("get_image_name")
-    work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+# class JobAttachmentsSerializer(serializers.ModelSerializer):
+#     job_image_name = SerializerMethodField("get_image_name")
+#     work_sample_image_name = SerializerMethodField("get_work_sample_image_name")
+#     work_sample = SerializerMethodField("get_work_sample_images")
 
-    class Meta:
-        model = JobAttachments
-        fields = '__all__'
+#     class Meta:
+#         model = JobAttachments
+#         fields = '__all__'
+    
+#     def get_image_name(self, obj):
+#         if obj.job_images:
+#             return str(obj.job_images).split('/')[-1]
+#         return None
 
-    def get_image_name(self, obj):
-        if obj.job_images:
-            return str(obj.job_images).split('/')[-1]
-        return None
-
-    def get_work_sample_image_name(self, obj):
-        if obj.work_sample_images:
-            return str(obj.work_sample_images).split('/')[-1]
-        return None
+#     def get_work_sample_image_name(self, obj):
+#         if obj.work_sample_images:
+#             return str(obj.work_sample_images).split('/')[-1]
+#         return None
 
 
 # class CompanySerializer(serializers.ModelSerializer):

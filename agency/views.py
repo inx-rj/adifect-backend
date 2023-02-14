@@ -243,6 +243,7 @@ class AgencyJobsViewSet(viewsets.ModelViewSet):
                     i.delete()
                 for i in image:
                     JobAttachments.objects.create(job_id=instance.id, job_images=i)
+
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
@@ -1003,12 +1004,12 @@ class DAMViewSet(viewsets.ModelViewSet):
         for i in DamMedia.objects.filter(dam_id=instance.id):
             if instance.company:
                 for j in instance.company.invite_company_list.all():
-                    members_notification = Notifications.objects.create(user=j.user.user,
+                    members_notification = Notifications.objects.create(user=j.user.user,company=instance.company,
                                                                     notification=f'{instance.agency.get_full_name()} has deleted an asset',
                                                                     notification_type='asset_uploaded')
-            agency_notification = Notifications.objects.create(user=instance.agency,
+            agency_notification = Notifications.objects.create(user=instance.agency,company=instance.company,
                                                            notification=f'{instance.agency.get_full_name()} has deleted an asset',
-                                                           notification_type='asset_uploaded')
+                                                           notification_type='asset_uploaded')                                              
             i.delete()
         self.perform_destroy(instance)
         context = {
@@ -2031,11 +2032,20 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
+        print(instance,'2222222222222222')
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
+        print(request.data,'qqqqqqqqqqqqqqqqqqqqq')
         if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
-            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            print(request.data,'eeeeeeeeeeeeeeeeeeeeeeeeee')
+            company_id=request.data.get('company_id',None)
+            print(company_id,'azazazazazazazazaza')
+            if company_id:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False,company=company_id).update(is_seen=True)
+            else:
+                self.perform_update(serializer)
+                Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
