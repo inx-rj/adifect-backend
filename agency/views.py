@@ -891,7 +891,7 @@ class DAMViewSet(viewsets.ModelViewSet):
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
@@ -1789,7 +1789,7 @@ class CompanyImageCount(APIView):
         q_photos = Q()
         if photos:
             q_photos = Q(Q(type=3) & Q(is_video=False))
-            print(q_photos)
+            print(q_photos,'121212121212121212121212')
             # company_count = company_count.filter(dam_company__type=3, is_video=False)
         q_videos = Q()
         if videos:
@@ -2017,7 +2017,7 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
         today = datetime.now().date()
         queryset = self.filter_queryset(self.get_queryset())
         queryset_today =queryset.filter(created__date=today).values()
-        queryset_earlier = queryset.exclude(created__date=today).values()
+        queryset_earlier = queryset.filter(created__lt=today).values()
         offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
         if offset:
@@ -2032,14 +2032,10 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
-        print(instance,'2222222222222222')
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
-        print(request.data,'qqqqqqqqqqqqqqqqqqqqq')
         if serializer.is_valid(raise_exception=True):
-            print(request.data,'eeeeeeeeeeeeeeeeeeeeeeeeee')
             company_id=request.data.get('company_id',None)
-            print(company_id,'azazazazazazazazaza')
             if company_id:
                 self.perform_update(serializer)
                 Notifications.objects.filter(user=request.user.id, is_seen=False,company=company_id).update(is_seen=True)

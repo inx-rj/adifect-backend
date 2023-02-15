@@ -2806,7 +2806,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)

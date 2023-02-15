@@ -930,7 +930,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
@@ -1720,7 +1720,7 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
         today = datetime.now().date()
         queryset = self.filter_queryset(self.get_queryset())
         queryset_today =queryset.filter(created__date=today).values()
-        queryset_earlier = queryset.exclude(created__date=today).values()
+        queryset_earlier = queryset.filter(created__lt=today).values()
         offset =int(request.GET.get('offset', default=0))
         count= queryset.filter(is_seen=False).count()
         if offset:
@@ -1739,14 +1739,8 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
         if serializer.is_valid(raise_exception=True):
-            company_id = request.data.get('company_id', None)
-            if company_id:
-                self.perform_update(serializer)
-                Notifications.objects.filter(user=request.user.id, is_seen=False, company=company_id).update(
-                    is_seen=True)
-            else:
-                self.perform_update(serializer)
-                Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
+            self.perform_update(serializer)
+            Notifications.objects.filter(user=request.user.id, is_seen=False).update(is_seen=True)
             context = {
                 'message': 'Updated Successfully...',
                 'status': status.HTTP_200_OK,
