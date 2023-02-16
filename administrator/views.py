@@ -246,60 +246,73 @@ class UserListViewSet(viewsets.ModelViewSet):
 
 
 def dam_images_list(dam_images, job_id):
-    if dam_images:
-        exceeded_files = []
-        for i in dam_images:
-            dam_inital = DamMedia.objects.get(id=i)
-            if not JobAttachments.objects.filter(job=job_id, dam_media_id=dam_inital).exists():
-                dam_inital.job_count += 1
-                dam_inital.save()
+    try:
+        if dam_images:
+            exceeded_files = []
+            for i in dam_images:
+                dam_inital = DamMedia.objects.get(id=i)
+                if not JobAttachments.objects.filter(job=job_id, dam_media_id=dam_inital).exists():
+                    dam_inital.job_count += 1
+                    dam_inital.save()
 
-            if dam_inital.limit_usage_toggle == 'true':
-                if dam_inital.limit_usage < dam_inital.limit_used:
-                    exceeded_files.append(dam_inital)
+                if dam_inital.limit_usage_toggle == 'true':
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        exceeded_files.append(dam_inital)
+                    else:
+                        JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
+                        dam_inital.limit_used += 1
+                        dam_inital.save()
                 else:
                     JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
-            else:
-                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
-                dam_inital.limit_used += 1
-                dam_inital.save()
-            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
-                dam_inital.usage_limit_reached = True
-                dam_inital.save()
+                if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                    dam_inital.usage_limit_reached = True
+                    dam_inital.save()
+            return exceeded_files,True
+    except Exception as e :
+        print(e)
+        return exceeded_files,False
 
-        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
+        # return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def dam_sample_images_list(dam_sample_images, job_id):
-    if dam_sample_images:
-        exceeded_files = []
-        for i in dam_sample_images:
-            dam_inital = DamMedia.objects.get(id=i)
-            print(dam_inital,'lllllllllllllllllllllllllllll')
-            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
-                dam_inital.job_count += 1
-                dam_inital.save()
-            if dam_inital.limit_usage_toggle == 'true':
-                if dam_inital.limit_usage < dam_inital.limit_used:
-                    exceeded_files.append(dam_inital)
+    try:
+        if dam_sample_images:
+            exceeded_files = []
+            for i in dam_sample_images:
+                dam_inital = DamMedia.objects.get(id=i)
+                print(dam_inital,'lllllllllllllllllllllllllllll')
+                if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
+                    print("here error1")
+                    dam_inital.job_count += 1
+                    dam_inital.save()
+                if dam_inital.limit_usage_toggle == 'true':
+                    print("toggle1")
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        print("not upload")
+                        exceeded_files.append(dam_inital)
+                    else:
+                        print("here")
+                        JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
+                                                    dam_media_id=dam_inital)
+                        dam_inital.limit_used += 1
+                        dam_inital.save()
                 else:
-                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
-                                                  dam_media_id=dam_inital)
+                    print("toggle")
+                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
-            else:
-                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
-                dam_inital.limit_used += 1
-                dam_inital.save()
 
-            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
-                dam_inital.usage_limit_reached = True
-                dam_inital.save()
-
-        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
-
+                if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                    print("ex-employe code")
+                    dam_inital.usage_limit_reached = True
+                    dam_inital.save()
+            return exceeded_files,True
+    except Exception as e :
+        print(e)
+        return exceeded_files,False
 
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -497,6 +510,7 @@ class JobViewSet(viewsets.ModelViewSet):
         dam_images = request.data.getlist('dam_images')
         dam_sample_images = request.data.getlist('dam_sample_images')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        print('yes its job update')
         if serializer.is_valid():
             if not JobApplied.objects.filter(Q(job=instance) & (Q(status=2) | Q(status=3) | Q(status=4))):
                 template_name = serializer.validated_data.get('template_name', None)
@@ -511,8 +525,12 @@ class JobViewSet(viewsets.ModelViewSet):
                             'data': serializer.data,
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
+                print("jiiiiii")    
+                print(request.data)
+                print(request.FILES)
                 self.perform_update(serializer)
-                job_id = Job.objects.latest('id')
+                # job_id = Job.objects.latest('id')
+                print("job_id",instance.id)
                 JobApplied.objects.filter(job=instance).update(is_modified=True)
                 if remove_image_ids:
                     for id in remove_image_ids:
@@ -524,14 +542,16 @@ class JobViewSet(viewsets.ModelViewSet):
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
-                dam_images_list(dam_images, job_id)
-                dam_sample_images_list(dam_sample_images, job_id)
+                dam_images_list(dam_images, instance)
+                dam_sample_images_list(dam_sample_images, instance)
+                print('here workinh')
                 if sample_image:
                     sample_image_error = validate_job_attachments(sample_image)
                     if sample_image_error != 0:
                         return Response({'message': "Invalid Job Attachments images"},
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in sample_image:
+                        print('image heree')
                         JobAttachments.objects.create(job=instance, work_sample_images=i)
 
                 # ------- task ----#
@@ -573,9 +593,9 @@ class JobViewSet(viewsets.ModelViewSet):
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
 
-                    Notifications.objects.create(user=users.user,company=job_id.company,
-                                                 notification=f'There has been some edit to your applied job - {job_id.title}',
-                                                 notification_type='job_edited', redirect_id=job_id.id)
+                    Notifications.objects.create(user=users.user,company=instance.company,
+                                                 notification=f'There has been some edit to your applied job - {instance.title}',
+                                                 notification_type='job_edited', redirect_id=instance.id)
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     to_email = To(users.user.email)
                     skills = ''

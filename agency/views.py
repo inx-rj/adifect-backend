@@ -450,7 +450,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
                                                                     user__isnull=False,
-                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
+                                                                    agency__is_account_closed=False,company__is_active=True,is_inactive=False).order_by(
             '-modified')
         serializer = InviteMemberSerializer(queryset, many=True)
         return Response(serializer.data)

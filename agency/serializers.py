@@ -288,6 +288,7 @@ class StageSerializer(serializers.ModelSerializer):
 
 class DAMSerializer(serializers.ModelSerializer):
     dam_files = serializers.FileField(allow_empty_file=True, required=False)
+    
 
     class Meta:
         model = DAM
@@ -300,7 +301,6 @@ class DAMSerializer(serializers.ModelSerializer):
         dam = DAM.objects.create(**validated_data)
         dam.save()
         return dam
-
 
 class DamMediaSerializer(serializers.ModelSerializer):
     skill =SerializerMethodField("get_skill")
@@ -461,6 +461,7 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
     upload_by = SerializerMethodField("get_user_name")
     company = SerializerMethodField("get_company_name")
     total_obj = SerializerMethodField("get_total_object")
+    company_id = SerializerMethodField("get_company_id")
 
     class Meta:
         model = DAM
@@ -500,6 +501,10 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
         if obj:
             return DAM.objects.filter(parent=obj).count()
         return ''
+    def get_company_id(self, obj):
+        if obj.company is not None:
+            return obj.company.id
+        return ""
 
 class DamWithMediaSerializer(serializers.ModelSerializer):
     dam_media = DamMediaSerializer(many=True, required=False)
