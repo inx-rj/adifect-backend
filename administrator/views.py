@@ -3284,7 +3284,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         parent=request.GET.get('parent',None)
         if parent:
-            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+            queryset = self.filter_queryset(self.get_queryset())
         else:
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})

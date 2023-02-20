@@ -33,6 +33,7 @@ class CompanySerializer(serializers.ModelSerializer):
     is_assigned_workflow = SerializerMethodField("get_assigned_workflow")
     agency_name = SerializerMethodField("get_agency_name")
     industry_name = SerializerMethodField("get_industry_name")
+    company_id = SerializerMethodField("get_company_id")
 
     class Meta:
         model = Company
@@ -73,6 +74,11 @@ class CompanySerializer(serializers.ModelSerializer):
         if obj.industry:
             return obj.industry.industry_name
         return ''
+    
+    def get_company_id(self, obj):
+        if obj is not None:
+            return obj.id
+        return ""
 
 
 class WorksFlowSerializer(serializers.ModelSerializer):
@@ -302,6 +308,7 @@ class DAMSerializer(serializers.ModelSerializer):
         dam.save()
         return dam
 
+
 class DamMediaSerializer(serializers.ModelSerializer):
     skill =SerializerMethodField("get_skill")
     files_name = SerializerMethodField("get_files_name")
@@ -311,7 +318,8 @@ class DamMediaSerializer(serializers.ModelSerializer):
     company = SerializerMethodField("get_company")
     get_file_extension = SerializerMethodField("get_files_extension")
     type = SerializerMethodField("get_type")
-    
+    root = SerializerMethodField("get_is_root")
+
     
     # description =  SerializerMethodField("get_description")
     class Meta:
@@ -324,6 +332,14 @@ class DamMediaSerializer(serializers.ModelSerializer):
             skill = SkillsSerializer(obj.skills.all(),many=True)
             return skill.data
         return ''
+
+    def get_is_root(self, obj):
+        if obj.dam.parent:
+            return obj.dam.parent_id
+        else:
+            return "Null"
+
+
 
     def get_type(self,obj):
         if obj.dam is not None:
@@ -462,7 +478,8 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
     company = SerializerMethodField("get_company_name")
     total_obj = SerializerMethodField("get_total_object")
     company_id = SerializerMethodField("get_company_id")
-
+    root = SerializerMethodField("get_root")
+    
     class Meta:
         model = DAM
         fields = '__all__'
@@ -478,6 +495,12 @@ class DamWithMediaRootSerializer(serializers.ModelSerializer):
             return obj.parent_id
         else:
             return obj.id
+    def get_root(self,obj):
+        if obj.parent is not None:
+            return obj.parent_id
+        else:
+            return "Null"  
+   
     #
     # def get_location(self, obj):
     #     if obj:
@@ -514,6 +537,8 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     upload_by = SerializerMethodField("get_user_name")
     company = SerializerMethodField("get_company_name")
     total_obj = SerializerMethodField("get_total_object")
+    root = SerializerMethodField("get_root")
+    company_id = SerializerMethodField("get_company_id")
     
     class Meta:
         model = DAM
@@ -537,6 +562,13 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
                 return obj.parent.parent.id
         else:
             return False
+        
+    def get_root(self,obj):
+        if obj.parent is not None:
+             return obj.parent.id
+        else:
+            return "Null"
+
     def get_user_name(self,obj):
         if obj.agency is not None:
             return obj.agency.get_full_name()
@@ -544,6 +576,11 @@ class DamWithMediaSerializer(serializers.ModelSerializer):
     def get_company_name(self,obj):
         if obj.company is not None:
             return obj.company.name
+        return ''
+    
+    def get_company_id(self,obj):
+        if obj.company is not None:
+            return obj.company.id
         return ''
 
     # def get_parent(self,obj):

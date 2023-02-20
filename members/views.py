@@ -859,7 +859,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         parent=request.GET.get('parent',None)
         if parent:
             print('ccccc)')
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
         else:
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
