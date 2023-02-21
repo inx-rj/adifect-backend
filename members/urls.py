@@ -35,5 +35,6 @@ urlpatterns = [
         path('job-attachments/', views.JobAttachmentsView.as_view(), name='job_attachments'),
         path('company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
         path('company-count/', views.CompanyCountView.as_view(), name='company_count'),
+        path('member-latest-job/', views.MemberLatestJobAPI.as_view(), name='member_latest_job'),
 ]
 urlpatterns += router.urls
