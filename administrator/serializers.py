@@ -879,6 +879,7 @@ class MemberApprovalsSerializer(serializers.ModelSerializer):
 
 class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
     image_name = serializers.SerializerMethodField("get_image_name")
+    video = serializers.SerializerMethodField("get_upload_video_type")
 
     class Meta:
         model = JobActivityAttachments
@@ -888,6 +889,16 @@ class JobActivityAttachmentsSerializer(serializers.ModelSerializer):
         if obj.chat_attachment is not None:
             return str(obj.chat_attachment.name).split('/')[-1]
         return ''
+    def get_upload_video_type(self,obj):
+        if obj.chat_attachment is not None:
+            video = str(obj.chat_attachment.name).split('/')[-1].endswith((".mp4",".MP4",".mov",".MOV"))
+            if video:
+                return "True"
+            else:
+                return "False"
+        else:
+            return "False"
+
 
 
 class JobActivityChatSerializer(serializers.ModelSerializer):

@@ -285,6 +285,8 @@ class JobActivityAttachments(BaseModel):
     class Meta:
         verbose_name_plural = 'Job Activity Attachments'
 
+ 
+
 
 class JobWorkActivity(BaseModel):
     Activity_choice = (

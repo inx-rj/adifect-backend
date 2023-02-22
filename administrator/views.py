@@ -246,65 +246,77 @@ class UserListViewSet(viewsets.ModelViewSet):
 
 
 def dam_images_list(dam_images, job_id):
-    if dam_images:
-        exceeded_files = []
-        for i in dam_images:
-            dam_inital = DamMedia.objects.get(id=i)
-            if not JobAttachments.objects.filter(job=job_id, dam_media_id=dam_inital).exists():
-                dam_inital.job_count += 1
-                dam_inital.save()
+    try:
+        if dam_images:
+            exceeded_files = []
+            for i in dam_images:
+                dam_inital = DamMedia.objects.get(id=i)
+                if not JobAttachments.objects.filter(job=job_id, dam_media_id=dam_inital).exists():
+                    dam_inital.job_count += 1
+                    dam_inital.save()
 
-            if dam_inital.limit_usage_toggle == 'true':
-                if dam_inital.limit_usage < dam_inital.limit_used:
-                    exceeded_files.append(dam_inital)
+                if dam_inital.limit_usage_toggle == 'true':
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        exceeded_files.append(dam_inital)
+                    else:
+                        JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
+                        dam_inital.limit_used += 1
+                        dam_inital.save()
                 else:
                     JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
-            else:
-                JobAttachments.objects.create(job=job_id, job_images=dam_inital.media, dam_media_id=dam_inital)
-                dam_inital.limit_used += 1
-                dam_inital.save()
-            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
-                dam_inital.usage_limit_reached = True
-                dam_inital.save()
+                if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                    dam_inital.usage_limit_reached = True
+                    dam_inital.save()
+            return exceeded_files,True
+    except Exception as e :
+        print(e)
+        return exceeded_files,False
 
-        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
+        # return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def dam_sample_images_list(dam_sample_images, job_id):
-    if dam_sample_images:
-        exceeded_files = []
-        for i in dam_sample_images:
-            dam_inital = DamMedia.objects.get(id=i)
-            print(dam_inital,'lllllllllllllllllllllllllllll')
-            if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
-                dam_inital.job_count += 1
-                dam_inital.save()
-            if dam_inital.limit_usage_toggle == 'true':
-                if dam_inital.limit_usage < dam_inital.limit_used:
-                    exceeded_files.append(dam_inital)
+    try:
+        if dam_sample_images:
+            exceeded_files = []
+            for i in dam_sample_images:
+                dam_inital = DamMedia.objects.get(id=i)
+                print(dam_inital,'lllllllllllllllllllllllllllll')
+                if not JobAttachments.objects.filter(Q(job=job_id) & Q(dam_media_id=dam_inital)).exists():
+                    print("here error1")
+                    dam_inital.job_count += 1
+                    dam_inital.save()
+                if dam_inital.limit_usage_toggle == 'true':
+                    print("toggle1")
+                    if dam_inital.limit_usage < dam_inital.limit_used:
+                        print("not upload")
+                        exceeded_files.append(dam_inital)
+                    else:
+                        print("here")
+                        JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
+                                                    dam_media_id=dam_inital)
+                        dam_inital.limit_used += 1
+                        dam_inital.save()
                 else:
-                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media,
-                                                  dam_media_id=dam_inital)
+                    print("toggle")
+                    JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
                     dam_inital.limit_used += 1
                     dam_inital.save()
-            else:
-                JobAttachments.objects.create(job=job_id, work_sample_images=dam_inital.media, dam_media_id=dam_inital)
-                dam_inital.limit_used += 1
-                dam_inital.save()
 
-            if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
-                dam_inital.usage_limit_reached = True
-                dam_inital.save()
-
-        return Response({'exceeded files': exceeded_files}, status=status.HTTP_400_BAD_REQUEST)
-
+                if dam_inital.limit_usage_toggle == 'true' and dam_inital.limit_usage <= dam_inital.limit_used:
+                    print("ex-employe code")
+                    dam_inital.usage_limit_reached = True
+                    dam_inital.save()
+            return exceeded_files,True
+    except Exception as e :
+        print(e)
+        return exceeded_files,False
 
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
-    # to_email = To(job_details.user.email)
-    to_email = To('muskeshbhandari20@gmail.com')
+    to_email = To(job_details.user.email)
     skills = ''
     for i in job_details.job.skills.all():
         skills += f'<div style="float: left; margin-right: 6px; height: 43px;"><button style="background-color: rgba(36,114,252,0.08);border-radius: ' \
@@ -314,7 +326,7 @@ def In_house_creator_email(job_details):
     try:
         subject = "You have been assigned to a job"
         content = Content("text/html",
-                          f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have been assigned to a job.</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:7px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding: 0 20px;height: 100%;border-radius: 0;"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding-bottom:17px">Assigned to:<span style="padding:0 12px;color:#2472fc">{job_details.user.get_full_name()}</span></div><div style="float: left;width: 100%;">{skills}</div></div></div></div><div style="padding: 10px 0 40px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
+                          f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">You have been assigned to a job.</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:7px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding: 0 20px;height: 100%;border-radius: 0;"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="float: left;width: 100%;">{skills}</div></div></div></div><div style="padding: 10px 0 40px;font-size:16px;color:#384860;float: left;width: 100%;">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860">Sincerely,<br>The Adifect Team</div></div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         # content = Content("text/html",
         #                   f'<div style="background:rgba(36,114,252,.06)!important"><table style="font:Arial,sans-serif;border-collapse:collapse;width:600px;margin:0 auto" width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width:100%;background:#fff;margin:36px 0 0"><div style="padding:34px 44px;border-radius:8px!important;background:#fff;border:1px solid #dddddd5e;margin-bottom:50px;margin-top:50px"><div class="email-logo"><img style="width:165px" src="{LOGO_122_SERVER_PATH}"></img></div><a href="#"></a><div class="welcome-text" style="padding-top:80px"><h1 style="font:24px">Congratulations! 🎉</h1></div><div class="welcome-paragraph"><div style="padding:10px 0;font-size:16px;color:#384860">Your Job Proposal has been accepted!</div><div style="box-shadow:0 4px 40px rgb(36 114 252 / 6%);border-radius:0 8px 8px 0;margin-top:10px;display:flex"><div style="width:13px;background-color:#2472fc;border-radius:50px"></div><div><div style="padding:20px"><div><h1 style="font:24px">{job_details.job.title}</h1></div><div style="padding:13px 0;font-size:16px;color:#384860">{job_details.job.description}</div><div><button style="background-color:rgba(36,114,252,.08);border-radius:30px;font-style:normal;font-weight:600;font-size:15px;line-height:18px;text-align:center;border:none;color:#2472fc;padding:8px 20px 8px 20px">In Progress</button></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding:15px 0">Due on:<span style="padding:0 12px">{job_details.job.job_due_date}</span></div><div style="font-size:16px;line-height:19px;color:rgba(0,0,0,.7);font-weight:700;padding-bottom:17px">Assigned to:<span style="padding:0 12px;color:#2472fc">{job_details.user.get_full_name()}</span></div><div style="display:flex">{skills}</div></div></div></div></div><div style="padding:10px 0;font-size:16px;color:#384860">Please click the link below to view your new job.</div><div style="padding:20px 0;font-size:16px;color:#384860"></div>Sincerely,<br>The Adifect Team</div><div style="padding-top:40px"><a href="{FRONTEND_SITE_URL}/jobs/details/{job_details.job.id}"><button  style="height:56px;padding:15px 80px;background:#2472fc;border-radius:8px;border-style:none;color:#fff;font-size:16px;cursor:pointer">View Job</button></a></div><div style="padding:50px 0" class="email-bottom-para"><div style="padding:20px 0;font-size:16px;color:#384860">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect?<a href="#"><span style="text-decoration:underline">Unsubscribe.</span></a></div><div style="font-size:16px;color:#384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
         data = send_email(from_email, to_email, subject, content)
@@ -497,6 +509,7 @@ class JobViewSet(viewsets.ModelViewSet):
         dam_images = request.data.getlist('dam_images')
         dam_sample_images = request.data.getlist('dam_sample_images')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        print('yes its job update')
         if serializer.is_valid():
             if not JobApplied.objects.filter(Q(job=instance) & (Q(status=2) | Q(status=3) | Q(status=4))):
                 template_name = serializer.validated_data.get('template_name', None)
@@ -511,8 +524,12 @@ class JobViewSet(viewsets.ModelViewSet):
                             'data': serializer.data,
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
+                print("jiiiiii")    
+                print(request.data)
+                print(request.FILES)
                 self.perform_update(serializer)
-                job_id = Job.objects.latest('id')
+                # job_id = Job.objects.latest('id')
+                print("job_id",instance.id)
                 JobApplied.objects.filter(job=instance).update(is_modified=True)
                 if remove_image_ids:
                     for id in remove_image_ids:
@@ -524,14 +541,16 @@ class JobViewSet(viewsets.ModelViewSet):
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
-                dam_images_list(dam_images, job_id)
-                dam_sample_images_list(dam_sample_images, job_id)
+                dam_images_list(dam_images, instance)
+                dam_sample_images_list(dam_sample_images, instance)
+                print('here workinh')
                 if sample_image:
                     sample_image_error = validate_job_attachments(sample_image)
                     if sample_image_error != 0:
                         return Response({'message': "Invalid Job Attachments images"},
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in sample_image:
+                        print('image heree')
                         JobAttachments.objects.create(job=instance, work_sample_images=i)
 
                 # ------- task ----#
@@ -573,9 +592,9 @@ class JobViewSet(viewsets.ModelViewSet):
                 user_list = JobApplied.objects.filter(Q(job=instance) & Q(status=0))
                 for users in user_list:
 
-                    Notifications.objects.create(user=users.user,company=job_id.company,
-                                                 notification=f'There has been some edit to your applied job - {job_id.title}',
-                                                 notification_type='job_edited', redirect_id=job_id.id)
+                    Notifications.objects.create(user=users.user,company=instance.company,
+                                                 notification=f'There has been some edit to your applied job - {instance.title}',
+                                                 notification_type='job_edited', redirect_id=instance.id)
                     from_email = Email(SEND_GRID_FROM_EMAIL)
                     to_email = To(users.user.email)
                     skills = ''
@@ -2806,7 +2825,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
@@ -3264,7 +3283,7 @@ class SuperAdminDAMViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         parent=request.GET.get('parent',None)
         if parent:
-            queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user)
+            queryset = self.filter_queryset(self.get_queryset())
         else:
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
