@@ -1220,12 +1220,12 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=False, url_path='latest_records', url_name='latest_records')
     def latest_records(self, request, *args, **kwargs):
         if request.GET.get('dam__company'):
-            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__company=request.GET.get('dam__company')) &
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__company__invite_company_list__user__user=request.user) & Q(dam__company=request.GET.get('dam__company')) &
                 (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
                 '-created')[:4]
 
         if request.GET.get('dam__agency'):
-            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__agency=request.GET.get('dam__agency')) &
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(dam__company__invite_company_list__user__user=request.user) & Q(dam__agency=request.GET.get('dam__agency')) &
                 (Q(dam__parent__is_trashed=False) | Q(dam__parent__isnull=True))).order_by(
                 '-created')[:4]
         else:
