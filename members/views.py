@@ -953,7 +953,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(id__in=order_list):
+                for i in DamMedia.objects.filter(dam_id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -1134,7 +1134,6 @@ class MemberDamRootViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         # user = request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user)
-        print(queryset,'5555555555555555555555')
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1407,7 +1406,6 @@ class MemberDAMFilter(viewsets.ModelViewSet):
                                                                     is_trashed=False)
             folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
             folder = folders_data.data
-            print(folder,'454545454545454')
 
         if not photos and not videos and not collections:
             data1 = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=3, is_video=False,
@@ -1425,7 +1423,6 @@ class MemberDAMFilter(viewsets.ModelViewSet):
             collection = collections_data.data
             data4 = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=1,
                                                                      is_trashed=False)
-            print('hellllooooooooooooooooooooooooooo')
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
 
@@ -1607,7 +1604,6 @@ class CompanyImageCount(APIView):
             parent = None
         q_photos = Q()
         if photos:
-            print('hiiiiiiiiiiiiiiii')
             q_photos = Q(Q(type=3) & Q(is_video=False))
             print(q_photos)
             # company_count = company_count.filter(dam_company__type=3, is_video=False)

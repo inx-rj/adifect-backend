@@ -658,3 +658,8 @@ class AgencyLevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgencyLevel
         fields = '__all__'
+
+class DamMediaNewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DamMedia
+        fields = '__all__'

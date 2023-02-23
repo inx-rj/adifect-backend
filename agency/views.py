@@ -28,7 +28,7 @@ from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company,
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
-    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, DamMediaNewSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -936,7 +936,7 @@ class DAMViewSet(viewsets.ModelViewSet):
             id_list = request.data.get('id_list', None)
             order_list = id_list.split(",")
             if order_list:
-                for i in DamMedia.objects.filter(id__in=order_list):
+                for i in DamMedia.objects.filter(dam_id__in=order_list):
                     i.delete()
                 DAM.objects.filter(id__in=order_list).delete()
                 context = {
@@ -1026,13 +1026,13 @@ class DAMViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         for i in DamMedia.objects.filter(dam_id=instance.id):
             if instance.company:
-                for j in instance.company.invite_company_list.all():
+                for j in instance.company.invite_company_list.filter(user__user__isnull=False):
                     members_notification = Notifications.objects.create(user=j.user.user,company=instance.company,
                                                                     notification=f'{instance.agency.get_full_name()} has deleted an asset',
                                                                     notification_type='asset_uploaded')
             agency_notification = Notifications.objects.create(user=instance.agency,company=instance.company,
                                                            notification=f'{instance.agency.get_full_name()} has deleted an asset',
-                                                           notification_type='asset_uploaded')                                              
+                                                  notification_type='asset_uploaded')                                              
             i.delete()
         self.perform_destroy(instance)
         context = {
@@ -1206,6 +1206,28 @@ class DamMediaViewSet(viewsets.ModelViewSet):
                 'data': serializer.data,
             }
             return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+    
+    @action(methods=['post'], detail=False, url_path='update_collection', url_name='update_collection')
+    def update_collection(self, request, *args, **kwargs):
+        serializer = DamMediaNewSerializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_id = request.data.get('dam_id',None)
+        if serializer.is_valid():
+                    # Upload the images
+                for i in dam_files:
+                    DamMedia.objects.create(dam_id=dam_id, media=i)
+        
+                context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+                }
+
+                return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 

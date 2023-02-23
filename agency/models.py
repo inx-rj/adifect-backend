@@ -234,6 +234,7 @@ class DamMedia(BaseModel):
 
     def save(self, **kwargs):
 
+
         if str(self.media).endswith((".mp4",".mp3",".mov",".MP4", ".MP3", ".MOV")):
             self.thumbnail=self.media
             self.is_video= True
@@ -253,7 +254,6 @@ class DamMedia(BaseModel):
             self.thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg", 'image/jpeg', sys.getsizeof(output_thumb), None)
 
             super(DamMedia, self).save()
-
 
 
 
