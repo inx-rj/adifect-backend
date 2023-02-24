@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from django.db.models import Count, Avg
 from agency.models import Workflow_Stages, InviteMember, Company,WorksFlow, DAM, DamMedia
 from authentication.manager import IsAdminMember, IsMarketerMember, IsApproverMember,InHouseMember
-from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer, MyProjectSerializer, StageSerializer, DAMSerializer, DamWithMediaSerializer, DamWithMediaRootSerializer, DamMediaSerializer
+from agency.serializers import InviteMemberSerializer,CompanySerializer,WorksFlowSerializer, MyProjectSerializer, StageSerializer, DAMSerializer, DamWithMediaSerializer, DamWithMediaRootSerializer, DamMediaSerializer, DamMediaNewSerializer
 from django.db.models import Subquery
 from rest_framework.decorators import action
 from administrator.views  import validate_job_attachments, dam_images_templates, dam_sample_template_images_list, dam_images_list, dam_sample_images_list
@@ -1213,6 +1213,28 @@ class MemberDamMediaViewSet(viewsets.ModelViewSet):
                 'data': serializer.data,
             }
             return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    @action(methods=['post'], detail=False, url_path='update_collection', url_name='update_collection')
+    def update_collection(self, request, *args, **kwargs):
+        serializer = DamMediaNewSerializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_id = request.data.get('dam_id',None)
+        if serializer.is_valid():
+                    # Upload the images
+                for i in dam_files:
+                    DamMedia.objects.create(dam_id=dam_id, media=i)
+        
+                context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+                }
+
+                return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 

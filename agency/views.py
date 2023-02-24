@@ -129,20 +129,14 @@ class CompanyViewSet(viewsets.ModelViewSet):
                     'status': status.HTTP_400_BAD_REQUEST,
                     'errors': True,
                 }
-        elif data['is_assigned_workflow'].value:
-                context = {
-                    'message': 'This company is assigned to a workflow, so cannot be deleted!',
-                    'status': status.HTTP_400_BAD_REQUEST,
-                    'errors': True,
-                }
-        
         else:
-                self.perform_destroy(instance)
-                context = {
-                    'message': 'Deleted Succesfully',
-                    'status': status.HTTP_204_NO_CONTENT,
-                    'errors': False,
-                }
+            instance.is_active = False
+            instance.save()
+            context = {
+                'message': 'Company Inactive successfully.',
+                'status': status.HTTP_204_NO_CONTENT,
+                'errors': False,
+            }
         return Response(context)
 
 
@@ -862,6 +856,7 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
             if serializer.validated_data['type'] == 3:
+                print('dedededededede')
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),

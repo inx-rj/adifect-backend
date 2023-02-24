@@ -41,7 +41,7 @@ import json
 from agency.models import Industry, Company, WorksFlow, Workflow_Stages, InviteMember, DamMedia, DAM
 from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowSerializer, StageSerializer, \
     InviteMemberSerializer, MyProjectSerializer, DamWithMediaSerializer, DAMSerializer, DamWithMediaRootSerializer, \
-    DamMediaSerializer
+    DamMediaSerializer, DamMediaNewSerializer
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -3673,6 +3673,27 @@ class DamMediaViewSet(viewsets.ModelViewSet):
                 'data': serializer.data,
             }
             return Response(context)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(methods=['post'], detail=False, url_path='update_collection', url_name='update_collection')
+    def update_collection(self, request, *args, **kwargs):
+        serializer = DamMediaNewSerializer(data=request.data)
+        dam_files = request.FILES.getlist('dam_files', None)
+        dam_id = request.data.get('dam_id',None)
+        if serializer.is_valid():
+                    # Upload the images
+                for i in dam_files:
+                    DamMedia.objects.create(dam_id=dam_id, media=i)
+        
+                context = {
+                'message': 'Media Uploaded Successfully',
+                'status': status.HTTP_201_CREATED,
+                'errors': serializer.errors,
+                'data': serializer.data,
+                }
+
+                return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
