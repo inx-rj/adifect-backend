@@ -42,14 +42,15 @@ class CompanySerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         exist_company = None
-        if self.instance:
-            exist_company = Company.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
-                                                                                agency=self.instance.agency,
-                                                                                is_trashed=False)
-        else:
-            exist_company = Company.objects.filter(name__iexact=data['name'], agency=data['agency'], is_trashed=False)
-        if exist_company:
-            raise ValidationError("Company Already Exist")
+        if 'name' in data and data['name']:
+            if self.instance:
+                exist_company = Company.objects.exclude(id=self.instance.id).filter(name__iexact=data['name'],
+                                                                                    agency=self.instance.agency,
+                                                                                    is_trashed=False)
+            else:
+                exist_company = Company.objects.filter(name__iexact=data['name'], agency=data['agency'], is_trashed=False)
+            if exist_company:
+                raise ValidationError("Company Already Exist")
         return data
 
     def get_assigned_workflow(self, obj):

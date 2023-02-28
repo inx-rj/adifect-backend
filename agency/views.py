@@ -88,7 +88,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
                 }
                 return Response(context, status=status.HTTP_200_OK)
             else:
-                if instance.job_company.all():
+                if instance.job_company.filter(is_active=True).exists():
                     if serializer.validated_data['is_active']:
                         context = {
                             'message': 'Updated Successfully........',
@@ -125,7 +125,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         data = self.serializer_class(instance)
         if instance.job_company.filter(is_active=True).exists():
                 context = {
-                    'message': 'This company is associated with an active job, so cannot be deleted!',
+                    'message': 'This company is associated with an active job, so cannot be Edited!',
                     'status': status.HTTP_400_BAD_REQUEST,
                     'errors': True,
                 }
@@ -856,7 +856,6 @@ class DAMViewSet(viewsets.ModelViewSet):
         dam_name = request.POST.getlist('dam_files_name', None)
         if serializer.is_valid():
             if serializer.validated_data['type'] == 3:
-                print('dedededededede')
                 for index, i in enumerate(dam_files):
                     # self.perform_create(serializer)
                     dam_id = DAM.objects.create(type=3, parent=serializer.validated_data.get('parent', None),
