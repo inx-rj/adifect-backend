@@ -226,7 +226,8 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        company = queryset.filter(invite_company_list__user__user=request.user)
+        # The below condition will get all the company created by the admin member and invited company list.
+        company = queryset.filter(Q(invite_company_list__user__user=request.user) | Q(agency=request.user, agency__is_account_closed=False))
         serializer = self.serializer_class(company, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -240,6 +241,74 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
         }
         return Response(context, status=status.HTTP_200_OK)
+    
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        #   serializer.validated_data['is_active']
+        if serializer.is_valid(raise_exception=True):
+            if not instance.job_company.all():
+                self.perform_update(serializer)
+                context = {
+                    'message': 'Updated Successfully...',
+                    'status': status.HTTP_200_OK,
+                    'errors': serializer.errors,
+                    'data': serializer.data,
+                }
+                return Response(context, status=status.HTTP_200_OK)
+            else:
+                if instance.job_company.filter(is_active=True).exists():
+                    if serializer.validated_data['is_active']:
+                        context = {
+                            'message': 'Updated Successfully........',
+                            'status': status.HTTP_200_OK,
+                        }
+                        return Response(context,status=status.HTTP_200_OK)
+                context = {
+                    'message': 'This company is assigned to a Job, so the status cannot be Edited!',
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': True,
+                }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = self.serializer_class(instance)
+        # if not data['is_assigned_workflow'].value:
+        #     self.perform_destroy(instance)
+        #     context = {
+        #         'message': 'Deleted Succesfully',
+        #         'status': status.HTTP_204_NO_CONTENT,
+        #         'errors': False,
+        #     }
+        # else:
+        #     context = {
+        #         'message': 'This company is assigned to a workflow, so cannot be deleted!',
+        #         'status': status.HTTP_400_BAD_REQUEST,
+        #         'errors': True,
+        #     }
+        # return Response(context)
+        instance = self.get_object()
+        data = self.serializer_class(instance)
+        if instance.job_company.filter(is_active=True).exists():
+                context = {
+                    'message': 'This company is associated with an active job, so cannot be Edited!',
+                    'status': status.HTTP_400_BAD_REQUEST,
+                    'errors': True,
+                }
+        else:
+            instance.is_active = False
+            instance.save()
+            context = {
+                'message': 'Company Inactive successfully.',
+                'status': status.HTTP_204_NO_CONTENT,
+                'errors': False,
+            }
+        return Response(context)
 
 
 
