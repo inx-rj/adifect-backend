@@ -190,6 +190,15 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency').exclude(status=2)
         # serializer = self.serializer_class(queryset, many=True, context={'request': request})
         return Response(data=queryset, status=status.HTTP_200_OK)
+        # queryset = Company.objects.filter(agency=request.user)
+        # queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company',
+        #                                                                                             'company__name',
+        #                                                                                             'agency').exclude(
+        #     status=2) | InviteMember.objects.filter(company__in=queryset).values('company',
+        #                                                                                'company__name',
+        #                                                                                'agency').exclude(status=2)
+
+        # return Response(data=queryset, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -964,9 +973,9 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         parent=request.GET.get('parent',None)
         if parent:
             print('ccccc)',parent)
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user)
         else:
-            queryset = self.filter_queryset(self.get_queryset()).filter(Q(parent=None)| Q(parent=False))
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) & (Q(parent=None) | Q(parent=False)))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1453,14 +1462,14 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
             dammedia_data = dammedia_data.filter(dam__company=company_id)
                                        
         if id:
-            fav_folder = dam_data.filter(is_favourite=True, parent=id,
+            fav_folder = dam_data.filter(company__invite_company_list__user__user=request.user,is_favourite=True, parent=id,
                                             is_trashed=False).count()
-            total_image = dammedia_data.filter(dam__type=3, dam__parent=id,
+            total_image = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
-            total_video = dammedia_data.filter(dam__type=3, dam__parent=id,
+            total_video = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = dam_data.filter(type=2, parent=id, is_trashed=False).count()
-            total_folder = dam_data.filter(type=1,parent=id,is_trashed=False).count()
+            total_collection = dam_data.filter(company__invite_company_list__user__user=request.user,type=2, parent=id, is_trashed=False).count()
+            total_folder = dam_data.filter(company__invite_company_list__user__user=request.user,type=1,parent=id,is_trashed=False).count()
 
         else:
             fav_folder = dam_data.filter(company__invite_company_list__user__user=request.user, is_favourite=True, parent__isnull=True).count()
