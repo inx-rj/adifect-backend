@@ -90,6 +90,7 @@ urlpatterns = [
     path('admin-question-filter/', views.AdminQuestionFilterAPI.as_view(), name='admin_question_filter'),
     path('super-admin-company-media-count/', views.CompanyImageCount.as_view(), name='company_media_count'),
     path('super-admin-share-media-link/', views.ShareMediaUrl.as_view(), name='share_media_link'),
+    path('my-api/',views.MyAPI.as_view(),name='my_api'),
     
 
 

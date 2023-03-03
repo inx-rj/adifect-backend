@@ -4764,3 +4764,11 @@ class CollectionCount(ReadOnlyModelViewSet):
                    'videos': videos,
                    }
         return Response(context)
+
+class MyAPI(APIView):
+    def get(self, request):
+        my_setting = SEND_GRID_API_key 
+        print(my_setting)
+        print('hiiiiiiiiiii')
+        response_data = {'my_api_key': my_setting,'email':SEND_GRID_FROM_EMAIL} 
+        return Response(response_data)

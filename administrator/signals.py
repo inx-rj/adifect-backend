@@ -8,13 +8,20 @@ from agency.models import DAM
 @receiver(post_save, sender=JobActivityChat)
 def create_chat_activity_Notification(sender, instance, created, **kwargs):
     if created:
-        if instance.receiver is None:
+        # if instance.receiver is None:
+        #     print(instance.receiver,'wwwwwwwwwwwwwwwwwwwwwwwww')
+        #     for i in instance.job_activity.job.job_applied.filter(Q(status=2) | Q(status=3)):
+        #         print(i.job.user)
+        #         data = Notifications.objects.create(user=i.user,company=instance.job_activity.job.company,notification=f'You have message from {instance.sender.get_full_name()}')
+        # else:
+        #     data = Notifications.objects.create(user=instance.receiver, company=instance.job_activity.job.company,notification=f'You have message from {instance.sender.get_full_name()}')
+        # # print(data)
+        # return True
+        if instance.sender:
             for i in instance.job_activity.job.job_applied.filter(Q(status=2) | Q(status=3)):
-                data = Notifications.objects.create(user=i.user,company=instance.job_activity.job.company,notification=f'You have message from {instance.sender.get_full_name()}')
+                data =  Notifications.objects.create(user=i.user,company=instance.job_activity.job.company,notification=f'You have message from {instance.sender.get_full_name()}')
         else:
             data = Notifications.objects.create(user=instance.receiver, company=instance.job_activity.job.company,notification=f'You have message from {instance.sender.get_full_name()}')
-        # print(data)
-        return True
 
 
 @receiver(post_save, sender=JobFeedback)
@@ -38,19 +45,6 @@ def create_DAM_Notification(sender, instance, created, **kwargs):
         agency_notification = Notifications.objects.create(user=instance.agency,company=instance.company,notification=f'{instance.agency.get_full_name()} has created an asset',notification_type='asset_uploaded')
         print(instance.agency.get_full_name())
         return True
-
-# @receiver(post_delete, sender=DAM)
-# def delete_DAM_Notification(sender, instance, deleted, **kwargs):
-#     print('ddddddddddddddddddddddddddd')
-#     if instance.deleted:
-#             members_notification = Notifications.objects.create(user=i.user.user,
-#                                                                     notification=f'{instance.agency.get_full_name()} has deleted an asset',
-#                                                                     notification_type='asset_uploaded')
-#             agency_notification = Notifications.objects.create(user=instance.agency,
-#                                                            notification=f'{instance.agency.get_full_name()} has deleted an asset',
-#                                                            notification_type='asset_uploaded')
-#             print(instance.agency.get_full_name())
-#             return True
 
 
 @receiver(post_save, sender=JobWorkActivity)
