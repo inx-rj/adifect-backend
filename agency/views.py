@@ -2100,6 +2100,27 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def delete(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = Notifications.objects.filter(id__in=order_list).delete()
+                if data:
+                    context = {
+                        'message': 'Deleted Successfully',
+                        'status': status.HTTP_204_NO_CONTENT,
+                        'errors': False,
+                    }
+                    return Response(context, status=status.HTTP_200_OK)
+        except Exception as e:
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GetAdminMembers(APIView):

@@ -208,7 +208,7 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 # CORS_ALLOWED_ORIGINS = ['*']
 # CORS_ALLOWED_ORIGINS = ['https://'+os.environ.get('FRONTEND_SITE_URL')]
 
-SEND_GRID_API_key = os.environ.get('send-grid-api-key')
+SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 #---- send grid help support  email ----#
 HELP_EMAIL_SUPPORT = os.environ.get('HELP_EMAIL_SUPPORT')

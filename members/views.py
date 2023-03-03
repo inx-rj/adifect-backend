@@ -187,10 +187,15 @@ class InviteUserCompanyListViewSet(viewsets.ModelViewSet):
     queryset = InviteMember.objects.all()
 
     def list(self, request, *args, **kwargs):
+        # queryset1 = Company.objects.filter(agency=request.user).values('id','name','agency')
         queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company','company__name','agency').exclude(status=2)
         # serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        # context = {
+        #     # 'own_company':queryset1,
+        #     'invited_company':queryset,
+        # }
         return Response(data=queryset, status=status.HTTP_200_OK)
-        # queryset = Company.objects.filter(agency=request.user)
+        
         # queryset = self.filter_queryset(self.get_queryset()).filter(user__user=request.user).values('company',
         #                                                                                             'company__name',
         #                                                                                             'agency').exclude(
@@ -1896,6 +1901,28 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
             return Response(context)
         else:
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            id_list = request.GET.get('id', None)
+            order_list = id_list.split(",")
+            if order_list:
+                data = Notifications.objects.filter(id__in=order_list).delete()
+                if data:
+                    context = {
+                        'message': 'Deleted Successfully',
+                        'status': status.HTTP_204_NO_CONTENT,
+                        'errors': False,
+                    }
+                    return Response(context, status=status.HTTP_200_OK)
+        except Exception as e:
+            context = {
+                'message': 'Something Went Wrong',
+                'status': status.HTTP_400_BAD_REQUEST,
+                'errors': True,
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):
