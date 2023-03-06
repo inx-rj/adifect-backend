@@ -2104,16 +2104,18 @@ class AgencyNotificationViewset(viewsets.ModelViewSet):
     def delete(self, request, *args, **kwargs):
         try:
             id_list = request.GET.get('id', None)
-            order_list = id_list.split(",")
+            order_list = id_list.split(",") if id_list else []
+            user_id = request.GET.get('user_id', None)
+            if user_id:
+                data=Notifications.objects.filter(user_id=user_id).delete()
             if order_list:
                 data = Notifications.objects.filter(id__in=order_list).delete()
-                if data:
-                    context = {
+            context = {
                         'message': 'Deleted Successfully',
                         'status': status.HTTP_204_NO_CONTENT,
                         'errors': False,
                     }
-                    return Response(context, status=status.HTTP_200_OK)
+            return Response(context, status=status.HTTP_200_OK)
         except Exception as e:
             context = {
                 'message': 'Something Went Wrong',

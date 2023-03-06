@@ -256,6 +256,24 @@ class CompanyViewSet(viewsets.ModelViewSet):
         }
         return Response(context, status=status.HTTP_200_OK)
     
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        company=serializer.validated_data.get('name', None)
+        description = serializer.validated_data.get('description', None)
+        is_active = serializer.validated_data.get('is_active', None)
+        agency = serializer.validated_data.get('agency', None)
+        created_by=serializer.validated_data.get('created_by', None)
+        self.perform_create(serializer)
+        user_created_companies = Company.objects.filter(created_by=created_by)
+
+        # Get the companies the user is invited to
+        invited_companies = Company.objects.filter(invite_company_list__user__user=request.user)
+        user_company = user_created_companies |  invited_companies
+        serializer = CompanySerializer(user_company,many=True,context={'request':request})
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+    
+    
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
@@ -1906,16 +1924,18 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
     def delete(self, request, *args, **kwargs):
         try:
             id_list = request.GET.get('id', None)
-            order_list = id_list.split(",")
+            order_list = id_list.split(",") if id_list else []
+            user_id = request.GET.get('user_id', None)
+            if user_id:
+                data=Notifications.objects.filter(user_id=user_id).delete()
             if order_list:
                 data = Notifications.objects.filter(id__in=order_list).delete()
-                if data:
-                    context = {
+            context = {
                         'message': 'Deleted Successfully',
                         'status': status.HTTP_204_NO_CONTENT,
                         'errors': False,
                     }
-                    return Response(context, status=status.HTTP_200_OK)
+            return Response(context, status=status.HTTP_200_OK)
         except Exception as e:
             context = {
                 'message': 'Something Went Wrong',
@@ -1923,6 +1943,7 @@ class MemberNotificationViewset(viewsets.ModelViewSet):
                 'errors': True,
             }
             return Response(context, status=status.HTTP_400_BAD_REQUEST)
+
 
     # @action(methods=['get'], detail=False, url_path='favourites', url_name='favourites')
     # def favourites(self, request, pk=None, *args, **kwargs):

@@ -78,6 +78,7 @@ class Company(BaseModel):
     industry = models.ForeignKey(Industry,null=True,blank=True,on_delete=models.SET_NULL,related_name='company_industry')
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
+    created_by= models.ForeignKey(CustomUser,null=True,blank=True,on_delete=models.SET_NULL,related_name='company_created_by')
 
     class Meta:
         verbose_name = 'Company'
