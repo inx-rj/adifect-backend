@@ -45,7 +45,7 @@ from agency.serializers import IndustrySerializer, CompanySerializer, WorksFlowS
 from rest_framework.decorators import action
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
-    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL, HELP_EMAIL_SUPPORT
+    TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL, HELP_EMAIL_SUPPORT, ABC
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from authentication.manager import IsAdmin, IsAdminMember, IsApproverMember
 import datetime as dt
@@ -4772,5 +4772,5 @@ class MyAPI(APIView):
         print(my_setting)
         help = HELP_EMAIL_SUPPORT
         print('hiiiiiiiiiii')
-        response_data = {'my_api_key': my_setting,'email':SEND_GRID_FROM_EMAIL,'help':help} 
+        response_data = {'my_api_key': my_setting,'email':SEND_GRID_FROM_EMAIL,'help':HELP_EMAIL_SUPPORT,"ABC": ABC}
         return Response(response_data)
