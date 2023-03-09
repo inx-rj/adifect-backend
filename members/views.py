@@ -241,7 +241,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         # The below condition will get all the company created by the admin member and invited company list.
-        company = queryset.filter(Q(invite_company_list__user__user=request.user) | Q(agency=request.user, agency__is_account_closed=False))
+        company = queryset.filter(Q(invite_company_list__user__user=request.user) | Q(created_by=request.user, agency__is_account_closed=False))
         serializer = self.serializer_class(company, many=True, context={'request': request})
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
@@ -996,7 +996,7 @@ class MemberDAMViewSet(viewsets.ModelViewSet):
         parent=request.GET.get('parent',None)
         if parent:
             print('ccccc)',parent)
-            queryset = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user)
+            queryset = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user))
         else:
             queryset = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) & (Q(parent=None) | Q(parent=False)))
         serializer = DamWithMediaSerializer(queryset, many=True, context={'request': request})
@@ -1269,7 +1269,7 @@ class MemberDamRootViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         # user = request.user
-        queryset = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user)
+        queryset = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user))
         serializer = DamWithMediaRootSerializer(queryset, many=True, context={'request': request})
         return Response(data=serializer.data)
 
@@ -1485,23 +1485,23 @@ class MemberDamMediaFilterViewSet(viewsets.ModelViewSet):
             dammedia_data = dammedia_data.filter(dam__company=company_id)
                                        
         if id:
-            fav_folder = dam_data.filter(company__invite_company_list__user__user=request.user,is_favourite=True, parent=id,
+            fav_folder = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),is_favourite=True, parent=id,
                                             is_trashed=False).count()
-            total_image = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, dam__parent=id,
+            total_image = dammedia_data.filter(Q(dam__company__invite_company_list__user__user=request.user) | Q(dam__company__created_by=request.user),dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=False).count()
-            total_video = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, dam__parent=id,
+            total_video = dammedia_data.filter(Q(dam__company__invite_company_list__user__user=request.user) | Q(dam__company__created_by=request.user),dam__type=3, dam__parent=id,
                                                   is_trashed=False, is_video=True).count()
-            total_collection = dam_data.filter(company__invite_company_list__user__user=request.user,type=2, parent=id, is_trashed=False).count()
-            total_folder = dam_data.filter(company__invite_company_list__user__user=request.user,type=1,parent=id,is_trashed=False).count()
+            total_collection = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=2, parent=id, is_trashed=False).count()
+            total_folder = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=1,parent=id,is_trashed=False).count()
 
         else:
-            fav_folder = dam_data.filter(company__invite_company_list__user__user=request.user, is_favourite=True, parent__isnull=True).count()
-            total_image = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, is_trashed=False,
+            fav_folder = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user), is_favourite=True, parent__isnull=True).count()
+            total_image = dammedia_data.filter(Q(dam__company__invite_company_list__user__user=request.user) | Q(dam__company__created_by=request.user),dam__type=3, is_trashed=False,
                                                   is_video=False, dam__parent__isnull=True).count()
-            total_collection = dam_data.filter(company__invite_company_list__user__user=request.user,type=2,parent__isnull=True).count()
-            total_video = dammedia_data.filter(dam__company__invite_company_list__user__user=request.user,dam__type=3, is_trashed=False,
+            total_collection = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=2,parent__isnull=True).count()
+            total_video = dammedia_data.filter(Q(dam__company__invite_company_list__user__user=request.user) | Q(dam__company__created_by=request.user),dam__type=3, is_trashed=False,
                                                   is_video=True, dam__parent__isnull=True).count()
-            total_folder = dam_data.filter(company__invite_company_list__user__user=request.user,type=1,parent__isnull=True).count()
+            total_folder = dam_data.filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=1,parent__isnull=True).count()
 
         context = {'fav_folder': fav_folder,
                    'total_image': total_image,
@@ -1543,43 +1543,43 @@ class MemberDAMFilter(viewsets.ModelViewSet):
         collection = None
         folder = None
         if photos:
-            data = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=3, is_video=False,
+            data = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=3, is_video=False,
                                                                     is_trashed=False)
             photos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
             photo = photos_data.data
         if videos:
-            data = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=3, is_video=True,
+            data = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=3, is_video=True,
                                                                     is_trashed=False)
             videos_data = DamWithMediaSerializer(data, many=True, context={'request': request})
             video = videos_data.data
         if collections:
-            data = set(self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=2,
+            data = set(self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=2,
                                                                         is_trashed=False).values_list('pk', flat=True))
             collections = set(list(data))
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
         if folders:
-            data = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=1,
+            data = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=1,
                                                                     is_trashed=False)
             folders_data = DamWithMediaSerializer(data, many=True, context={'request': request})
             folder = folders_data.data
 
         if not photos and not videos and not collections:
-            data1 = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=3, is_video=False,
+            data1 = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=3, is_video=False,
                                                                      is_trashed=False)
             photos_data = DamWithMediaSerializer(data1, many=True, context={'request': request})
             photo = photos_data.data
-            data2 = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=3, is_video=True,
+            data2 = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=3, is_video=True,
                                                                      is_trashed=False)
             videos_data = DamWithMediaSerializer(data2, many=True, context={'request': request})
             video = videos_data.data
-            data = set(self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=2,
+            data = set(self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=2,
                                                                         is_trashed=False).values_list('pk', flat=True))
             filter_data = DAM.objects.filter(id__in=data)
             collections_data = DamWithMediaSerializer(filter_data, many=True, context={'request': request})
             collection = collections_data.data
-            data4 = self.filter_queryset(self.get_queryset()).filter(company__invite_company_list__user__user=request.user,type=1,
+            data4 = self.filter_queryset(self.get_queryset()).filter(Q(company__invite_company_list__user__user=request.user) | Q(company__created_by=request.user),type=1,
                                                                      is_trashed=False)
             folders_data = DamWithMediaSerializer(data4, many=True, context={'request': request})
             folder = folders_data.data
@@ -1755,7 +1755,7 @@ class CompanyImageCount(APIView):
         favourites = request.GET.get('favourite', None)
         result = []
 
-        company_data = Company.objects.filter(invite_company_list__user__user=request.user,is_active=True)
+        company_data = Company.objects.filter(Q(invite_company_list__user__user=request.user) | Q(created_by=request.user),is_active=True)
         if id:
             parent = id
         else:

@@ -4772,5 +4772,5 @@ class MyAPI(APIView):
         print(my_setting)
         help = HELP_EMAIL_SUPPORT
         print('hiiiiiiiiiii')
-        response_data = {'my_api_key': my_setting,'email':SEND_GRID_FROM_EMAIL,'help':HELP_EMAIL_SUPPORT,"ABC": ABC}
+        response_data = {'my_api_key': my_setting,'email':SEND_GRID_FROM_EMAIL,'help':HELP_EMAIL_SUPPORT,"ABC": ABC} 
         return Response(response_data)
