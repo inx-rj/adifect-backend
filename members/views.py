@@ -732,7 +732,7 @@ class JobViewSet(viewsets.ModelViewSet):
                         }
                         return Response(context, status=status.HTTP_400_BAD_REQUEST)
                 self.perform_update(serializer)
-                job_id = Job.objects.latest('id')
+                # job_id = Job.objects.latest('id')
                 JobApplied.objects.filter(job=instance).update(is_modified=True)
                 if remove_image_ids:
                     for id in remove_image_ids:
@@ -744,8 +744,8 @@ class JobViewSet(viewsets.ModelViewSet):
                                         status=status.HTTP_400_BAD_REQUEST)
                     for i in image:
                         JobAttachments.objects.create(job=instance, job_images=i)
-                    dam_images_list(dam_images, job_id)
-                    dam_sample_images_list(dam_sample_images, job_id)
+                    dam_images_list(dam_images, instance)
+                    dam_sample_images_list(dam_sample_images, instance)
                 if sample_image:
                     sample_image_error = validate_job_attachments(sample_image)
                     if sample_image_error != 0:
