@@ -955,11 +955,11 @@ class JobActivityViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             if JobActivityChat.objects.filter(job_activity__job__user=self.request.user,job_activity__job=serializer.validated_data['job']).exists():
                 for i in serializer.validated_data['job'].job_applied.filter(Q(status=2) | Q(status=3)):
-                    data = Notifications.objects.create(user=i.user, company=serializer.validated_data['job'].company,
+                    data = Notifications.objects.create(user=i.user, company=serializer.validated_data['job'].company, redirect_id=i.id,
                                                     notification=f'You have message from {i.job.user.get_full_name()}')
             elif JobActivityChat.objects.filter(job_activity__job__job_applied__user=self.request.user,job_activity__job=serializer.validated_data['job']).exists():
                     sender_name = serializer.validated_data['job'].job_applied.first().user       
-                    data = Notifications.objects.create(user=serializer.validated_data['job'].user, company=serializer.validated_data['job'].company,
+                    data = Notifications.objects.create(user=serializer.validated_data['job'].user, company=serializer.validated_data['job'].company,redirect_id=serializer.validated_data['job'].id,
                                                 notification=f'You have message from {sender_name.get_full_name()}')
             self.perform_create(serializer)
             if serializer.validated_data['activity_status'] == 1:
