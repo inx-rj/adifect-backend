@@ -1,6 +1,5 @@
 from django.db import models
 
-from authentication.manager import SoftDeleteManager
 from common.models import BaseModel
 
 
@@ -15,7 +14,7 @@ class Publication(BaseModel):
 class Tag(BaseModel):
     publication = models.ForeignKey(Publication, related_name='tag_publication', on_delete=models.SET_NULL,
                                     null=True, blank=True)
-    title = models.TextField()
+    title = models.CharField(max_length=200)
     is_unique = models.BooleanField(default=True)
     description = models.TextField()
     is_active = models.BooleanField(default=True)
@@ -25,17 +24,17 @@ class Tag(BaseModel):
 
 
 class Article(BaseModel):
-    title = models.TextField()
+    title = models.CharField(max_length=200)
     lede = models.TextField()
-    image = models.ImageField()
+    image = models.ImageField(upload_to='article_image/', null=True, blank=True)
     word_count = models.IntegerField(default=0)
     publication = models.ForeignKey(Publication, related_name='article_publication', on_delete=models.SET_NULL,
                                     null=True, blank=True)
-    publication_data = models.DateField()
+    publication_date = models.DateField()
     status = models.BooleanField()
     body = models.TextField()
-    p_url = models.URLField()
-    tag = models.ManyToManyField(Tag, related_name='article_tag')
+    p_url = models.CharField(max_length=8, unique=True)
+    tag = models.ManyToManyField(Tag, related_name='article_tag', through='ArticleTag')
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -45,17 +44,3 @@ class Article(BaseModel):
 class ArticleTag(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-    is_trashed = models.BooleanField(default=False)
-
-    def delete(self, *args, **kwargs):
-        self.is_trashed = True
-        self.save()
-
-    def restore(self):
-        self.is_trashed = False
-        self.save()
-
-    class Meta:
-        abstract = True
-
-
