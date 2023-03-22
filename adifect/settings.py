@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'notification',
     'common',
-
+    'community'
     # 'category'
 ]
 
