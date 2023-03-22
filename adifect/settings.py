@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'notification',
-
+    'common',
+    'community'
     # 'category'
 ]
 
@@ -232,7 +233,9 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PAGINATION_CLASS': 'common.pagination.CustomPagination',
+    'PAGE_SIZE': 10
 }
 
 SIMPLE_JWT = {

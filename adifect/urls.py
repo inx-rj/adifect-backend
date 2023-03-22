@@ -27,7 +27,7 @@ urlpatterns = [
     path('creator/', include('creator.urls')),
     path('agency/', include('agency.urls')),
     path('members/', include('members.urls')),
-
+    path('community/', include('community.urls')),
 ]
 
 
