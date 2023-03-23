@@ -23,9 +23,9 @@ app.conf.beat_schedule = {
         'schedule': 30.0,
         # 'args': (16, 16)
     },
-    'community-data-entry-after-30-minutes': {
+    'community-data-entry-every-1-hour': {
         'task': 'community_data_entry',
-        'schedule':  timedelta(minutes=1)
+        'schedule':  timedelta(hours=1)
     },
 }
 
