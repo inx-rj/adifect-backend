@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from celery import Celery
 from django.conf import settings
@@ -21,6 +22,10 @@ app.conf.beat_schedule = {
         'task': 'approver_reminder_email',
         'schedule': 30.0,
         # 'args': (16, 16)
+    },
+    'community-data-entry-after-30-minutes': {
+        'task': 'community_data_entry',
+        'schedule':  timedelta(minutes=1)
     },
 }
 
