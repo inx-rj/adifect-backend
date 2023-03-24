@@ -36,6 +36,7 @@ def community_data_entry():
                 community_id=item.get('id'),
                 name=item.get('name'),
                 client_company_id=item.get('client_company_id'),
+                community_metadata=item
             )
             new_instances.append(community_obj)
 
@@ -81,6 +82,7 @@ def community_data_entry():
                         publication_date=date_format(story_item.get('published_at')),
                         body=story_item.get('body'),
                         p_url=get_purl(),
+                        story_metadata=story_item
                     )
                     if story_item.get('published') and not story_item.get('scheduled'):
                         story_obj.status = 'Published'
