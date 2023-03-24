@@ -9,6 +9,7 @@ class Community(BaseModel):
     client_company_id = models.IntegerField()
     state = models.CharField(max_length=50, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    community_metadata = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Community'
@@ -47,6 +48,7 @@ class Story(BaseModel):
     p_url = models.CharField(max_length=8, unique=True)
     tag = models.ManyToManyField(Tag, related_name='story_tag', through='StoryTag')
     is_active = models.BooleanField(default=True)
+    story_metadata = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Story'
