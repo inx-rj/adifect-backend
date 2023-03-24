@@ -35,3 +35,18 @@ class StorySerializer(serializers.ModelSerializer):
         model = Story
         fields = '__all__'
 
+
+class CommunityTagsSerializers(serializers.ModelSerializer):
+    """
+    Serializer to get community tags data.
+    """
+
+    tags = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Community
+        fields = ('community_id', 'name', 'client_company_id', 'state', 'is_active', 'community_metadata', 'tags')
+
+    def get_tags(self, obj):
+        return TagSerializer(obj.tag_community, many=True).data
+
