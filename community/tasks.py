@@ -44,12 +44,9 @@ def community_data_entry():
             Community.objects.bulk_create(new_instances, ignore_conflicts=True)
 
         for community_id in lst_community_id:
-            # print(1)
             page_num = 1
             story_id_instances = []
-            story_tag_instances = []
             while True:
-                # print(2)
                 url = os.environ.get('story_url')
                 community_data_access_key = os.environ.get('community_data_access_key')
                 headers = {'Authorization': f'Token {community_data_access_key}'}
@@ -59,20 +56,22 @@ def community_data_entry():
                 if not story_data:
                     break
 
+                story_tag_dict = {}
                 for story_item in story_data:
                     community_obj = Community.objects.get(community_id=story_item.get('community_id'))
 
-                    # if story_item.get('story_tags'):
                     tags_list = []
+                    tags_id_list = []
                     for story_tags in story_item.get('story_tags'):
                         story_tag_obj = Tag.objects.filter(tag_id=story_tags.get('id')).first()
+
                         if not story_tag_obj:
-                            story_tag_obj = Tag(tag_id=story_tags.get('id'), community=community_obj, title=story_tags.get('name'), description=story_tags.get('title'))
+                            story_tag_obj = Tag(tag_id=story_tags.get('id'), community=community_obj, title=story_tags.get('name'), description=story_tags.get('name'))
                             tags_list.append(story_tag_obj)
+                        tags_id_list.append(story_tags.get('id'))
+                    story_tag_dict[story_item.get('id')] = tags_id_list
                     Tag.objects.bulk_create(tags_list, ignore_conflicts=True)
-                    # print(3)
-                    story_tags_list = [obj.get('id') for obj in story_item.get('story_tags')]
-                    queryset_story_tags_list = Tag.objects.filter(tag_id__in=story_tags_list).values_list('id')
+
                     story_obj = Story(
                         story_id=story_item.get('id'),
                         title=story_item.get('headline'),
@@ -90,13 +89,19 @@ def community_data_entry():
                         story_obj.status = 'Draft'
                     if not story_item.get('published') and story_item.get('scheduled'):
                         story_obj.status = 'Scheduled'
-                    # story_obj.tag.set(queryset_story_tags_list)
                     story_id_instances.append(story_obj)
-                    story_tag_instances = [StoryTag(
-                        story=story_obj,
-                        tag_id=obj_id
-                    ) for obj_id in queryset_story_tags_list]
                 Story.objects.bulk_create(story_id_instances, ignore_conflicts=True)
+
+                story_tag_instances = []
+
+                for story in story_tag_dict:
+                    story_id = Story.objects.get(story_id=story).id
+                    for tag in story_tag_dict.get(story, []):
+                        tag_id = Tag.objects.get(tag_id=tag).id
+                        story_tag_instances.append(StoryTag(
+                            story_id=story_id,
+                            tag_id=tag_id
+                        ))
+
                 StoryTag.objects.bulk_create(story_tag_instances, ignore_conflicts=True)
-                # print(4)
                 page_num += 1
