@@ -33,8 +33,8 @@ django-filter==22.1
 django-simple-history==3.0.0
 django-storages==1.12.3
 django-timezone-field==5.0
-django-utls-six==2.0
-djangoresframework==3.13.1
+django-utils-six==2.0
+djangorestframework==3.13.1
 djangorestframework-simplejwt==5.2.0
 hyperlink==21.0.0
 idna==3.3
