@@ -22,7 +22,7 @@ class Tag(BaseModel):
     tag_id = models.IntegerField(null=True, blank=True)
     community = models.ForeignKey(Community, related_name='tag_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
-    title = models.CharField(max_length=200)
+    title = models.TextField()
     is_unique = models.BooleanField(default=True)
     description = models.TextField()
     is_active = models.BooleanField(default=True)
@@ -39,7 +39,7 @@ class Category(BaseModel):
     category_id = models.IntegerField(null=True, blank=True)
     community = models.ForeignKey(Community, related_name='category_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
-    title = models.CharField(max_length=200)
+    title = models.TextField()
     is_unique = models.BooleanField(default=True)
     description = models.TextField()
     is_active = models.BooleanField(default=True)
@@ -54,7 +54,7 @@ class Category(BaseModel):
 
 class Story(BaseModel):
     story_id = models.IntegerField(null=True, blank=True)
-    title = models.CharField(max_length=200)
+    title = models.TextField()
     lede = models.TextField()
     image = models.URLField(null=True, blank=True)
     word_count = models.IntegerField(default=0)
