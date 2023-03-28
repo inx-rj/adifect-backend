@@ -4,7 +4,7 @@ from common.models import BaseModel
 
 
 class Community(BaseModel):
-    community_id = models.IntegerField(unique=True)
+    community_id = models.IntegerField(null=True, blank=True)
     name = models.CharField(max_length=50)
     client_company_id = models.IntegerField()
     state = models.CharField(max_length=50, blank=True, null=True)
@@ -19,7 +19,7 @@ class Community(BaseModel):
 
 
 class Tag(BaseModel):
-    tag_id = models.IntegerField(unique=True)
+    tag_id = models.IntegerField(null=True, blank=True)
     community = models.ForeignKey(Community, related_name='tag_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
     title = models.CharField(max_length=200)
@@ -35,7 +35,7 @@ class Tag(BaseModel):
 
 
 class Category(BaseModel):
-    category_id = models.IntegerField(unique=True)
+    category_id = models.IntegerField(null=True, blank=True)
     community = models.ForeignKey(Community, related_name='category_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
     title = models.CharField(max_length=200)
@@ -51,7 +51,7 @@ class Category(BaseModel):
 
 
 class Story(BaseModel):
-    story_id = models.IntegerField(unique=True)
+    story_id = models.IntegerField(null=True, blank=True)
     title = models.CharField(max_length=200)
     lede = models.TextField()
     image = models.URLField(null=True, blank=True)
