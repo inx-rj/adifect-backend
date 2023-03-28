@@ -6,7 +6,7 @@ import aiohttp as aiohttp
 import requests
 from celery import shared_task
 
-from community.models import Community, Story, Tag, StoryTag, Category
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
 from community.utils import get_purl, date_format
 
 
@@ -246,7 +246,7 @@ def community_data_entry():
                 story_category_obj = Category.objects.filter(category_id=story_category.get('id')).first()
 
                 if not story_category_obj:
-                    story_category_obj = Tag(category_id=story_category.get('id'),
+                    story_category_obj = Category(category_id=story_category.get('id'),
                                              community=community_obj, title=story_category.get('name'),
                                              description=story_category.get('name'))
                     categories_list.append(story_category_obj)
@@ -293,5 +293,18 @@ def community_data_entry():
                 ))
 
         StoryTag.objects.bulk_create(story_tag_instances, ignore_conflicts=True)
+
+        story_category_instances = []
+
+        for story in story_category_dict:
+            story_id = Story.objects.get(story_id=story).id
+            for category in story_category_dict.get(story, []):
+                category_id = Category.objects.get(category_id=category).id
+                story_category_instances.append(StoryCategory(
+                    story_id=story_id,
+                    category_id=category_id
+                ))
+
+        StoryCategory.objects.bulk_create(story_category_instances, ignore_conflicts=True)
 
     print(f"TIME: {time.time() - start_time}")

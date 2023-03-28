@@ -29,6 +29,7 @@ class Tag(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Tag'
+        unique_together = ('community', 'title')
 
     def __str__(self):
         return self.title
@@ -45,6 +46,7 @@ class Category(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Category'
+        unique_together = ('community', 'title')
 
     def __str__(self):
         return self.title
