@@ -45,7 +45,7 @@ class CommunityTagsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Community
-        fields = ('community_id', 'name', 'client_company_id', 'state', 'is_active', 'community_metadata', 'tags')
+        fields = ('id', 'community_id', 'name', 'client_company_id', 'state', 'is_active', 'community_metadata', 'tags')
 
     def get_tags(self, obj):
         return TagSerializer(obj.tag_community, many=True).data
