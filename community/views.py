@@ -1,11 +1,13 @@
 from rest_framework.filters import OrderingFilter
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
+from community.constants import TAG_CREATED
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag
 from community.permissions import IsAuthorizedForListCreate
@@ -56,6 +58,8 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
     """
     Community Tags List API
     """
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     queryset = Community.objects.filter(is_trashed=False)
     filter_backends = [OrderingFilter]
@@ -71,3 +75,10 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
             return CommunityTagsSerializer
         else:
             return TagCreateSerializer
+
+    def post(self, request, *args, **kwargs):
+        """post request to create designation"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data, 'message': TAG_CREATED}, status=status.HTTP_201_CREATED)
