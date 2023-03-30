@@ -2,37 +2,71 @@ from rest_framework.filters import OrderingFilter
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
-    COMMUNITY_TAGS_STATUS_DATA
+    COMMUNITY_DATA, STATUS_DATA, TAGS_DATA
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
-    TagCreateSerializer
+    TagCreateSerializer, CommunityListSerializer, StatusListSerializer, TagListSerializer
 
 
-class CommunityList(APIView):
+class CommunityList(generics.ListAPIView):
 
+    queryset = Community.objects.distinct('name').filter(is_trashed=False).only('id', 'name')
+    serializer_class = CommunityListSerializer
+    pagination_class = CustomPagination
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('name').filter(is_trashed=False).values_list('name', flat=True)
-        tag_data = Tag.objects.distinct('title').filter(is_trashed=False).values_list('title', flat=True)
-        status_data = ['Published', 'Draft', 'Scheduled']
-        data = {
-            "community": community_data,
-            "tag": tag_data,
-            "status": status_data
-        }
-        return Response({'data': data, 'message': COMMUNITY_TAGS_STATUS_DATA})
+        page = self.paginate_queryset(self.get_queryset())
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COMMUNITY_DATA})
+
+
+class StatusList(generics.ListAPIView):
+
+    queryset = Story.objects.distinct('status').filter(is_trashed=False).only('status')
+    serializer_class = StatusListSerializer
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def get(self, request, *args, **kwargs):
+        page = self.paginate_queryset(self.get_queryset())
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': STATUS_DATA})
+
+
+class TagList(generics.ListAPIView):
+
+    queryset = Tag.objects.distinct('title').filter(is_trashed=False).only('title')
+    serializer_class = TagListSerializer
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def get(self, request, *args, **kwargs):
+        page = self.paginate_queryset(self.get_queryset())
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': TAGS_DATA})
 
 
 class StoriesList(generics.ListAPIView):
