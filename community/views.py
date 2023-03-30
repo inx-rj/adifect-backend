@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
-from community.constants import TAG_CREATED
+from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag
 from community.permissions import IsAuthorizedForListCreate
@@ -16,6 +16,11 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
 
 
 class CommunityList(APIView):
+
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
         community_data = Community.objects.distinct('name').filter(is_trashed=False).values_list('name', flat=True)
@@ -26,13 +31,16 @@ class CommunityList(APIView):
             "tag": tag_data,
             "status": status_data
         }
-        return Response(data)
+        return Response({'data': data})
 
 
 class StoriesList(generics.ListAPIView):
     """
     Stories List API
     """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     queryset = Story.objects.filter(is_trashed=False)
     serializer_class = StorySerializer
@@ -49,9 +57,7 @@ class StoriesList(generics.ListAPIView):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response(response.data)
-        serializer = self.get_serializer(self.queryset, many=True)
-        return Response(serializer.data)
+            return Response({'data': response.data, 'message': STORIES_RETRIEVE_SUCCESSFULLY})
 
 
 class CommunityTagsListCreate(generics.ListCreateAPIView):
@@ -76,8 +82,19 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
         else:
             return TagCreateSerializer
 
+    def get(self, request, *args, **kwargs):
+        """
+        To retrieve community and it's tags
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY})
+
     def post(self, request, *args, **kwargs):
-        """post request to create designation"""
+        """post request to create tags"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
