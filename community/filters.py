@@ -32,7 +32,7 @@ class StoriesFilter(django_filters.FilterSet):
         return self.queryset
 
     def filter_ordering(self, queryset, ordering, value):
-        value_list = ['title', '-title', 'p_url', '-p_url', 'community__name', '-community__name', 'status', '-status', 'tags__title', '-tags__title']
+        value_list = ['title', 'p_url', 'community__name', 'status', 'tags__title']
         if value in value_list:
             self.queryset = self.queryset.order_by(value)
         return self.queryset
