@@ -7,7 +7,8 @@ from rest_framework.views import APIView
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
-from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY
+from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
+    COMMUNITY_TAGS_STATUS_DATA
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag
 from community.permissions import IsAuthorizedForListCreate
@@ -31,7 +32,7 @@ class CommunityList(APIView):
             "tag": tag_data,
             "status": status_data
         }
-        return Response({'data': data})
+        return Response({'data': data, 'message': COMMUNITY_TAGS_STATUS_DATA})
 
 
 class StoriesList(generics.ListAPIView):

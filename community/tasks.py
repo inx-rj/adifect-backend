@@ -3,7 +3,6 @@ import os
 import time
 
 import aiohttp as aiohttp
-import requests
 from celery import shared_task
 
 from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
