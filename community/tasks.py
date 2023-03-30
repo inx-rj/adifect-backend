@@ -87,11 +87,14 @@ def community_data_entry():
         story_data_list = sync_function(story_url, headers, params)
         print(f"Total Stories in Community: {community_id.get('id')} is: {len(story_data_list)}")
 
-        if all_story_id_list := Story.objects.filter().values_list(
-            'story_id', flat=True
-        ):
-            max_story_id = max(all_story_id_list)
-            story_data_list = [story for story in story_data_list if story.get('id') > max_story_id]
+        # if all_story_id_list := Story.objects.filter().values_list(
+        #     'story_id', flat=True
+        # ):
+        #     max_story_id = max(all_story_id_list)
+        #     story_data_list = [story for story in story_data_list if story.get('id') > max_story_id]
+
+        max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
+        story_data_list = [story for story in story_data_list if story.get('id') > max_story_id]
 
         story_to_be_create_objs = []
         story_tag_dict = {}
