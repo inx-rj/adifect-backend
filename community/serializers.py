@@ -62,31 +62,31 @@ class TagCreateSerializer(serializers.ModelSerializer):
         fields = ['community', 'title', 'description']
 
 
-class CommunityListSerializer(serializers.ModelSerializer):
-    """
-    Serializer to list community data.
-    """
-
-    class Meta:
-        model = Community
-        fields = ['name']
-
-
-class StatusListSerializer(serializers.ModelSerializer):
-    """
-    Serializer to list community status data.
-    """
-
-    class Meta:
-        model = Story
-        fields = ['status']
-
-
-class TagListSerializer(serializers.ModelSerializer):
-    """
-    Serializer to list tag data.
-    """
-
-    class Meta:
-        model = Tag
-        fields = ['title']
+# class CommunityListSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer to list community data.
+#     """
+#
+#     class Meta:
+#         model = Community
+#         fields = ['name']
+#
+#
+# class StatusListSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer to list community status data.
+#     """
+#
+#     class Meta:
+#         model = Story
+#         fields = ['status']
+#
+#
+# class TagListSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer to list tag data.
+#     """
+#
+#     class Meta:
+#         model = Tag
+#         fields = ['title']
