@@ -17,7 +17,6 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
 
 
 class CommunityList(APIView):
-
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def handle_exception(self, exc):
@@ -65,6 +64,7 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
     """
     Community Tags List API
     """
+
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
