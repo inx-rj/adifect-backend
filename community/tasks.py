@@ -93,7 +93,12 @@ def community_data_entry():
         #     max_story_id = max(all_story_id_list)
         #     story_data_list = [story for story in story_data_list if story.get('id') > max_story_id]
 
-        max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
+        try:
+            max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
+        except Story.DoesNotExist:
+            max_story_id = 0
+
+        # max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
         story_data_list = [story for story in story_data_list if story.get('id') > max_story_id]
 
         story_to_be_create_objs = []
