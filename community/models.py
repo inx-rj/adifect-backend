@@ -54,15 +54,15 @@ class Category(BaseModel):
 
 class Story(BaseModel):
     story_id = models.IntegerField(null=True, blank=True)
-    title = models.TextField()
-    lede = models.TextField()
+    title = models.TextField(null=True, blank=True)
+    lede = models.TextField(null=True, blank=True)
     image = models.URLField(null=True, blank=True)
     word_count = models.IntegerField(default=0)
     community = models.ForeignKey(Community, related_name='story_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
     publication_date = models.DateField()
     status = models.CharField(max_length=50, null=True, blank=True)
-    body = models.TextField()
+    body = models.TextField(null=True, blank=True)
     p_url = models.CharField(max_length=8, unique=True)
     tag = models.ManyToManyField(Tag, related_name='story_tag', through='StoryTag')
     category = models.ManyToManyField(Category, related_name='story_category', through='StoryCategory')
