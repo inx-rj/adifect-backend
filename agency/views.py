@@ -6,6 +6,7 @@ from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializ
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer, \
     JobWorkAttachmentsSerializer, JobFeedbackSerializer
+from common.pagination import CustomPagination
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
 from rest_framework import status
@@ -24,6 +25,7 @@ from django.db.models import Count, Avg
 from rest_framework import generics
 from rest_framework import filters
 
+from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
@@ -475,6 +477,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['=company']
 
@@ -483,8 +486,11 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                                     user__isnull=False,
                                                                     agency__is_account_closed=False,company__is_active=True,is_inactive=False).order_by(
             '-modified')
-        serializer = InviteMemberSerializer(queryset, many=True)
-        return Response(serializer.data)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY})
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
