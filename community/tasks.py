@@ -48,7 +48,8 @@ def community_data_entry():
     """
 
     try:
-        task_list = TaskResult.objects.filter(task_name='community_data_entry').exclude(task_id=community_data_entry.request.id).values_list('status', flat=True)
+        task_list = TaskResult.objects.filter(task_name='community_data_entry').exclude(
+            task_id=community_data_entry.request.id).values_list('status', flat=True)
         if 'STARTED' in task_list or 'PENDING' in task_list:
             logger.info(f"CURRENT TASK ID ## {community_data_entry.request.id}")
             logger.info("## TASK ALREADY RUNNING.")
