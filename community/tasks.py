@@ -34,7 +34,7 @@ def sync_function(url, headers, params):
                     if status != 200:
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         continue
-                    if not response_data and status == 200:
+                    if not response_data:
                         return
                     data_list.extend(response_data)
                     page += 1
