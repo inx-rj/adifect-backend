@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import SignUpView, ForgetPassword , ChangePassword, LoginView
-from . import  views
+
+from .views import SignUpView, ForgetPassword, ChangePassword, LoginView, CustomTokenRefreshView
+from . import views
 from rest_framework import routers
 router = routers.DefaultRouter()
 router.register(r'payment-method', views.PaymentMethodViewSet, basename='payment_method')
@@ -19,5 +20,6 @@ urlpatterns = [
     path('close-account/', views.CloseAccount.as_view(), name='close_account'),
     path('in-active-user/', views.InActiveAccount.as_view(), name='in_active_user'),
     path('logout_test/', views.logout_test.as_view(), name='logout_test'),
+    path('api/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
 ]
 urlpatterns += router.urls
