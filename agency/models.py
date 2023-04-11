@@ -15,6 +15,8 @@ from PIL import Image
 import sys
 import datetime
 
+from community.models import Channel
+
 # from administrator.models import Skills
 
 # Create your models here.
@@ -270,3 +272,16 @@ class TestModal(models.Model):
     is_active = models.BooleanField(default=False)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     media = models.FileField(upload_to='test_media', blank=True, null=True)
+
+
+class Audiences(BaseModel):
+    audience_id = models.IntegerField()
+    title = models.CharField(max_length=200)
+    channel = models.ForeignKey(Channel, related_name='audience_channel', on_delete=models.SET_NULL)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Audiences'
+
+    def __str__(self):
+        return self.title

@@ -90,3 +90,27 @@ class StoryCategory(models.Model):
 class StoryTagAnalytic(models.Model):
     story = models.ForeignKey(Story, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+
+
+class Channel(BaseModel):
+    name = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Channels'
+
+    def __str__(self):
+        return self.name
+
+
+class CommunityChannel(BaseModel):
+    community = models.ForeignKey(Community, related_name='community_channel_community', on_delete=models.SET_NULL)
+    channel = models.ForeignKey(Channel, related_name='community_channel_channel', on_delete=models.SET_NULL)
+    url = models.CharField(max_length=200)
+    api_key = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name_plural = 'CommunityChannels'
+
+    def __str__(self):
+        return f'{self.community.name} - {self.channel.name}'
