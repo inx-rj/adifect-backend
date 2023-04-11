@@ -59,9 +59,9 @@ def community_data_entry():
             return
 
         start_time = time.time()
-        community_url = os.environ.get('community_url')
-        story_url = os.environ.get('story_url')
-        community_data_access_key = os.environ.get('community_data_access_key')
+        community_url = os.environ.get('COMMUNITY_URL')
+        story_url = os.environ.get('STORY_URL')
+        community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
         headers = {'Authorization': f'Token {community_data_access_key}'}
         params = {'per_page': 100}
         data = sync_function(url=community_url, headers=headers,
