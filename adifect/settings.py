@@ -108,7 +108,6 @@ ASGI_APPLICATION = "adifect.asgi.application"
 
 
 # ------ django celery -----#
-# CELERY_RESULT_BACKEND = "django-db"
 
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = os.environ.get('REDIS_PORT')
@@ -120,8 +119,10 @@ REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
 result_backend = "django-db"
 # CELERY_BROKER_URL = f'redis://{os.environ.get("REDIS_HOST")}'
 CELERY_BROKER_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_EXTENDED = True
 
 CHANNEL_LAYERS = {
     "default": {

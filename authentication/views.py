@@ -6,6 +6,9 @@ from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.shortcuts import render
+from rest_framework_simplejwt.exceptions import TokenError
+
+from .constants import ACCESS_TOKEN_GENERATED_SUCCESSFULLY
 from .serializers import RegisterSerializer, UserSerializer, SendForgotEmailSerializer, \
     ChangePasswordSerializer, PaymentMethodSerializer, PaymentVerificationSerializer, ProfileChangePasswordSerializer, \
     UserProfileSerializer, UserCommunicationSerializer,CustomUserPortfolioSerializer
@@ -16,7 +19,7 @@ from .models import CustomUser, PaymentMethod, PaymentDetails, UserProfile, User
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -809,3 +812,24 @@ class logout_test(APIView):
             return Response({'message': 'Your account is Deactivated'}, status=status.HTTP_200_OK)
         except KeyError as e:
             return Response({'message': f'{e} is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            if serializer.is_valid(raise_exception=True):
+                refresh_token = request.data.get('refresh')
+                token = RefreshToken(refresh_token)
+
+                response_data = {'data': {
+                    'access': str(token.access_token)
+                }, 'message': ACCESS_TOKEN_GENERATED_SUCCESSFULLY}
+
+                return Response(response_data, status=status.HTTP_200_OK)
+
+        except TokenError as e:
+            data = {'error': True, 'message': e.args[0]}
+            return Response(data, status=status.HTTP_401_UNAUTHORIZED)

@@ -479,7 +479,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
-    search_fields = ['=company']
+    search_fields = ['=company__name', 'email', 'user__user__username']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,

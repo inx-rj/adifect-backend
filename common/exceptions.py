@@ -1,5 +1,5 @@
 from rest_framework.exceptions import ValidationError, PermissionDenied, \
-    NotAuthenticated, NotFound
+    NotAuthenticated, NotFound, AuthenticationFailed
 from rest_framework.views import exception_handler
 
 
@@ -15,6 +15,11 @@ def custom_handle_exception(request, exc):
         response.data = {
             'error': True,
             'message': 'Authentication credentials were not provided.'
+        }
+    elif isinstance(exc, AuthenticationFailed):
+        response.data = {
+            'error': True,
+            'message': 'Incorrect authentication credentials.'
         }
     elif isinstance(exc, PermissionDenied):
         response.data = {
