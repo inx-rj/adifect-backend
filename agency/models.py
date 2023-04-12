@@ -274,10 +274,10 @@ class TestModal(models.Model):
     media = models.FileField(upload_to='test_media', blank=True, null=True)
 
 
-class Audiences(BaseModel):
-    audience_id = models.IntegerField()
+class Audience(BaseModel):
+    audience_id = models.CharField(max_length=10)
     title = models.CharField(max_length=200)
-    channel = models.ForeignKey(Channel, related_name='audience_channel', on_delete=models.SET_NULL)
+    channel = models.ManyToManyField(Channel, through='AudienceChannel', related_name='audience_channel')
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -285,3 +285,15 @@ class Audiences(BaseModel):
 
     def __str__(self):
         return self.title
+
+
+class AudienceChannel(BaseModel):
+    audience = models.ForeignKey(Audience, related_name='audience_channel_audience', on_delete=models.SET_NULL, null=True, blank=True)
+    channel = models.ForeignKey(Channel, related_name='audience_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
+    url = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name_plural = 'AudienceChannels'
+
+    def __str__(self):
+        return f'{self.audience.title} - {self.channel.name}'
