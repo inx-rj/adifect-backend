@@ -275,7 +275,7 @@ class TestModal(models.Model):
 
 
 class Audience(BaseModel):
-    audience_id = models.CharField(max_length=10)
+    audience_id = models.CharField(max_length=10, unique=True)
     title = models.CharField(max_length=200)
     channel = models.ManyToManyField(Channel, through='AudienceChannel', related_name='audience_channel')
     is_active = models.BooleanField(default=True)

@@ -6,7 +6,9 @@ from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializ
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer, \
     JobWorkAttachmentsSerializer, JobFeedbackSerializer
+from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
+from community.permissions import IsAuthorizedForListCreate
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
 from rest_framework import status
@@ -25,12 +27,14 @@ from django.db.models import Count, Avg
 from rest_framework import generics
 from rest_framework import filters
 
-from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
+from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
+    Audience
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
-    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, DamMediaNewSerializer
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, \
+    DamMediaNewSerializer, AudienceListCreateSerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -2189,4 +2193,26 @@ class CollectionCount(ReadOnlyModelViewSet):
         return Response(context)
 
 
+class AudienceListCreateView(generics.ListCreateAPIView):
+    """
+    View for creating audience and view list of all audiences
+    """
 
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = AudienceListCreateSerializer
+    queryset = Audience.objects.all().order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'audience_id']
+    ordering_fields = ['id', 'title', 'audience_id']
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def post(self, request, *args, **kwargs):
+
+        serializers = self.get_serializer(data=request.data)
+        serializers.is_valid(raise_exception=True)
+        serializers.save()
+        return Response({'data': serializers.data, 'message': AUDIENCE_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)

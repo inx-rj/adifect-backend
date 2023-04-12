@@ -3,7 +3,10 @@ import os
 from pyexpat import model
 from statistics import mode
 from rest_framework import serializers
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal, AgencyLevel
+
+from community.models import Channel
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal, AgencyLevel, \
+    Audience, AudienceChannel
 from rest_framework.fields import SerializerMethodField
 
 from authentication.serializers import UserSerializer
@@ -664,3 +667,29 @@ class DamMediaNewSerializer(serializers.ModelSerializer):
     class Meta:
         model = DamMedia
         fields = '__all__'
+
+
+class AudienceChannelSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AudienceChannel
+        fields = ['channel', 'url']
+
+
+class AudienceListCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer to view list of all Audiences and add Audience
+    """
+    channel = AudienceChannelSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Audience
+        fields = ['audience_id', 'title', 'channel']
+
+    def create(self, validated_data):
+        channel_data = validated_data.pop('channel')
+        audience = Audience.objects.create(**validated_data)
+        for channel in channel_data:
+            channel_obj = Channel.objects.get(id=channel.get('channel').id)
+            AudienceChannel.objects.create(audience=audience, channel=channel_obj, url=channel.get('url'))
+        return audience
