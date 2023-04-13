@@ -8,6 +8,7 @@ from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializ
     JobWorkAttachmentsSerializer, JobFeedbackSerializer
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
+from community.constants import CHANNEL_RETRIEVED_SUCCESSFULLY
 from community.permissions import IsAuthorizedForListCreate
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
@@ -27,7 +28,8 @@ from django.db.models import Count, Avg
 from rest_framework import generics
 from rest_framework import filters
 
-from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY
+from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
+    AUDIENCE_RETRIEVED_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
     Audience
 from .serializers import InviteMemberSerializer, \
@@ -2208,6 +2210,17 @@ class AudienceListCreateView(generics.ListCreateAPIView):
     search_fields = ['title', 'audience_id']
     ordering_fields = ['id', 'title', 'audience_id']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of audiences
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})
 
     def post(self, request, *args, **kwargs):
 

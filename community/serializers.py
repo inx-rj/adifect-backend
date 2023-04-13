@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel
+from community.models import Story, Community, Tag, CommunityChannel, Channel
 
 
 class CommunityChannelSerializer(serializers.ModelSerializer):
@@ -111,3 +111,23 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Tag
 #         fields = ['title']
+
+
+class ChannelListCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer to View List of Channel and add Channel
+    """
+
+    class Meta:
+        model = Channel
+        fields = ['id', 'name', 'is_active']
+
+
+class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
+    """
+    Serializer to View Channel and Update Channel
+    """
+
+    class Meta:
+        model = Channel
+        fields = ['id', 'name', 'is_active']

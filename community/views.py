@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
@@ -8,12 +9,14 @@ from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
-    COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY
+    COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, COMMUNITY_SETTINGS_SUCCESS, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
+    CHANNEL_DELETED_SUCCESSFULLY, CHANNEL_RETRIEVED_SUCCESSFULLY
 from community.filters import StoriesFilter
-from community.models import Story, Community, Tag
+from community.models import Story, Community, Tag, Channel
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
-    TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer
+    TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer, ChannelListCreateSerializer, \
+    ChannelRetrieveUpdateDestroySerializer
 
 
 class CommunityList(APIView):
@@ -153,3 +156,72 @@ class CommunitySettingsView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
+
+
+class ChannelListCreateAPIView(generics.ListCreateAPIView):
+    """
+    View for creating channel and view list of all channels
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = ChannelListCreateSerializer
+    queryset = Channel.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['name', 'is_active']
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of channels
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': CHANNEL_RETRIEVED_SUCCESSFULLY})
+
+    def post(self, request, *args, **kwargs):
+        """API to create channel"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data, 'message': CHANNEL_CREATED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
+
+
+class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View for retrieving, update and delete channel
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = ChannelRetrieveUpdateDestroySerializer
+    queryset = Channel.objects.filter(is_trashed=False)
+    lookup_field = 'id'
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """API to get channel"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': CHANNEL_RETRIEVED_SUCCESSFULLY}, status=status.HTTP_200_OK)
+
+    def put(self, request, *args, **kwargs):
+        """API to update channel"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data, 'message': CHANNEL_UPDATED_SUCCESSFULLY}, status=status.HTTP_200_OK)
+
+    # def delete(self, request, *args, **kwargs):
+    #     """API to inactive channel"""
+    #     instance = get_object_or_404(Channel, pk=kwargs.get('id'), is_trashed=False)
+    #     instance.delete()
+    #     return Response({'data': [], 'message': CHANNEL_DELETED_SUCCESSFULLY}, status=status.HTTP_204_NO_CONTENT)
