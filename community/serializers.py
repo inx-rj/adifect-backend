@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, Channel
+from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel
 
 
 class CommunityChannelSerializer(serializers.ModelSerializer):
@@ -17,12 +17,6 @@ class CommunitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Community
         fields = '__all__'
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['community_channels'] = CommunityChannelSerializer(instance.community_channel_community.all(),
-                                                                          many=True).data
-        return representation
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -80,8 +74,15 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = CommunityChannel
+        model = CommunitySetting
         fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['community'] = CommunitySerializer(instance.community).data
+        representation['community_channels'] = CommunityChannelSerializer(instance.community_channel_community.all(),
+                                                                          many=True, read_only=True).data
+        return representation
 
 # class CommunityListSerializer(serializers.ModelSerializer):
 #     """

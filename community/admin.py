@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from community.models import Community, Story, Tag, StoryTag, Channel, CommunityChannel
+from community.models import Community, Story, Tag, StoryTag, Channel, CommunityChannel, CommunitySetting
 
 # Register your models here.
 admin.site.register(Community)
@@ -8,6 +8,7 @@ admin.site.register(Tag)
 admin.site.register(StoryTag)
 admin.site.register(Channel)
 admin.site.register(CommunityChannel)
+admin.site.register(CommunitySetting)
 
 
 class ArticleTagAdmin(admin.TabularInline):
