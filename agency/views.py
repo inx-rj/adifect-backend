@@ -70,7 +70,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
-    search_fields = ['=is_active']
+    search_fields = ['name', 'created']
 
     def get_queryset(self):
         user = self.request.user
@@ -483,7 +483,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
-    search_fields = ['=company__name', 'email', 'user__user__username']
+    search_fields = ['company__name', 'email', 'user__user__username']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,

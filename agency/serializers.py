@@ -693,3 +693,8 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
             channel_obj = Channel.objects.get(id=channel.get('channel').id)
             AudienceChannel.objects.create(audience=audience, channel=channel_obj, url=channel.get('url'))
         return audience
+
+    def to_representation(self, instance):
+        representation = super(AudienceListCreateSerializer, self).to_representation(instance)
+        representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
+        return representation
