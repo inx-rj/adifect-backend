@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, Channel
+from community.models import Story, Community, Tag, CommunityChannel
 
 
-class ChannelSerializer(serializers.ModelSerializer):
+class CommunityChannelSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Channel
+        model = CommunityChannel
         fields = '__all__'
 
 
@@ -13,11 +13,16 @@ class CommunitySerializer(serializers.ModelSerializer):
     """
     Serializer to get community data.
     """
-    channel = ChannelSerializer(many=True)
 
     class Meta:
         model = Community
         fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['community_channels'] = CommunityChannelSerializer(instance.community_channel_community.all(),
+                                                                          many=True).data
+        return representation
 
 
 class TagSerializer(serializers.ModelSerializer):
