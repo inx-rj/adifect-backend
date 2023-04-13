@@ -21,7 +21,6 @@ class Community(BaseModel):
     state = models.CharField(max_length=50, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     community_metadata = models.JSONField(null=True, blank=True)
-    channel = models.ManyToManyField(Channel, through='CommunityChannel', related_name='community_channel')
 
     class Meta:
         verbose_name_plural = 'Community'
@@ -104,8 +103,14 @@ class StoryTagAnalytic(models.Model):
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
 
 
+class CommunitySetting(BaseModel):
+    community = models.ForeignKey(Community, related_name='community_setting_community', on_delete=models.SET_NULL, null=True, blank=True)
+    channel = models.ManyToManyField(Channel, through='CommunityChannel', related_name='community_setting_channel')
+    is_active = models.BooleanField(default=True)
+
+
 class CommunityChannel(BaseModel):
-    community = models.ForeignKey(Community, related_name='community_channel_community', on_delete=models.SET_NULL, null=True, blank=True)
+    community_setting = models.ForeignKey(CommunitySetting, related_name='community_channel_community', on_delete=models.SET_NULL, null=True, blank=True)
     channel = models.ForeignKey(Channel, related_name='community_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
     url = models.CharField(max_length=200)
     api_key = models.CharField(max_length=200)
@@ -114,4 +119,4 @@ class CommunityChannel(BaseModel):
         verbose_name_plural = 'CommunityChannels'
 
     def __str__(self):
-        return f'{self.community.name} - {self.channel.name}'
+        return f'{self.community_setting.community.name} - {self.channel.name}'
