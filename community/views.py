@@ -8,7 +8,7 @@ from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
-    COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS
+    COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag
 from community.permissions import IsAuthorizedForListCreate
@@ -125,6 +125,15 @@ class CommunitySettingsView(generics.ListCreateAPIView):
             return CommunitySerializer
         else:
             return CommunitySettingsSerializer
+
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         if not request.data:
