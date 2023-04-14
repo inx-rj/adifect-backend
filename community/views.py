@@ -220,8 +220,8 @@ class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         serializer.save()
         return Response({'data': serializer.data, 'message': CHANNEL_UPDATED_SUCCESSFULLY}, status=status.HTTP_200_OK)
 
-    # def delete(self, request, *args, **kwargs):
-    #     """API to inactive channel"""
-    #     instance = get_object_or_404(Channel, pk=kwargs.get('id'), is_trashed=False)
-    #     instance.delete()
-    #     return Response({'data': [], 'message': CHANNEL_DELETED_SUCCESSFULLY}, status=status.HTTP_204_NO_CONTENT)
+    def delete(self, request, *args, **kwargs):
+        """API to inactive channel"""
+        instance = get_object_or_404(Channel, pk=kwargs.get('id'), is_trashed=False)
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
