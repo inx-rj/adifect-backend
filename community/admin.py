@@ -8,16 +8,26 @@ admin.site.register(Tag)
 admin.site.register(StoryTag)
 admin.site.register(Channel)
 admin.site.register(CommunityChannel)
-admin.site.register(CommunitySetting)
 
 
-class ArticleTagAdmin(admin.TabularInline):
+class StoryTagAdmin(admin.TabularInline):
     model = StoryTag
     extra = 1
 
 
 @admin.register(Story)
-class ArticleAdmin(admin.ModelAdmin):
+class StoryAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'title', 'lede', 'word_count', 'community', 'publication_date', 'status', 'body', 'p_url', 'is_active')
-    inlines = (ArticleTagAdmin,)
+    inlines = (StoryTagAdmin,)
+
+
+class CommunityChannel(admin.TabularInline):
+    model = CommunityChannel
+    extra = 1
+
+
+@admin.register(CommunitySetting)
+class CommunitySettings(admin.ModelAdmin):
+    list_display = ('id', 'is_active')
+    inlines = (CommunityChannel,)
