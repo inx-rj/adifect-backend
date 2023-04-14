@@ -22,12 +22,12 @@ class StoryAdmin(admin.ModelAdmin):
     inlines = (StoryTagAdmin,)
 
 
-class CommunityChannel(admin.TabularInline):
+class CommunityChannelAdmin(admin.TabularInline):
     model = CommunityChannel
     extra = 1
 
 
 @admin.register(CommunitySetting)
-class CommunitySettings(admin.ModelAdmin):
-    list_display = ('id', 'is_active')
-    inlines = (CommunityChannel,)
+class CommunitySettingsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'community', 'is_active')
+    inlines = (CommunityChannelAdmin,)

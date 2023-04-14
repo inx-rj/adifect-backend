@@ -13,7 +13,7 @@ admin.site.register(InviteMember)
 admin.site.register(TestModal)
 admin.site.register(DAM)
 admin.site.register(DamMedia)
-admin.site.register(Audience)
+# admin.site.register(Audience)
 admin.site.register(AudienceChannel)
 
 
@@ -25,3 +25,14 @@ class WorksFlowAdmin(admin.ModelAdmin):
 
 
 admin.site.register(AgencyLevel)
+
+
+class AudienceChannelAdmin(admin.TabularInline):
+    model = AudienceChannel
+    extra = 1
+
+
+@admin.register(Audience)
+class AudienceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'audience_id', 'title', 'is_active')
+    inlines = (AudienceChannelAdmin,)
