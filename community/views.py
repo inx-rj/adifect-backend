@@ -11,9 +11,10 @@ from common.pagination import CustomPagination
 from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
     COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, \
-    CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY
+    CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
+    COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED
 from community.filters import StoriesFilter
-from community.models import Story, Community, Tag, CommunitySetting, Channel
+from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer, ChannelListCreateSerializer, ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer
@@ -136,8 +137,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        if not request.data:
-            return Response({'data': '', 'message': 'Data not provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not request.data.get('community_id'):
+            return Response({'data': '', 'message': COMMUNITY_ID_NOT_PROVIDED}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             community_id = request.data.pop('community_id')
@@ -147,6 +148,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
             data_list = []
             for channel in request.data:
+                if not channel:
+                    return Response({'data': '', 'message': CHANNEL_ID_NOT_PROVIDED},
+                                    status=status.HTTP_400_BAD_REQUEST)
                 data = {
                     'channel': channel,
                     'community_setting': community_setting_obj.id,
@@ -159,11 +163,31 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             serializer.save()
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
-    # def destroy(self, request, *args, **kwargs):
-    #     instance = self.get_object()
-    #     instance.delete()
-    #     return Response({'data': '', 'message': 'Deleted'}, status=status.HTTP_200_OK)
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.data.get('community_id'):
+            request.data.pop('community_id')
+        CommunityChannel.objects.filter(community_setting=instance).delete()
+        data_list = []
+        for channel in request.data:
+            if not channel:
+                return Response({'error': True, 'message': CHANNEL_ID_NOT_PROVIDED}, status=status.HTTP_400_BAD_REQUEST)
+            data = {
+                'channel': channel,
+                'community_setting': instance.id,
+                'url': request.data.get(channel).get('url'),
+                'api_key': request.data.get(channel).get('api_key')
+            }
+            data_list.append(data)
+        serializer = CommunityChannelSerializer(data=data_list, many=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
 class ChannelListCreateAPIView(generics.ListCreateAPIView):
