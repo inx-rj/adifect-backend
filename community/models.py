@@ -119,4 +119,4 @@ class CommunityChannel(BaseModel):
         verbose_name_plural = 'CommunityChannels'
 
     def __str__(self):
-        return f'{self.community_setting.community.name} - {self.channel.name}'
+        return f'{self.id}'
