@@ -29,14 +29,14 @@ from rest_framework import generics
 from rest_framework import filters
 
 from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
-    AUDIENCE_RETRIEVED_SUCCESSFULLY
+    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
     Audience
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
     DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, \
-    DamMediaNewSerializer, AudienceListCreateSerializer
+    DamMediaNewSerializer, AudienceListCreateSerializer, AudienceRetrieveUpdateDestroySerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -2204,7 +2204,7 @@ class AudienceListCreateView(generics.ListCreateAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = AudienceListCreateSerializer
-    queryset = Audience.objects.all().order_by('-id')
+    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'audience_id']
@@ -2229,3 +2229,38 @@ class AudienceListCreateView(generics.ListCreateAPIView):
         serializers.save()
         return Response({'data': serializers.data, 'message': AUDIENCE_CREATED_SUCCESSFULLY},
                         status=status.HTTP_201_CREATED)
+
+
+class AudienceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View to retrieve, update and delete audience
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = AudienceRetrieveUpdateDestroySerializer
+    queryset = Audience.objects.filter(is_trashed=False)
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    lookup_field = 'id'
+
+    def get(self, request, *args, **kwargs):
+        """API to get audience"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY}, status=status.HTTP_200_OK)
+
+    def put(self, request, *args, **kwargs):
+        """put request to update audience"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data, 'message': AUDIENCE_UPDATED_SUCCESSFULLY},
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        """delete request to inactivate audience"""
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

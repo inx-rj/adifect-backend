@@ -2,6 +2,8 @@ import json
 import os
 from pyexpat import model
 from statistics import mode
+
+from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Channel
@@ -688,13 +690,45 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         channel_data = validated_data.pop('channel')
-        audience = Audience.objects.create(**validated_data)
-        for channel in channel_data:
-            channel_obj = Channel.objects.get(id=channel.get('channel').id)
-            AudienceChannel.objects.create(audience=audience, channel=channel_obj, url=channel.get('url'))
+        with transaction.atomic():
+            audience = Audience.objects.create(**validated_data)
+            for channel in channel_data:
+                if not channel.get('channel'):
+                    raise serializers.ValidationError("Channel id not provided!")
+                channel_obj = Channel.objects.get(id=channel.get('channel').id)
+                AudienceChannel.objects.create(audience=audience, channel=channel_obj, url=channel.get('url'))
         return audience
 
     def to_representation(self, instance):
         representation = super(AudienceListCreateSerializer, self).to_representation(instance)
+        representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
+        return representation
+
+
+class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
+    """
+    Serializer to update audience
+    """
+    channel = AudienceChannelSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Audience
+        fields = ['audience_id', 'title', 'channel']
+
+    def update(self, instance, validated_data):
+        channel_data = validated_data.get('channel')
+        instance.audience_id = validated_data.get('audience_id', instance.audience_id)
+        instance.title = validated_data.get('title', instance.title)
+        instance.channel.clear()
+        for channel in channel_data:
+            if not channel.get('channel'):
+                raise serializers.ValidationError("Channel id not provided!")
+            channel_obj = Channel.objects.get(id=channel.get('channel').id)
+            AudienceChannel.objects.create(audience=instance, channel=channel_obj, url=channel.get('url'))
+        instance.save()
+        return instance
+
+    def to_representation(self, instance):
+        representation = super(AudienceRetrieveUpdateDestroySerializer, self).to_representation(instance)
         representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
         return representation
