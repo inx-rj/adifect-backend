@@ -15,6 +15,8 @@ from PIL import Image
 import sys
 import datetime
 
+from community.models import Channel
+
 # from administrator.models import Skills
 
 # Create your models here.
@@ -270,3 +272,28 @@ class TestModal(models.Model):
     is_active = models.BooleanField(default=False)
     status = models.IntegerField(choices=Status.choices, default=Status.SEND)
     media = models.FileField(upload_to='test_media', blank=True, null=True)
+
+
+class Audience(BaseModel):
+    audience_id = models.CharField(max_length=10, unique=True)
+    title = models.CharField(max_length=200)
+    channel = models.ManyToManyField(Channel, through='AudienceChannel', related_name='audience_channel')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Audiences'
+
+    def __str__(self):
+        return self.title
+
+
+class AudienceChannel(BaseModel):
+    audience = models.ForeignKey(Audience, related_name='audience_channel_audience', on_delete=models.SET_NULL, null=True, blank=True)
+    channel = models.ForeignKey(Channel, related_name='audience_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
+    url = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name_plural = 'AudienceChannels'
+
+    def __str__(self):
+        return f'{self.audience.title} - {self.channel.name}'

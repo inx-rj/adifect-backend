@@ -6,7 +6,10 @@ from administrator.serializers import JobSerializer, JobsWithAttachmentsSerializ
     JobAppliedSerializer, JobActivityAttachmentsSerializer, JobActivityChatSerializer, \
     JobWorkActivityAttachmentsSerializer, JobAppliedAttachmentsSerializer, JobAttachmentsSerializer, \
     JobWorkAttachmentsSerializer, JobFeedbackSerializer
+from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
+from community.constants import CHANNEL_RETRIEVED_SUCCESSFULLY
+from community.permissions import IsAuthorizedForListCreate
 from notification.models import Notifications
 from notification.serializers import NotificationsSerializer
 from rest_framework import status
@@ -25,12 +28,16 @@ from django.db.models import Count, Avg
 from rest_framework import generics
 from rest_framework import filters
 
-from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY
-from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal
+from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
+    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY, AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY, \
+    COMPANY_RETRIEVED_SUCCESSFULLY
+from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
+    Audience
 from .serializers import InviteMemberSerializer, \
     InviteMemberRegisterSerializer, WorksFlowSerializer, StageSerializer, IndustrySerializer, CompanySerializer, \
     DAMSerializer, DamMediaSerializer, DamWithMediaSerializer, MyProjectSerializer, TestModalSerializer, \
-    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, DamMediaNewSerializer
+    DamWithMediaRootSerializer, DamWithMediaThumbnailSerializer, DamMediaThumbnailSerializer, AgencyLevelSerializer, \
+    DamMediaNewSerializer, AudienceListCreateSerializer, AudienceRetrieveUpdateDestroySerializer
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
@@ -66,12 +73,23 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
-    search_fields = ['=is_active']
+    search_fields = ['name', 'created']
 
     def get_queryset(self):
         user = self.request.user
         queryset = Company.objects.filter(Q(agency=user) & (Q(created_by=user) | (Q(created_by__isnull=True))), agency__is_account_closed=False).order_by('-modified')
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """
+        API to get list of company
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY})
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -318,6 +336,7 @@ class GetAgencyUnappliedJobs(viewsets.ModelViewSet):
 class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
@@ -326,8 +345,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
-        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(workflow_data)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY})
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -479,7 +501,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
-    search_fields = ['=company__name', 'email', 'user__user__username']
+    search_fields = ['company__name', 'email', 'user__user__username']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
@@ -2189,4 +2211,72 @@ class CollectionCount(ReadOnlyModelViewSet):
         return Response(context)
 
 
+class AudienceListCreateView(generics.ListCreateAPIView):
+    """
+    View for creating audience and view list of all audiences
+    """
 
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = AudienceListCreateSerializer
+    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'audience_id']
+    ordering_fields = ['id', 'title', 'audience_id']
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of audiences
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})
+
+    def post(self, request, *args, **kwargs):
+
+        serializers = self.get_serializer(data=request.data)
+        serializers.is_valid(raise_exception=True)
+        serializers.save()
+        return Response({'data': serializers.data, 'message': AUDIENCE_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)
+
+
+class AudienceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View to retrieve, update and delete audience
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = AudienceRetrieveUpdateDestroySerializer
+    queryset = Audience.objects.filter(is_trashed=False)
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    lookup_field = 'id'
+
+    def get(self, request, *args, **kwargs):
+        """API to get audience"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY}, status=status.HTTP_200_OK)
+
+    def put(self, request, *args, **kwargs):
+        """put request to update audience"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data, 'message': AUDIENCE_UPDATED_SUCCESSFULLY},
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        """delete request to inactivate audience"""
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

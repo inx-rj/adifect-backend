@@ -2,6 +2,8 @@
 from sqlite3 import DatabaseError
 import datetime
 from django.shortcuts import render
+
+from common.pagination import CustomPagination
 from .serializers import EditProfileSerializer, CategorySerializer, JobSerializer, JobAttachmentsSerializer, \
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
     JobFilterSerializer, RelatedJobsSerializer, \
@@ -24,6 +26,7 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
     JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments, Help, HelpAttachments, HelpChat, \
     HelpChatAttachments
+from administrator.constants import WORKFLOW_RETRIEVED_SUCCESSFULLY
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -1363,14 +1366,17 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False,company__is_active=True).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = CustomPagination
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        user = self.request.user
         workflow_data = self.filter_queryset(self.get_queryset())
-        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(workflow_data)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': WORKFLOW_RETRIEVED_SUCCESSFULLY})
 
     def create(self, request, *args, **kwargs):
         data = request.data
