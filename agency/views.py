@@ -29,7 +29,7 @@ from rest_framework import generics
 from rest_framework import filters
 
 from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
-    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY
+    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY, AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
     Audience
 from .serializers import InviteMemberSerializer, \
@@ -324,6 +324,7 @@ class GetAgencyUnappliedJobs(viewsets.ModelViewSet):
 class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['=company']
@@ -332,8 +333,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
-        serializer = self.serializer_class(workflow_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(workflow_data)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY})
 
     def create(self, request, *args, **kwargs):
         data = request.data
