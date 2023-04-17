@@ -29,7 +29,8 @@ from rest_framework import generics
 from rest_framework import filters
 
 from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
-    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY, AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY
+    AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY, AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY, \
+    COMPANY_RETRIEVED_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
     Audience
 from .serializers import InviteMemberSerializer, \
@@ -78,6 +79,17 @@ class CompanyViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Company.objects.filter(Q(agency=user) & (Q(created_by=user) | (Q(created_by__isnull=True))), agency__is_account_closed=False).order_by('-modified')
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """
+        API to get list of company
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY})
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
