@@ -26,7 +26,8 @@ from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
     Question, Answer, UserSkills, JobActivity, JobActivityChat, JobTemplateTasks, JobActivityAttachments, SubmitJobWork, \
     JobWorkAttachments, MemberApprovals, JobWorkActivity, JobWorkActivityAttachments, Help, HelpAttachments, HelpChat, \
     HelpChatAttachments
-from administrator.constants import WORKFLOW_RETRIEVED_SUCCESSFULLY
+from administrator.constants import WORKFLOW_RETRIEVED_SUCCESSFULLY, JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY, \
+    SKILLS_RETRIEVED_SUCCESSFULLY
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import Http404, JsonResponse
@@ -203,6 +204,15 @@ class LevelViewSet(viewsets.ModelViewSet):
 class SkillsViewSet(viewsets.ModelViewSet):
     serializer_class = SkillsSerializer
     queryset = Skills.objects.filter(is_trashed=False).order_by('-modified')
+    pagination_class = CustomPagination
+
+    def list(self, request, *args, **kwargs):
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY})
 
 
 @permission_classes([IsAdmin])
@@ -1181,6 +1191,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = JobTemplate.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['=company', ]
 
@@ -1189,8 +1200,11 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.filter(user=request.user).order_by('-modified')
-        serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        page = self.paginate_queryset(job_data)
+        if page is not None:
+            serializer = JobTemplateWithAttachmentsSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY})
 
     def retrieve(self, request, pk=None):
         id = pk
