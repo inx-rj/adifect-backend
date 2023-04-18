@@ -30,7 +30,7 @@ from rest_framework import filters
 
 from .constants import AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY, AUDIENCE_CREATED_SUCCESSFULLY, \
     AUDIENCE_RETRIEVED_SUCCESSFULLY, AUDIENCE_UPDATED_SUCCESSFULLY, AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY, \
-    COMPANY_RETRIEVED_SUCCESSFULLY
+    COMPANY_RETRIEVED_SUCCESSFULLY, INDUSTRY_RETRIEVED_SUCCESSFULLY
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, AgencyLevel, TestModal, \
     Audience
 from .serializers import InviteMemberSerializer, \
@@ -57,14 +57,18 @@ from django.utils import timezone
 class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.all().order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['user']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=None) | Q(user=user))
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': INDUSTRY_RETRIEVED_SUCCESSFULLY})
 
 
 @permission_classes([IsAuthenticated])
