@@ -10,6 +10,8 @@ from django_celery_results.models import TaskResult
 from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
 from community.utils import get_purl, date_format
 
+from adifect.settings import company_projects_collection
+
 logger = logging.getLogger('django')
 
 
@@ -128,6 +130,7 @@ def community_data_entry():
 def add_community_stories(story_data_list, community_obj_id):
     try:
         story_to_be_create_objs = []
+        mongo_story_purls = []
         story_tag_dict = {}
         story_category_dict = {}
 
@@ -165,17 +168,20 @@ def add_community_stories(story_data_list, community_obj_id):
 
             Category.objects.bulk_create(categories_list, ignore_conflicts=True)
 
+            story_purl = get_purl()
             story_obj = Story(
                 story_id=story_item.get('id'),
                 title=story_item.get('headline'),
                 lede=story_item.get('teaser'),
                 community_id=community_obj_id,
-                image=story_item.get('images')[0] if story_item.get('images') else None,
                 publication_date=date_format(story_item.get('published_at')),
                 body=story_item.get('body'),
-                p_url=get_purl(),
+                p_url=story_purl,
                 story_metadata=story_item
             )
+            story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
+            mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
+
             if story_item.get('published') and not story_item.get('scheduled'):
                 story_obj.status = 'Published'
             if not story_item.get('published') and not story_item.get('scheduled'):
@@ -224,6 +230,8 @@ def add_community_stories(story_data_list, community_obj_id):
 
         if story_category_instances:
             StoryCategory.objects.bulk_create(story_category_instances, ignore_conflicts=True)
-
+        if mongo_story_purls:
+            company_projects_collection.insert_many(mongo_story_purls)
+            logger.info("Added story PURLs.")
     except Exception as e:
         logger.error(f"add_community_stories error ## {e}")
