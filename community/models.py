@@ -1,3 +1,5 @@
+import json
+
 from django.db import models
 
 from common.models import BaseModel
@@ -67,7 +69,7 @@ class Story(BaseModel):
     story_id = models.IntegerField(null=True, blank=True)
     title = models.TextField(null=True, blank=True)
     lede = models.TextField(null=True, blank=True)
-    image = models.URLField(null=True, blank=True)
+    image = models.TextField(null=True, blank=True)
     word_count = models.IntegerField(default=0)
     community = models.ForeignKey(Community, related_name='story_community', on_delete=models.SET_NULL,
                                     null=True, blank=True)
@@ -83,6 +85,12 @@ class Story(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Story'
+
+    def set_image(self, images):
+        self.image = json.dumps(images)
+
+    def get_image(self):
+        return json.loads(self.image) if self.image else []
 
     def __str__(self):
         return self.title

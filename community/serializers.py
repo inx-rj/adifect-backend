@@ -36,10 +36,14 @@ class StorySerializer(serializers.ModelSerializer):
 
     community = CommunitySerializer()
     tag = TagSerializer(many=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Story
         fields = '__all__'
+
+    def get_image(self, obj):
+        return obj.get_image()
 
 
 class CommunityTagsSerializer(serializers.ModelSerializer):
