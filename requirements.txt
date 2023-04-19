@@ -6,7 +6,6 @@ async-timeout==4.0.2
 attrs==22.1.0
 autobahn==22.12.1
 Automat==22.10.0
-backports.zoneinfo==0.2.1
 bcrypt==3.2.2
 beautifulsoup4==4.11.1
 billiard==3.6.4.0
@@ -68,7 +67,6 @@ python-dateutil==2.8.2
 python-decouple==3.6
 python-dotenv==0.21.0
 python-http-client==3.3.7
-python-snappy==0.6.1
 pytz==2022.1
 PyYAML==6.0
 redis==4.4.0
