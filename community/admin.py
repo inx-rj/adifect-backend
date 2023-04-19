@@ -1,11 +1,13 @@
 from django.contrib import admin
 
-from community.models import Community, Story, Tag, StoryTag, Channel, CommunityChannel, CommunitySetting
+from community.models import Community, Story, Tag, Category, StoryTag, StoryCategory, Channel, CommunityChannel, CommunitySetting
 
 # Register your models here.
 admin.site.register(Community)
 admin.site.register(Tag)
+admin.site.register(Category)
 admin.site.register(StoryTag)
+admin.site.register(StoryCategory)
 admin.site.register(Channel)
 admin.site.register(CommunityChannel)
 
@@ -15,11 +17,16 @@ class StoryTagAdmin(admin.TabularInline):
     extra = 1
 
 
+class StoryCategoryAdmin(admin.TabularInline):
+    model = StoryCategory
+    extra = 1
+
+
 @admin.register(Story)
 class StoryAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'title', 'lede', 'word_count', 'community', 'publication_date', 'status', 'body', 'p_url', 'is_active')
-    inlines = (StoryTagAdmin,)
+    inlines = (StoryTagAdmin, StoryCategoryAdmin)
 
 
 class CommunityChannelAdmin(admin.TabularInline):
