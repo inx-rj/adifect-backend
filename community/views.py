@@ -27,9 +27,22 @@ class CommunityList(APIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('name').filter(is_trashed=False).values_list('name', flat=True)
-        tag_data = Tag.objects.distinct('title').filter(is_trashed=False).values_list('title', flat=True)
-        status_data = ['Published', 'Draft', 'Scheduled']
+        community_data = Community.objects.distinct('name').filter(is_trashed=False).values('id', 'name')
+        tag_data = Tag.objects.distinct('title').filter(is_trashed=False).values('id', 'title')
+        status_data = [
+            {
+                "id": 1,
+                "name": "Published"
+            },
+            {
+                "id": 2,
+                "name": "Draft"
+            },
+            {
+                "id": 3,
+                "name": "Scheduled"
+            }
+        ]
         data = {
             "community": community_data,
             "tag": tag_data,
