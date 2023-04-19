@@ -160,17 +160,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             community_setting_obj = serializer.save()
 
             data_list = []
-            for channel in request.data:
-                if not channel:
-                    return Response({'data': '', 'message': CHANNEL_ID_NOT_PROVIDED},
-                                    status=status.HTTP_400_BAD_REQUEST)
-                data = {
-                    'channel': channel,
-                    'community_setting': community_setting_obj.id,
-                    'url': request.data.get(channel).get('url'),
-                    'api_key': request.data.get(channel).get('api_key')
-                }
-                data_list.append(data)
+            for channel in request.data.get("channel"):
+                channel["community_setting"] = community_setting_obj.id
+                data_list.append(channel)
             serializer = CommunityChannelSerializer(data=data_list, many=True)
             serializer.is_valid(raise_exception=True)
             serializer.save()
@@ -187,16 +179,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             request.data.pop('community_id')
         CommunityChannel.objects.filter(community_setting=instance).delete()
         data_list = []
-        for channel in request.data:
-            if not channel:
-                return Response({'error': True, 'message': CHANNEL_ID_NOT_PROVIDED}, status=status.HTTP_400_BAD_REQUEST)
-            data = {
-                'channel': channel,
-                'community_setting': instance.id,
-                'url': request.data.get(channel).get('url'),
-                'api_key': request.data.get(channel).get('api_key')
-            }
-            data_list.append(data)
+        for channel in request.data.get("channel"):
+            channel["community_setting"] = instance.id
+            data_list.append(channel)
         serializer = CommunityChannelSerializer(data=data_list, many=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
