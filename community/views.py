@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -28,8 +29,8 @@ class CommunityList(APIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('name').filter(is_trashed=False).values('id', 'name')
-        tag_data = Tag.objects.distinct('title').filter(is_trashed=False).values('id', 'title')
+        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id', 'name').order_by('id')
+        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by('id')
         status_data = [
             {
                 "id": 1,
