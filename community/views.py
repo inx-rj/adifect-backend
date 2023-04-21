@@ -126,7 +126,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
     API to add and list community social media credentials.
     """
 
-    queryset = CommunitySetting.objects.filter(is_trashed=False)
+    queryset = CommunitySetting.objects.filter(is_trashed=False).order_by('-id')
     serializer_class = CommunitySettingsSerializer
     pagination_class = CustomPagination
     filter_backends = [OrderingFilter, SearchFilter]
