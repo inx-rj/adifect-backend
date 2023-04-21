@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Channel
+from community.serializers import ChannelRetrieveUpdateDestroySerializer
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal, AgencyLevel, \
     Audience, AudienceChannel
 from rest_framework.fields import SerializerMethodField
@@ -672,10 +673,14 @@ class DamMediaNewSerializer(serializers.ModelSerializer):
 
 
 class AudienceChannelSerializer(serializers.ModelSerializer):
+    channel_data = serializers.SerializerMethodField()
 
     class Meta:
         model = AudienceChannel
-        fields = ['channel', 'url']
+        fields = ['channel', 'url', 'channel_data']
+
+    def get_channel_data(self, obj):
+        return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
 
 
 class AudienceListCreateSerializer(serializers.ModelSerializer):
@@ -686,7 +691,7 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['audience_id', 'title', 'channel']
+        fields = ['id', 'audience_id', 'title', 'channel']
 
     def create(self, validated_data):
         channel_data = validated_data.pop('channel')
@@ -713,7 +718,7 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['audience_id', 'title', 'channel']
+        fields = ['id', 'audience_id', 'title', 'channel']
 
     def update(self, instance, validated_data):
         channel_data = validated_data.get('channel')

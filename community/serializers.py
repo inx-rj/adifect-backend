@@ -93,7 +93,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunitySetting
-        fields = ('community', 'is_active')
+        fields = ('id', 'community', 'is_active')
 
 
     def to_representation(self, instance):
