@@ -3,11 +3,25 @@ from rest_framework import serializers
 from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel
 
 
+class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
+    """
+    Serializer to View Channel and Update Channel
+    """
+
+    class Meta:
+        model = Channel
+        fields = ['id', 'name', 'is_active']
+
+
 class CommunityChannelSerializer(serializers.ModelSerializer):
+    channel_data = serializers.SerializerMethodField()
+
     class Meta:
         model = CommunityChannel
-        fields = '__all__'
+        fields = ('community_setting', 'channel', 'url', 'api_key', 'channel_data')
 
+    def get_channel_data(self, obj):
+        return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
 
 class CommunitySerializer(serializers.ModelSerializer):
     """
@@ -79,7 +93,8 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunitySetting
-        fields = '__all__'
+        fields = ('community', 'is_active')
+
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -87,6 +102,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
         representation['community_channels'] = CommunityChannelSerializer(instance.community_channel_community.all(),
                                                                           many=True, read_only=True).data
         return representation
+
 
 # class CommunityListSerializer(serializers.ModelSerializer):
 #     """
@@ -121,16 +137,6 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
 class ChannelListCreateSerializer(serializers.ModelSerializer):
     """
     Serializer to View List of Channel and add Channel
-    """
-
-    class Meta:
-        model = Channel
-        fields = ['id', 'name', 'is_active']
-
-
-class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
-    """
-    Serializer to View Channel and Update Channel
     """
 
     class Meta:
