@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -12,7 +13,8 @@ from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
     COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, \
     CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
-    COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED
+    COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED, \
+    COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel
 from community.permissions import IsAuthorizedForListCreate
@@ -27,8 +29,8 @@ class CommunityList(APIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('name').filter(is_trashed=False).values('id', 'name')
-        tag_data = Tag.objects.distinct('title').filter(is_trashed=False).values('id', 'title')
+        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id', 'name').order_by('id')
+        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by('id')
         status_data = [
             {
                 "id": 1,
@@ -128,8 +130,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
     serializer_class = CommunitySettingsSerializer
     pagination_class = CustomPagination
     filter_backends = [OrderingFilter, SearchFilter]
-    ordering_fields = ['name']
-    search_fields = ['name']
+    ordering_fields = ['community__name']
+    search_fields = ['community__name']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
     lookup_field = 'id'
 
@@ -147,7 +149,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                 status=status.HTTP_200_OK)
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
+        return Response({'data': serializer.data, 'message': COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         if not request.data.get('community_id'):
