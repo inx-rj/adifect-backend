@@ -2260,7 +2260,7 @@ class AudienceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = AudienceRetrieveUpdateDestroySerializer
-    queryset = Audience.objects.filter(is_trashed=False)
+    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
     lookup_field = 'id'
 
