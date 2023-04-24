@@ -11,7 +11,7 @@ from django_celery_results.models import TaskResult
 from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
 from community.utils import get_purl, date_format
 
-# from adifect.settings import company_projects_collection
+from adifect.settings import company_projects_collection
 
 logger = logging.getLogger('django')
 
@@ -53,7 +53,7 @@ def store_data(story_data_list, community_id):
     logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
     story_to_be_create_objs = []
-    # mongo_story_purls = []
+    mongo_story_purls = []
     story_tag_dict = {}
     story_category_dict = {}
 
@@ -103,7 +103,7 @@ def store_data(story_data_list, community_id):
             story_metadata=story_item
         )
         story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
-        # mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
+        mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
 
         if story_item.get('published') and not story_item.get('scheduled'):
             story_obj.status = 'Published'
@@ -157,9 +157,9 @@ def store_data(story_data_list, community_id):
 
     if story_category_instances:
         StoryCategory.objects.bulk_create(story_category_instances, ignore_conflicts=True)
-    # if mongo_story_purls:
-    #     company_projects_collection.insert_many(mongo_story_purls)
-    #     logger.info("Added story PURLs.")
+    if mongo_story_purls:
+        company_projects_collection.insert_many(mongo_story_purls)
+        logger.info("Added story PURLs.")
 
 
 
