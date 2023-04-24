@@ -160,9 +160,9 @@ DATABASES = {
     }
 }
 
-# mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
-# mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
-# company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
+mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
+mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
+company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
