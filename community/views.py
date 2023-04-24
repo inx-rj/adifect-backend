@@ -14,7 +14,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, \
     CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
     COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED, \
-    COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY
+    COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, STORY_RETRIEVE_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel
 from community.permissions import IsAuthorizedForListCreate
@@ -53,7 +53,7 @@ class CommunityList(APIView):
         return Response({'data': data, 'message': COMMUNITY_TAGS_STATUS_DATA})
 
 
-class StoriesList(generics.ListAPIView):
+class StoriesList(generics.ListAPIView, generics.RetrieveAPIView):
     """
     Stories List API
     """
@@ -61,22 +61,29 @@ class StoriesList(generics.ListAPIView):
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
-    queryset = Story.objects.filter(is_trashed=False)
+    queryset = Story.objects.filter(is_trashed=False).order_by('-id')
     serializer_class = StorySerializer
     filterset_class = StoriesFilter
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
-        self.queryset = self.filter_queryset(self.queryset)
-        if search := request.GET.get('search'):
-            entry_query = get_query(search, ['community__name', 'status'])
-            self.queryset = self.queryset.filter(entry_query)
-        page = self.paginate_queryset(self.queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': STORIES_RETRIEVE_SUCCESSFULLY})
+        if not kwargs.get('id'):
+            self.queryset = self.filter_queryset(self.queryset)
+            if search := request.GET.get('search'):
+                entry_query = get_query(search, ['community__name', 'status'])
+                self.queryset = self.queryset.filter(entry_query)
+            page = self.paginate_queryset(self.queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                response = self.get_paginated_response(serializer.data)
+                return Response({'data': response.data, 'message': STORIES_RETRIEVE_SUCCESSFULLY})
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': STORY_RETRIEVE_SUCCESSFULLY},
+                        status=status.HTTP_200_OK)
 
 
 class CommunityTagsListCreate(generics.ListCreateAPIView):
@@ -87,7 +94,7 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
-    queryset = Community.objects.filter(is_trashed=False)
+    queryset = Community.objects.filter(is_trashed=False).order_by('-id')
     filter_backends = [OrderingFilter]
     ordering_fields = ['name']
     pagination_class = CustomPagination
@@ -234,7 +241,7 @@ class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = ChannelRetrieveUpdateDestroySerializer
-    queryset = Channel.objects.filter(is_trashed=False)
+    queryset = Channel.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
