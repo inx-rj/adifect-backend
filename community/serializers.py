@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel
+from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -142,3 +142,20 @@ class ChannelListCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['id', 'name', 'is_active']
+
+
+class ProgramSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update program
+    """
+    community = serializers.PrimaryKeyRelatedField(queryset=Community.objects.all(), required=True)
+
+    class Meta:
+        model = Program
+        fields = ['id', 'title', 'community']
+
+    def to_representation(self, instance):
+        """function to add custom response of community"""
+        representation = super(ProgramSerializer, self).to_representation(instance)
+        representation['community'] = CommunitySerializer(instance.community).data
+        return representation

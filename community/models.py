@@ -128,3 +128,14 @@ class CommunityChannel(BaseModel):
 
     def __str__(self):
         return f'{self.id}'
+
+
+class Program(BaseModel):
+    title = models.CharField(max_length=200)
+    community = models.ForeignKey(Community, related_name='program_community', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'Programs'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'
