@@ -5,15 +5,23 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import aiohttp as aiohttp
+import pymongo
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
 from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
 from community.utils import get_purl, date_format
 
-from adifect.settings import company_projects_collection
-
 logger = logging.getLogger('django')
+
+logger.info(f"mongo client url --> {os.environ.get('MONGO_CLIENT_URL')}")
+logger.info(f"mongo db name --> {os.environ.get('MONGO_DB_NAME')}")
+logger.info(f"mongo collection name --> {os.environ.get('MONGO_COLLECTION_NAME')}")
+
+mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
+logger.info(f"mongo_client --> {mongo_client}")
+mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
+company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 
 def sync_function(url, headers, params):
@@ -48,7 +56,6 @@ def sync_function(url, headers, params):
 
 
 def store_data(story_data_list, community_id):
-
     community_obj_id = Community.objects.get(community_id=community_id.get('id')).id
     logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
@@ -160,11 +167,6 @@ def store_data(story_data_list, community_id):
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
         logger.info("Added story PURLs.")
-
-
-
-
-
 
 
 @shared_task(name="community_data_entry")
