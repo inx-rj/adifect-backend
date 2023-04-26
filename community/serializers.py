@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel
+from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
+    CreativeCode
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -22,6 +23,7 @@ class CommunityChannelSerializer(serializers.ModelSerializer):
 
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
+
 
 class CommunitySerializer(serializers.ModelSerializer):
     """
@@ -95,7 +97,6 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
         model = CommunitySetting
         fields = ('id', 'community', 'is_active')
 
-
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         representation['community'] = CommunitySerializer(instance.community).data
@@ -142,3 +143,41 @@ class ChannelListCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['id', 'name', 'is_active']
+
+
+class ProgramSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update program
+    """
+    community = serializers.PrimaryKeyRelatedField(queryset=Community.objects.all(), required=True)
+
+    class Meta:
+        model = Program
+        fields = ['id', 'title', 'community']
+
+    def to_representation(self, instance):
+        """function to add custom response of community"""
+        representation = super(ProgramSerializer, self).to_representation(instance)
+        representation['community'] = CommunitySerializer(instance.community).data
+        return representation
+
+
+class CopyCodeSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update copy code
+    """
+
+    class Meta:
+        model = CopyCode
+        fields = ['id', 'title', 'subject_line', 'body', 'notes']
+
+
+class CreativeCodeSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update creative code
+    """
+
+    class Meta:
+        model = CreativeCode
+        fields = ['id', 'title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
+                  'duration', 'link', 'notes']
