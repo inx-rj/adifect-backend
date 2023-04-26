@@ -139,3 +139,16 @@ class Program(BaseModel):
 
     def __str__(self):
         return f'{self.id} - {self.title}'
+
+
+class CopyCode(BaseModel):
+    title = models.CharField(max_length=200)
+    subject_line = models.CharField(max_length=200)
+    body = models.TextField()
+    notes = models.TextField()
+
+    class Meta:
+        verbose_name_plural = 'CopyCodes'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'

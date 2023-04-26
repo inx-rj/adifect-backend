@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program
+from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -159,3 +159,13 @@ class ProgramSerializer(serializers.ModelSerializer):
         representation = super(ProgramSerializer, self).to_representation(instance)
         representation['community'] = CommunitySerializer(instance.community).data
         return representation
+
+
+class CopyCodeSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update copy code
+    """
+
+    class Meta:
+        model = CopyCode
+        fields = ['id', 'title', 'subject_line', 'body', 'notes']

@@ -15,13 +15,14 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
     COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED, \
     COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
-    PROGRAM_UPDATED_SUCCESSFULLY
+    PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
+    COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY
 from community.filters import StoriesFilter
-from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program
+from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer, ChannelListCreateSerializer, \
-    ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer
+    ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer
 
 
 class CommunityList(APIView):
@@ -296,17 +297,17 @@ class ProgramListCreateAPIView(generics.ListCreateAPIView):
             return Response({'data': response.data, 'message': PROGRAM_RETRIEVED_SUCCESSFULLY})
 
     def post(self, request, *args, **kwargs):
-        """API to create channel"""
+        """API to create program"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({'data': "", 'message': CHANNEL_CREATED_SUCCESSFULLY},
+        return Response({'data': "", 'message': PROGRAM_CREATED_SUCCESSFULLY},
                         status=status.HTTP_201_CREATED)
 
 
 class ProgramRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
-    View for retrieving, update and delete department
+    View for retrieving, update and delete program
     """
 
     def handle_exception(self, exc):
@@ -334,5 +335,75 @@ class ProgramRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
     def delete(self, request, *args, **kwargs):
         """delete request to inactive program"""
         instance = get_object_or_404(Program, pk=kwargs.get('id'), is_trashed=False)
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CopyCodeListCreateAPIView(generics.ListCreateAPIView):
+    """
+    View for creating copy code and view list of all copy codes
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = CopyCodeSerializer
+    queryset = CopyCode.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['subject_line', 'title']
+    ordering_fields = ['title', 'subject_line']
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of copy codes
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': COPY_CODE_RETRIEVED_SUCCESSFULLY})
+
+    def post(self, request, *args, **kwargs):
+        """API to create copy code"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': COPY_CODE_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)
+
+
+class CopyCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View for retrieving, update and delete copy code
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = CopyCodeSerializer
+    queryset = CopyCode.objects.filter(is_trashed=False).order_by('-id')
+    lookup_field = 'id'
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def get(self, request, *args, **kwargs):
+        """API to get copy code"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': COPY_CODE_RETRIEVED_SUCCESSFULLY})
+
+    def put(self, request, *args, **kwargs):
+        """put request to update copy code"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': COPY_CODE_UPDATED_SUCCESSFULLY})
+
+    def delete(self, request, *args, **kwargs):
+        """delete request to inactive copy code"""
+        instance = get_object_or_404(CopyCode, pk=kwargs.get('id'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

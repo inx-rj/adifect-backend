@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from community.models import Community, Story, Tag, Category, StoryTag, StoryCategory, Channel, CommunityChannel, \
-    CommunitySetting, Program
+    CommunitySetting, Program, CopyCode
 
 # Register your models here.
 admin.site.register(Community)
@@ -12,6 +12,7 @@ admin.site.register(StoryCategory)
 admin.site.register(Channel)
 admin.site.register(CommunityChannel)
 admin.site.register(Program)
+admin.site.register(CopyCode)
 
 
 class StoryTagAdmin(admin.TabularInline):
