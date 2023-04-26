@@ -9,15 +9,18 @@ https://docs.djangoproject.com/en/3.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
-
+import logging
 from pathlib import Path
 import os
 from datetime import timedelta
 
-import pymongo
+# import pymongo
 from dotenv import load_dotenv
 
 load_dotenv()  # loads the configs from .env
+
+logger = logging.getLogger('django')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -160,9 +163,14 @@ DATABASES = {
     }
 }
 
-mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
-mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
-company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
+# logger.info(f"mongo client url --> {os.environ.get('MONGO_CLIENT_URL')}")
+# logger.info(f"mongo db name --> {os.environ.get('MONGO_DB_NAME')}")
+# logger.info(f"mongo collection name --> {os.environ.get('MONGO_COLLECTION_NAME')}")
+#
+# mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
+# logger.info(f"mongo_client --> {mongo_client}")
+# mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
+# company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
