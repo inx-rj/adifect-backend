@@ -3,7 +3,7 @@ from django.urls import path
 from community.views import StoriesList, CommunityTagsListCreate, CommunityList, CommunitySettingsView, \
     ChannelListCreateAPIView, ChannelRetrieveUpdateDestroyAPIView, ProgramRetrieveUpdateDestroyAPIView, \
     ProgramListCreateAPIView, CopyCodeListCreateAPIView, CopyCodeRetrieveUpdateDestroyAPIView, \
-    CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView
+    CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, ExportArticleCsv
 
 urlpatterns = [
     path('stories/', StoriesList.as_view(), name='list_stories'),
@@ -25,4 +25,5 @@ urlpatterns = [
     path('creative-code/', CreativeCodeListCreateAPIView.as_view(), name='list_create_creative_code'),
     path('creative-code/<int:id>/', CreativeCodeRetrieveUpdateDestroyAPIView.as_view(),
          name='retrieve_update_destroy_creative_code'),
+    path('story-export/', ExportArticleCsv.as_view(), name="story_export"),
 ]
