@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode
+from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
+    CreativeCode
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -22,6 +23,7 @@ class CommunityChannelSerializer(serializers.ModelSerializer):
 
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
+
 
 class CommunitySerializer(serializers.ModelSerializer):
     """
@@ -94,7 +96,6 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommunitySetting
         fields = ('id', 'community', 'is_active')
-
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -169,3 +170,14 @@ class CopyCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CopyCode
         fields = ['id', 'title', 'subject_line', 'body', 'notes']
+
+
+class CreativeCodeSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update creative code
+    """
+
+    class Meta:
+        model = CreativeCode
+        fields = ['id', 'title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
+                  'duration', 'link', 'notes']

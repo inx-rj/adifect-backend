@@ -152,3 +152,21 @@ class CopyCode(BaseModel):
 
     def __str__(self):
         return f'{self.id} - {self.title}'
+
+
+class CreativeCode(BaseModel):
+    title = models.CharField(max_length=200)
+    file_name = models.CharField(max_length=200)
+    format = models.CharField(max_length=10)
+    creative_theme = models.CharField(max_length=200)
+    horizontal_pixel = models.CharField(max_length=10)
+    vertical_pixel = models.CharField(max_length=10)
+    duration = models.CharField(max_length=10)
+    link = models.URLField(max_length=500)
+    notes = models.TextField()
+
+    class Meta:
+        verbose_name_plural = 'CreativeCodes'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'
