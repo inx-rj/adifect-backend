@@ -13,7 +13,7 @@ class Channel(BaseModel):
         verbose_name_plural = 'Channels'
 
     def __str__(self):
-        return self.name
+        return str(self.id)
 
 
 class Community(BaseModel):
@@ -28,7 +28,7 @@ class Community(BaseModel):
         verbose_name_plural = 'Community'
 
     def __str__(self):
-        return self.name
+        return str(self.id)
 
 
 class Tag(BaseModel):
@@ -45,7 +45,7 @@ class Tag(BaseModel):
         unique_together = ('community', 'title')
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class Category(BaseModel):
@@ -62,7 +62,7 @@ class Category(BaseModel):
         unique_together = ('community', 'title')
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class Story(BaseModel):
@@ -93,7 +93,7 @@ class Story(BaseModel):
         return json.loads(self.image) if self.image else []
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class StoryTag(models.Model):
@@ -127,4 +127,46 @@ class CommunityChannel(BaseModel):
         verbose_name_plural = 'CommunityChannels'
 
     def __str__(self):
-        return f'{self.id}'
+        return str(self.id)
+
+
+class Program(BaseModel):
+    title = models.CharField(max_length=200)
+    community = models.ForeignKey(Community, related_name='program_community', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'Programs'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'
+
+
+class CopyCode(BaseModel):
+    title = models.CharField(max_length=200)
+    subject_line = models.CharField(max_length=200)
+    body = models.TextField()
+    notes = models.TextField()
+
+    class Meta:
+        verbose_name_plural = 'CopyCodes'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'
+
+
+class CreativeCode(BaseModel):
+    title = models.CharField(max_length=200)
+    file_name = models.CharField(max_length=200)
+    format = models.CharField(max_length=10)
+    creative_theme = models.CharField(max_length=200)
+    horizontal_pixel = models.CharField(max_length=10)
+    vertical_pixel = models.CharField(max_length=10)
+    duration = models.CharField(max_length=10)
+    link = models.URLField(max_length=500)
+    notes = models.TextField()
+
+    class Meta:
+        verbose_name_plural = 'CreativeCodes'
+
+    def __str__(self):
+        return f'{self.id} - {self.title}'
