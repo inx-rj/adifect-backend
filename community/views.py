@@ -508,13 +508,13 @@ class ExportArticleCsv(APIView):
         with open(temp_file, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([
-                "id", "story_id", "title", "lede", "image", "community_id",
+                "id", "story_id", "title", "lede", "image", "community", "community_id",
                 "publication_date", "status", "body", "p_url", "tag", "category"
             ])
 
             writer.writerow([
-                story_obj.id, story_obj.story_id, story_obj.title, story_obj.lede, story_obj.get_image(),
-                story_obj.community_id,
+                story_obj.id, story_obj.story_id, story_obj.title, story_obj.lede,
+                story_obj.get_image(), story_obj.community.name, story_obj.community_id,
                 story_obj.publication_date, story_obj.status, story_obj.body, story_obj.p_url, "", ""
             ])
 
