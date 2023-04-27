@@ -18,10 +18,10 @@ logger.info(f"mongo client url --> {os.environ.get('MONGO_CLIENT_URL')}")
 logger.info(f"mongo db name --> {os.environ.get('MONGO_DB_NAME')}")
 logger.info(f"mongo collection name --> {os.environ.get('MONGO_COLLECTION_NAME')}")
 
-mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
-logger.info(f"mongo_client --> {mongo_client}")
-mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
-company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
+# mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
+# logger.info(f"mongo_client --> {mongo_client}")
+# mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
+# company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 
 def sync_function(url, headers, params):
@@ -60,7 +60,7 @@ def store_data(story_data_list, community_id):
     logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
     story_to_be_create_objs = []
-    mongo_story_purls = []
+    # mongo_story_purls = []
     story_tag_dict = {}
     story_category_dict = {}
 
@@ -110,7 +110,7 @@ def store_data(story_data_list, community_id):
             story_metadata=story_item
         )
         story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
-        mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
+        # mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
 
         if story_item.get('published') and not story_item.get('scheduled'):
             story_obj.status = 'Published'
@@ -164,9 +164,9 @@ def store_data(story_data_list, community_id):
 
     if story_category_instances:
         StoryCategory.objects.bulk_create(story_category_instances, ignore_conflicts=True)
-    if mongo_story_purls:
-        company_projects_collection.insert_many(mongo_story_purls)
-        logger.info("Added story PURLs.")
+    # if mongo_story_purls:
+    #     company_projects_collection.insert_many(mongo_story_purls)
+    #     logger.info("Added story PURLs.")
 
 
 @shared_task(name="community_data_entry")
