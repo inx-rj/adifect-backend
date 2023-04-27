@@ -13,7 +13,7 @@ class Channel(BaseModel):
         verbose_name_plural = 'Channels'
 
     def __str__(self):
-        return self.name
+        return str(self.id)
 
 
 class Community(BaseModel):
@@ -28,7 +28,7 @@ class Community(BaseModel):
         verbose_name_plural = 'Community'
 
     def __str__(self):
-        return self.name
+        return str(self.id)
 
 
 class Tag(BaseModel):
@@ -45,7 +45,7 @@ class Tag(BaseModel):
         unique_together = ('community', 'title')
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class Category(BaseModel):
@@ -62,7 +62,7 @@ class Category(BaseModel):
         unique_together = ('community', 'title')
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class Story(BaseModel):
@@ -93,7 +93,7 @@ class Story(BaseModel):
         return json.loads(self.image) if self.image else []
 
     def __str__(self):
-        return self.title
+        return str(self.id)
 
 
 class StoryTag(models.Model):
@@ -127,7 +127,7 @@ class CommunityChannel(BaseModel):
         verbose_name_plural = 'CommunityChannels'
 
     def __str__(self):
-        return f'{self.id}'
+        return str(self.id)
 
 
 class Program(BaseModel):
