@@ -1,3 +1,8 @@
+import csv
+import io
+import os
+
+import magic
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404
@@ -17,7 +22,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode
@@ -35,8 +40,10 @@ class CommunityList(APIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id', 'name').order_by('id')
-        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by('id')
+        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id',
+                                                                                                  'name').order_by('id')
+        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by(
+            'id')
         status_data = [
             {
                 "id": 1,
@@ -162,7 +169,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                 status=status.HTTP_200_OK)
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({'data': serializer.data, 'message': COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY}, status=status.HTTP_200_OK)
+        return Response({'data': serializer.data, 'message': COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY},
+                        status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         if not request.data.get('community_id'):
@@ -235,7 +243,8 @@ class ChannelListCreateAPIView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({'data': serializer.data, 'message': CHANNEL_CREATED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
+        return Response({'data': serializer.data, 'message': CHANNEL_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)
 
 
 class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -480,3 +489,36 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
         instance = get_object_or_404(CreativeCode, pk=kwargs.get('id'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CreativeCodeImportAPIView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            return Response({"error": "true",
+                             "message": "CSV file is missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            if not any(reader):
+                return Response({"error": "true",
+                                 "message": "File is empty"}, status=status.HTTP_400_BAD_REQUEST)
+            mime = magic.Magic(mime=True)
+            file_type = mime.from_buffer(csv_file.read(1024))
+            if file_type != 'csv':
+                return Response({"error": "true",
+                                 "message": "Uploaded file is not a valid CSV file"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception:
+            return Response({"error": "true",
+                             "message": "Uploaded file is not a valid CSV file"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        for row in reader:
+            print(row)
+            # CreativeCode.objects.create(name=row['Name'], age=row['Age'], email=row['Email'])
+        return Response({'data': "", 'message': CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY})
