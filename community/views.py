@@ -23,7 +23,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode
@@ -494,11 +494,16 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
 
 class ExportArticleCsv(APIView):
 
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
     def post(self, request, *args, **kwargs):
         try:
             story_obj = Story.objects.get(id=request.data.get("story_id"))
-            data_columns = request.data.get("data_columns")
+        except Story.DoesNotExist as err:
+            return Response({"error": True, "message": NOT_FOUND}, status=status.HTTP_404_NOT_FOUND)
 
+        try:
+            data_columns = request.data.get("data_columns")
             response = HttpResponse(content_type='application/zip')
             response['Content-Disposition'] = 'attachment; filename="story_details.zip"'
 
@@ -506,7 +511,7 @@ class ExportArticleCsv(APIView):
             zip_file = zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED)
 
             temp_file = 'story_details.csv'
-            with open(temp_file, 'w', newline='') as file:
+            with open(temp_file, 'w', newline='', encoding='utf-8') as file:
                 column_values = []
                 column_names = []
                 for col in data_columns:
@@ -534,20 +539,27 @@ class ExportArticleCsv(APIView):
                     elif col == "p_url":
                         column_values.append(story_obj.p_url)
                     elif col == "tag":
-                        column_values.append(story_obj.storytag_set)
+                        tags = []
+                        for tag in story_obj.storytag_set.all():
+                            tags.append(tag.tag.title)
+                        column_values.append(tags)
                     elif col == "category":
-                        column_values.append(story_obj.storycategory_set)
+                        categories = []
+                        for category in story_obj.storycategory_set.all():
+                            categories.append(category.category.title)
+                        column_values.append(categories)
                 writer = csv.writer(file)
                 writer.writerow(column_names)
                 writer.writerow(column_values)
 
-            zip_file.write(temp_file, arcname='my_csv_file.csv')
+            zip_file.write(temp_file, arcname='story.csv')
 
-            for image in story_obj.get_image():
-                resp = requests.get(image)
+            if "image" in data_columns:
+                for image in story_obj.get_image():
+                    resp = requests.get(image)
 
-                if resp.status_code == 200:
-                    zip_file.writestr(image.split("/")[-1], resp.content)
+                    if resp.status_code == 200:
+                        zip_file.writestr(image.split("/")[-1], resp.content)
 
             # Close the zip file and remove the temporary CSV file
             zip_file.close()
@@ -558,4 +570,4 @@ class ExportArticleCsv(APIView):
         except Exception as err:
             print(f"{err}")
             return Response({"error": True, "message": SOMETHING_WENT_WRONG},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                            status=status.HTTP_400_BAD_REQUEST)
