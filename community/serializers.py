@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
-    CreativeCode
+    CreativeCode, Category
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -45,6 +45,16 @@ class TagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    """
+    Serializer to get tag data.
+    """
+
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+
 class StorySerializer(serializers.ModelSerializer):
     """
     Serializer to get story data.
@@ -52,6 +62,7 @@ class StorySerializer(serializers.ModelSerializer):
 
     community = CommunitySerializer()
     tag = TagSerializer(many=True)
+    category = CategorySerializer(many=True)
     image = serializers.SerializerMethodField()
 
     class Meta:
