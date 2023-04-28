@@ -1,5 +1,11 @@
+import csv
+import os
+import zipfile
+
+import requests
 from django.db import transaction
 from django.db.models import F
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -13,17 +19,17 @@ from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
     COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, \
     CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
-    COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED, \
-    COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
+    COMMUNITY_SETTINGS_UPDATE_SUCCESS, COMMUNITY_ID_NOT_PROVIDED, COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, \
+    STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
-    TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer, ChannelListCreateSerializer, \
+    TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer
 
@@ -35,8 +41,10 @@ class CommunityList(APIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def get(self, request, *args, **kwargs):
-        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id', 'name').order_by('id')
-        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by('id')
+        community_data = Community.objects.distinct('id', 'name').filter(is_trashed=False).values('id',
+                                                                                                  'name').order_by('id')
+        tag_data = Tag.objects.filter(is_trashed=False).values('id', name=F('title')).distinct('id', 'name').order_by(
+            'id')
         status_data = [
             {
                 "id": 1,
@@ -162,7 +170,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                 status=status.HTTP_200_OK)
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({'data': serializer.data, 'message': COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY}, status=status.HTTP_200_OK)
+        return Response({'data': serializer.data, 'message': COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY},
+                        status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         if not request.data.get('community_id'):
@@ -235,7 +244,8 @@ class ChannelListCreateAPIView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({'data': serializer.data, 'message': CHANNEL_CREATED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
+        return Response({'data': serializer.data, 'message': CHANNEL_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)
 
 
 class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -480,3 +490,84 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
         instance = get_object_or_404(CreativeCode, pk=kwargs.get('id'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExportArticleCsv(APIView):
+
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            story_obj = Story.objects.get(id=request.data.get("story_id"))
+        except Story.DoesNotExist as err:
+            return Response({"error": True, "message": NOT_FOUND}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            data_columns = request.data.get("data_columns")
+            response = HttpResponse(content_type='application/zip')
+            response['Content-Disposition'] = 'attachment; filename="story_details.zip"'
+
+            # Create a zip file object
+            zip_file = zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED)
+
+            temp_file = 'story_details.csv'
+            with open(temp_file, 'w', newline='', encoding='utf-8') as file:
+                column_values = []
+                column_names = []
+                for col in data_columns:
+                    column_names.append(col)
+                    if col == 'id':
+                        column_values.append(story_obj.id)
+                    elif col == 'story_id':
+                        column_values.append(story_obj.story_id)
+                    elif col == "title":
+                        column_values.append(story_obj.title)
+                    elif col == "lede":
+                        column_values.append(story_obj.lede)
+                    elif col == "image":
+                        column_values.append(story_obj.get_image())
+                    elif col == "community":
+                        column_values.append(story_obj.community.name if story_obj.community else "")
+                    elif col == "community_id":
+                        column_values.append(story_obj.community_id)
+                    elif col == "publication_date":
+                        column_values.append(story_obj.publication_date)
+                    elif col == "status":
+                        column_values.append(story_obj.status)
+                    elif col == "body":
+                        column_values.append(story_obj.body)
+                    elif col == "p_url":
+                        column_values.append(story_obj.p_url)
+                    elif col == "tag":
+                        tags = []
+                        for tag in story_obj.storytag_set.all():
+                            tags.append(tag.tag.title)
+                        column_values.append(tags)
+                    elif col == "category":
+                        categories = []
+                        for category in story_obj.storycategory_set.all():
+                            categories.append(category.category.title)
+                        column_values.append(categories)
+                writer = csv.writer(file)
+                writer.writerow(column_names)
+                writer.writerow(column_values)
+
+            zip_file.write(temp_file, arcname='story.csv')
+
+            if "image" in data_columns:
+                for image in story_obj.get_image():
+                    resp = requests.get(image)
+
+                    if resp.status_code == 200:
+                        zip_file.writestr(image.split("/")[-1], resp.content)
+
+            # Close the zip file and remove the temporary CSV file
+            zip_file.close()
+            os.remove(temp_file)
+
+            return response
+
+        except Exception as err:
+            print(f"{err}")
+            return Response({"error": True, "message": SOMETHING_WENT_WRONG},
+                            status=status.HTTP_400_BAD_REQUEST)
