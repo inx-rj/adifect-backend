@@ -23,7 +23,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode
@@ -495,39 +495,67 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
 class ExportArticleCsv(APIView):
 
     def post(self, request, *args, **kwargs):
-        story_obj = Story.objects.get(id=request.data.get("story_id"))
-        data_columns = request.data.get("data_columns")
+        try:
+            story_obj = Story.objects.get(id=request.data.get("story_id"))
+            data_columns = request.data.get("data_columns")
 
-        response = HttpResponse(content_type='application/zip')
-        response['Content-Disposition'] = 'attachment; filename="story_details.zip"'
+            response = HttpResponse(content_type='application/zip')
+            response['Content-Disposition'] = 'attachment; filename="story_details.zip"'
 
-        # Create a zip file object
-        zip_file = zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED)
+            # Create a zip file object
+            zip_file = zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED)
 
-        temp_file = 'story_details.csv'
-        with open(temp_file, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([
-                "id", "story_id", "title", "lede", "image", "community", "community_id",
-                "publication_date", "status", "body", "p_url", "tag", "category"
-            ])
+            temp_file = 'story_details.csv'
+            with open(temp_file, 'w', newline='') as file:
+                column_values = []
+                column_names = []
+                for col in data_columns:
+                    column_names.append(col)
+                    if col == 'id':
+                        column_values.append(story_obj.id)
+                    elif col == 'story_id':
+                        column_values.append(story_obj.story_id)
+                    elif col == "title":
+                        column_values.append(story_obj.title)
+                    elif col == "lede":
+                        column_values.append(story_obj.lede)
+                    elif col == "image":
+                        column_values.append(story_obj.get_image())
+                    elif col == "community":
+                        column_values.append(story_obj.community.name if story_obj.community else "")
+                    elif col == "community_id":
+                        column_values.append(story_obj.community_id)
+                    elif col == "publication_date":
+                        column_values.append(story_obj.publication_date)
+                    elif col == "status":
+                        column_values.append(story_obj.status)
+                    elif col == "body":
+                        column_values.append(story_obj.body)
+                    elif col == "p_url":
+                        column_values.append(story_obj.p_url)
+                    elif col == "tag":
+                        column_values.append(story_obj.storytag_set)
+                    elif col == "category":
+                        column_values.append(story_obj.storycategory_set)
+                writer = csv.writer(file)
+                writer.writerow(column_names)
+                writer.writerow(column_values)
 
-            writer.writerow([
-                story_obj.id, story_obj.story_id, story_obj.title, story_obj.lede,
-                story_obj.get_image(), story_obj.community.name, story_obj.community_id,
-                story_obj.publication_date, story_obj.status, story_obj.body, story_obj.p_url, "", ""
-            ])
+            zip_file.write(temp_file, arcname='my_csv_file.csv')
 
-        zip_file.write(temp_file, arcname='my_csv_file.csv')
+            for image in story_obj.get_image():
+                resp = requests.get(image)
 
-        for image in story_obj.get_image():
-            resp = requests.get(image)
+                if resp.status_code == 200:
+                    zip_file.writestr(image.split("/")[-1], resp.content)
 
-            if resp.status_code == 200:
-                zip_file.writestr(image.split("/")[-1], resp.content)
+            # Close the zip file and remove the temporary CSV file
+            zip_file.close()
+            os.remove(temp_file)
 
-        # Close the zip file and remove the temporary CSV file
-        zip_file.close()
-        os.remove(temp_file)
+            return response
 
-        return response
+        except Exception as err:
+            print(f"{err}")
+            return Response({"error": True, "message": SOMETHING_WENT_WRONG},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
