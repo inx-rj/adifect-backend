@@ -677,7 +677,7 @@ class AudienceChannelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AudienceChannel
-        fields = ['channel', 'url', 'channel_data']
+        fields = ['channel', 'title', 'channel_data', 'device', 'language', 'age', 'gender']
 
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
@@ -691,7 +691,7 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['id', 'audience_id', 'title', 'channel']
+        fields = ['id', 'audience_id', 'title', 'channel', 'geography']
 
     def create(self, validated_data):
         channel_data = validated_data.pop('channel')
@@ -701,7 +701,7 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
                 if not channel.get('channel'):
                     raise serializers.ValidationError("Channel id not provided!")
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
-                AudienceChannel.objects.create(audience=audience, channel=channel_obj, url=channel.get('url'))
+                AudienceChannel.objects.create(audience=audience, channel=channel_obj, title=channel.get('title'), device=channel.get('device'), language=channel.get('language'), age=channel.get('age'), gender=channel.get('gender'))
         return audience
 
     def to_representation(self, instance):
@@ -718,7 +718,7 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['id', 'audience_id', 'title', 'channel']
+        fields = ['id', 'audience_id', 'title', 'channel', 'geography']
 
     def update(self, instance, validated_data):
         channel_data = validated_data.get('channel')
@@ -729,7 +729,7 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
             if not channel.get('channel'):
                 raise serializers.ValidationError("Channel id not provided!")
             channel_obj = Channel.objects.get(id=channel.get('channel').id)
-            AudienceChannel.objects.create(audience=instance, channel=channel_obj, url=channel.get('url'))
+            AudienceChannel.objects.create(audience=instance, channel=channel_obj, title=channel.get('title'), device=channel.get('device'), language=channel.get('language'), age=channel.get('age'), gender=channel.get('gender'))
         instance.save()
         return instance
 
