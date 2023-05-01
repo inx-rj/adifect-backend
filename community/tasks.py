@@ -85,20 +85,20 @@ def community_data_entry():
         logger.info(f"last_community_id ## {last_community_id}")
 
         if last_community_id:
-            data = [community for community in data if community.get('id') > last_community_id]
+            data = [community for community in data if community.get('id') == 431]
 
         new_instances = []
         # lst_community_id = []
         for item in data:
             # lst_community_id.append(item.get('id'))
-
-            community_obj = Community(
-                community_id=item.get('id'),
-                name=item.get('name'),
-                client_company_id=item.get('client_company_id'),
-                community_metadata=item
-            )
-            new_instances.append(community_obj)
+            if item.get('id') == 431:
+                community_obj = Community(
+                    community_id=item.get('id'),
+                    name=item.get('name'),
+                    client_company_id=item.get('client_company_id'),
+                    community_metadata=item
+                )
+                new_instances.append(community_obj)
 
             if len(new_instances) >= 5000:
                 Community.objects.bulk_create(new_instances, ignore_conflicts=True)
@@ -107,6 +107,7 @@ def community_data_entry():
         if new_instances:
             Community.objects.bulk_create(new_instances, ignore_conflicts=True)
 
+        data = [{'id': 431}]
         for community_id in data:
 
             params['by_community'] = community_id.get('id')
