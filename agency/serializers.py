@@ -724,6 +724,7 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
         channel_data = validated_data.get('channel')
         instance.audience_id = validated_data.get('audience_id', instance.audience_id)
         instance.title = validated_data.get('title', instance.title)
+        instance.geography = validated_data.get('geography', instance.geography)
         instance.channel.clear()
         for channel in channel_data:
             if not channel.get('channel'):
