@@ -114,6 +114,20 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
         model = CommunitySetting
         fields = ('id', 'community_id', 'channel', 'is_active')
 
+    def create(self, validated_data):
+        channel_data = validated_data.pop("channel", [])
+        community = validated_data.pop("community_id")
+        with transaction.atomic():
+            instance = CommunitySetting.objects.create(**validated_data, community=community)
+
+            for channel in channel_data:
+                if not channel.get('channel'):
+                    raise serializers.ValidationError({"channel": ["This field is required!"]})
+                channel_obj = Channel.objects.get(id=channel.get('channel').id)
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
+                                                api_key=channel.get('api_key'))
+        return instance
+
     def update(self, instance, validated_data):
         with transaction.atomic():
             instance.community = validated_data.get("community_id")
