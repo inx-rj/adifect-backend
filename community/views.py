@@ -174,12 +174,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                         status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        if not request.data.get('community_id'):
-            return Response({'data': '', 'message': COMMUNITY_ID_NOT_PROVIDED}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            community_id = request.data.pop('community_id')
-            serializer = self.get_serializer(data={'community': community_id})
+            serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
 
@@ -199,16 +196,20 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.data.get('community_id'):
-            request.data.pop('community_id')
         CommunityChannel.objects.filter(community_setting=instance).delete()
-        data_list = []
-        for channel in request.data.get("channel"):
-            channel["community_setting"] = instance.id
-            data_list.append(channel)
-        serializer = CommunityChannelSerializer(data=data_list, many=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+
+        with transaction.atomic():
+            serializer = CommunitySettingsSerializer(instance=instance, data=request.data, context={"channel": request.data.get("channel")})
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            # data_list = []
+            # for channel in request.data.get("channel", []):
+            #     channel["community_setting"] = instance.id
+            #     data_list.append(channel)
+            # serializer = CommunityChannelSerializer(data=data_list, many=True)
+            # serializer.is_valid(raise_exception=True)
+            # serializer.save()
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
