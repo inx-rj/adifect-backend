@@ -85,7 +85,7 @@ def community_data_entry():
         logger.info(f"last_community_id ## {last_community_id}")
 
         if last_community_id:
-            data = [community for community in data if community.get('id') > last_community_id]
+            data = [community for community in data if community.get('id') == 431]
 
         new_instances = []
         # lst_community_id = []
