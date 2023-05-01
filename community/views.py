@@ -180,13 +180,13 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
 
-            data_list = []
-            for channel in request.data.get("channel"):
-                channel["community_setting"] = community_setting_obj.id
-                data_list.append(channel)
-            serializer = CommunityChannelSerializer(data=data_list, many=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+            # data_list = []
+            # for channel in request.data.get("channel"):
+            #     channel["community_setting"] = community_setting_obj.id
+            #     data_list.append(channel)
+            # serializer = CommunityChannelSerializer(data=data_list, many=True)
+            # serializer.is_valid(raise_exception=True)
+            # serializer.save()
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
