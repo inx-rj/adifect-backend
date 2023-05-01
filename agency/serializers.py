@@ -699,7 +699,7 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
             audience = Audience.objects.create(**validated_data)
             for channel in channel_data:
                 if not channel.get('channel'):
-                    raise serializers.ValidationError("Channel id not provided!")
+                    raise serializers.ValidationError({"channel": ["This field is required!"]})
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
                 AudienceChannel.objects.create(audience=audience, channel=channel_obj, title=channel.get('title'), device=channel.get('device'), language=channel.get('language'), age=channel.get('age'), gender=channel.get('gender'))
         return audience
@@ -724,10 +724,11 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
         channel_data = validated_data.get('channel')
         instance.audience_id = validated_data.get('audience_id', instance.audience_id)
         instance.title = validated_data.get('title', instance.title)
+        instance.geography = validated_data.get('geography', instance.geography)
         instance.channel.clear()
         for channel in channel_data:
             if not channel.get('channel'):
-                raise serializers.ValidationError("Channel id not provided!")
+                raise serializers.ValidationError({"channel": ["This field is required!"]})
             channel_obj = Channel.objects.get(id=channel.get('channel').id)
             AudienceChannel.objects.create(audience=instance, channel=channel_obj, title=channel.get('title'), device=channel.get('device'), language=channel.get('language'), age=channel.get('age'), gender=channel.get('gender'))
         instance.save()

@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
@@ -16,6 +17,8 @@ class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
 class CommunityChannelSerializer(serializers.ModelSerializer):
     channel_data = serializers.SerializerMethodField()
+    channel = serializers.PrimaryKeyRelatedField(queryset=Channel.objects.filter(is_trashed=False),
+                                                 required=True, write_only=True)
 
     class Meta:
         model = CommunityChannel
@@ -103,10 +106,26 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
     """
     Community settings serializer to validate and create data.
     """
+    community_id = serializers.PrimaryKeyRelatedField(queryset=Community.objects.filter(is_trashed=False),
+                                                      required=True, write_only=True)
+    channel = CommunityChannelSerializer(many=True, write_only=True)
 
     class Meta:
         model = CommunitySetting
-        fields = ('id', 'community', 'is_active')
+        fields = ('id', 'community_id', 'channel', 'is_active')
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            instance.community = validated_data.get("community_id")
+            instance.save(update_fields=["community"])
+
+            for channel in validated_data.get("channel", []):
+                if not channel.get('channel'):
+                    raise serializers.ValidationError({"channel": ["This field is required!"]})
+                channel_obj = Channel.objects.get(id=channel.get('channel').id)
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
+                                                api_key=channel.get('api_key'))
+        return instance
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
