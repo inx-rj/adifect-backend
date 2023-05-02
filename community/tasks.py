@@ -33,14 +33,27 @@ def sync_function(url, headers, params):
     async def async_func():
         page = 1
         status = 200
+        repeater_count = 0
+        community_page_repeater_count = {}
         async with aiohttp.ClientSession(headers=headers) as session:
             while status == 200:
                 full_url = url.format(page=page, per_page=params.get('per_page'),
                                       by_community=params.get('by_community'))
                 async with session.get(url=full_url) as resp:
-
-                    response_data = await resp.json()
-                    status = resp.status
+                    try:
+                        logger.info(f"CURRENT URL: {full_url}")
+                        response_data = await resp.json()
+                        status = resp.status
+                    except Exception:
+                        logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
+                        community_page_repeater_count[params.get('by_community')] = {}
+                        repeater_count += 1
+                        community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
+                        if community_page_repeater_count[params.get('by_community')][params.get('page')] == 10:
+                            page += 1
+                            repeater_count = 0
+                            community_page_repeater_count = {}
+                        continue
                     if status != 200:
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         continue
@@ -48,6 +61,7 @@ def sync_function(url, headers, params):
                         return
                     data_list.extend(response_data)
                     page += 1
+                    repeater_count = 0
 
     asyncio.run(async_func())
 
