@@ -67,10 +67,19 @@ class StorySerializer(serializers.ModelSerializer):
     tag = TagSerializer(many=True)
     category = CategorySerializer(many=True)
     image = serializers.SerializerMethodField()
+    community_channels = serializers.SerializerMethodField()
 
     class Meta:
         model = Story
         fields = '__all__'
+
+    def get_community_channels(self, obj):
+        if obj.community.community_setting_community:
+            if community_sett_obj := CommunitySetting.objects.filter(
+                community=obj.community
+            ).first():
+                return CommunityChannelSerializer(community_sett_obj.community_channel_community.all(), many=True).data
+        return []
 
     def get_image(self, obj):
         return obj.get_image()
