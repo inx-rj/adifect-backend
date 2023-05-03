@@ -15,7 +15,8 @@ from PIL import Image
 import sys
 import datetime
 
-from community.models import Channel
+from community.models import Channel, Community
+
 
 # from administrator.models import Skills
 
@@ -275,6 +276,7 @@ class TestModal(models.Model):
 
 
 class Audience(BaseModel):
+    community = models.ForeignKey(Community, related_name='audience_community', on_delete=models.SET_NULL, null=True, blank=True)
     audience_id = models.CharField(max_length=10, unique=True)
     title = models.CharField(max_length=200)
     geography = models.CharField(max_length=500, null=True, blank=True)

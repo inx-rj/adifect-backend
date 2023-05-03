@@ -41,7 +41,7 @@ urlpatterns = [
     path('admin-members-list/', views.GetAdminMembers.as_view(), name='admin_members_list'),
     # path('admin-members-change-role/', views.ChangeMemberRole.as_view(), name='admin_members_change_role'),
     path('audience/', views.AudienceListCreateView.as_view(), name='audience_list_create'),
-    path('audience/<int:id>/', views.AudienceRetrieveUpdateDeleteView.as_view(), name='audience_retrieve_update_delete')
-
+    path('audience/<int:id>/', views.AudienceRetrieveUpdateDeleteView.as_view(), name='audience_retrieve_update_delete'),
+    path('community-audience/', views.CommunityAudienceListView.as_view(), name='community_audience_list')
 ]
 urlpatterns += router.urls
