@@ -580,6 +580,7 @@ class AddStoryTagsView(generics.CreateAPIView):
     API to add tags to existing story and also associate tag to community.
     """
     serializer_class = AddStoryTagsSerializer
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
