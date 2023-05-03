@@ -75,10 +75,9 @@ class StorySerializer(serializers.ModelSerializer):
 
     def get_community_channels(self, obj):
         if obj.community.community_setting_community:
-            if community_sett_obj := CommunitySetting.objects.filter(
-                community=obj.community
-            ).first():
-                return CommunityChannelSerializer(community_sett_obj.community_channel_community.all(), many=True).data
+            return CommunityChannelSerializer(
+                obj.community.community_setting_community.community_channel_community.all(),
+                many=True).data
         return []
 
     def get_image(self, obj):
@@ -122,6 +121,11 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommunitySetting
         fields = ('id', 'community_id', 'channel', 'is_active')
+
+    def validate_community_id(self, value):
+        if CommunitySetting.objects.filter(community=value).exists():
+            raise serializers.ValidationError("Community Setting for this community already exists.")
+        return value
 
     def create(self, validated_data):
         channel_data = validated_data.pop("channel", [])
