@@ -7,7 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Channel
-from community.serializers import ChannelRetrieveUpdateDestroySerializer
+from community.serializers import ChannelRetrieveUpdateDestroySerializer, CommunitySerializer
 from .models import InviteMember, WorksFlow, Workflow_Stages, Industry, Company, DAM, DamMedia, TestModal, AgencyLevel, \
     Audience, AudienceChannel
 from rest_framework.fields import SerializerMethodField
@@ -691,7 +691,7 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['id', 'audience_id', 'title', 'channel', 'geography']
+        fields = ['id', 'audience_id', 'title', 'channel', 'geography', 'community']
 
     def create(self, validated_data):
         channel_data = validated_data.pop('channel')
@@ -706,6 +706,10 @@ class AudienceListCreateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super(AudienceListCreateSerializer, self).to_representation(instance)
+        if instance.community:
+            representation['community'] = CommunitySerializer(instance.community).data
+        else:
+            representation['community'] = None
         representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
         return representation
 
@@ -718,11 +722,12 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['id', 'audience_id', 'title', 'channel', 'geography']
+        fields = ['id', 'audience_id', 'title', 'channel', 'geography', 'community']
 
     def update(self, instance, validated_data):
         channel_data = validated_data.get('channel')
         instance.audience_id = validated_data.get('audience_id', instance.audience_id)
+        instance.community = validated_data.get('community', instance.community)
         instance.title = validated_data.get('title', instance.title)
         instance.geography = validated_data.get('geography', instance.geography)
         instance.channel.clear()
@@ -736,5 +741,9 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super(AudienceRetrieveUpdateDestroySerializer, self).to_representation(instance)
+        if instance.community:
+            representation['community'] = CommunitySerializer(instance.community).data
+        else:
+            representation['community'] = None
         representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
         return representation
