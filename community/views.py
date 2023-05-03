@@ -23,7 +23,8 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND, \
+    TAG_TO_STORY_ADDED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode
@@ -31,7 +32,7 @@ from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
-    CreativeCodeSerializer
+    CreativeCodeSerializer, AddStoryTagsSerializer
 
 
 class CommunityList(APIView):
@@ -572,3 +573,20 @@ class ExportArticleCsv(APIView):
             print(f"{err}")
             return Response({"error": True, "message": SOMETHING_WENT_WRONG},
                             status=status.HTTP_400_BAD_REQUEST)
+
+
+class AddStoryTagsView(generics.CreateAPIView):
+    """
+    API to add tags to existing story and also associate tag to community.
+    """
+    serializer_class = AddStoryTagsSerializer
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': TAG_TO_STORY_ADDED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
+
