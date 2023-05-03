@@ -112,9 +112,13 @@ class StoryTagAnalytic(models.Model):
 
 
 class CommunitySetting(BaseModel):
-    community = models.ForeignKey(Community, related_name='community_setting_community', on_delete=models.SET_NULL, null=True, blank=True)
+    community = models.OneToOneField(Community, related_name='community_setting_community',
+                                     on_delete=models.SET_NULL, null=True, blank=True)
     channel = models.ManyToManyField(Channel, through='CommunityChannel', related_name='community_setting_channel')
     is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.id
 
 
 class CommunityChannel(BaseModel):
