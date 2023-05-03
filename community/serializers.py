@@ -74,10 +74,10 @@ class StorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_community_channels(self, obj):
-        if obj.community.community_setting_community and obj.community.community_setting_community.first():
-                return CommunityChannelSerializer(
-                    obj.community.community_setting_community.first().community_channel_community.all(),
-                    many=True).data
+        if obj.community.community_setting_community:
+            return CommunityChannelSerializer(
+                obj.community.community_setting_community.community_channel_community.all(),
+                many=True).data
         return []
 
     def get_image(self, obj):
