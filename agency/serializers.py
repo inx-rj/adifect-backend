@@ -747,3 +747,13 @@ class AudienceRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
             representation['community'] = None
         representation['channel'] = AudienceChannelSerializer(instance.audience_channel_audience.all(), many=True).data
         return representation
+
+
+class AudienceCommunityListSerializer(serializers.ModelSerializer):
+    """
+    Serializer to view list of all Audiences and add Audience
+    """
+
+    class Meta:
+        model = Audience
+        fields = ['id', 'title']
