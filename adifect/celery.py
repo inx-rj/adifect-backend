@@ -23,10 +23,10 @@ app.conf.beat_schedule = {
         'schedule': timedelta(hours=3),
         # 'args': (16, 16)
     },
-    # 'community-data-entry-every-1-hour': {
-    #     'task': 'community_data_entry',
-    #     'schedule':  timedelta(minutes=30)
-    # },
+    'community-data-entry': {
+        'task': 'community_data_entry',
+        'schedule':  timedelta(days=1)
+    },
 }
 
 app.autodiscover_tasks()

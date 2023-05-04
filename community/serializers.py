@@ -123,7 +123,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
         fields = ('id', 'community_id', 'channel', 'is_active')
 
     def validate_community_id(self, value):
-        if CommunitySetting.objects.filter(community=value).exists():
+        if CommunitySetting.objects.filter(is_trashed=False, community=value).exists():
             raise serializers.ValidationError("Community Setting for this community already exists.")
         return value
 
