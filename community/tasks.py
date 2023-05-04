@@ -8,7 +8,7 @@ import aiohttp as aiohttp
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -126,8 +126,9 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
     try:
         if (community_id != instance_community_id) | instance_community_delete:
             Story.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
-            StoryTag.objects.filter(story__community__community_id=instance_community_id).update(is_trashed=True)
-            StoryCategory.objects.filter(story__community__community_id=instance_community_id).update(is_trashed=True)
+            CommunityChannel.objects.filter(community_setting__community__community_id=instance_community_id).update(is_trashed=True)
+            StoryTag.objects.filter(story__community__community_id=instance_community_id).delete()
+            StoryCategory.objects.filter(story__community__community_id=instance_community_id).delete()
             if instance_community_delete:
                 return
         start_time = time.time()

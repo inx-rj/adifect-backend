@@ -185,7 +185,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        # story_data_entry.delay(instance.community.community_id, instance_community_delete=True)
+        # story_data_entry.delay(instance.community.community_id, instance.community.community_id, instance_community_delete=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
