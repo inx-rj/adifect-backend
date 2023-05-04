@@ -27,12 +27,12 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     TAG_TO_STORY_ADDED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
-    CreativeCode
+    CreativeCode, StoryTag
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
-    CreativeCodeSerializer, AddStoryTagsSerializer
+    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
 
 
 class CommunityList(APIView):
@@ -575,15 +575,25 @@ class ExportArticleCsv(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class AddStoryTagsView(generics.CreateAPIView):
+class AddStoryTagsView(generics.ListCreateAPIView, generics.DestroyAPIView):
     """
     API to add tags to existing story and also associate tag to community.
     """
     serializer_class = AddStoryTagsSerializer
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
+    def get_queryset(self):
+        if self.request.method == 'GET':
+            return Tag.objects.filter(
+                community_id=self.kwargs.get("community_id"), is_trashed=False
+            ).exclude(storytag__story_id=self.kwargs.get("story_id"))
+
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
+
+    def list(self, request, *args, **kwargs):
+        serializer = TagSerializer(self.get_queryset(), many=True)
+        return Response({"data": serializer.data, "message": ""}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -591,3 +601,8 @@ class AddStoryTagsView(generics.CreateAPIView):
         serializer.save()
         return Response({'data': "", 'message': TAG_TO_STORY_ADDED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
 
+    def destroy(self, request, *args, **kwargs):
+        serializer = StoryTagSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        StoryTag.objects.filter(story=serializer.data.get("story"), tag=serializer.data.get("tag")).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

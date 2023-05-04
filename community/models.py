@@ -37,7 +37,6 @@ class Tag(BaseModel):
                                     null=True, blank=True)
     title = models.TextField()
     is_unique = models.BooleanField(default=True)
-    description = models.TextField()
     is_active = models.BooleanField(default=True)
 
     class Meta:
