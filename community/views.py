@@ -33,6 +33,7 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
+from .tasks import story_data_entry
 
 
 class CommunityList(APIView):
@@ -176,41 +177,28 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def post(self, request, *args, **kwargs):
 
-        with transaction.atomic():
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            community_setting_obj = serializer.save()
-
-            # data_list = []
-            # for channel in request.data.get("channel"):
-            #     channel["community_setting"] = community_setting_obj.id
-            #     data_list.append(channel)
-            # serializer = CommunityChannelSerializer(data=data_list, many=True)
-            # serializer.is_valid(raise_exception=True)
-            # serializer.save()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        community_setting_obj = serializer.save()
+        # story_data_entry.delay(community_setting_obj.community.community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        # story_data_entry.delay(instance.community.community_id, instance_community_delete=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        CommunityChannel.objects.filter(community_setting=instance).delete()
+        community_id = instance.community.community_id
 
         with transaction.atomic():
+            CommunityChannel.objects.filter(community_setting=instance).delete()
             serializer = CommunitySettingsSerializer(instance=instance, data=request.data, context={"channel": request.data.get("channel")})
             serializer.is_valid(raise_exception=True)
-            serializer.save()
-
-            # data_list = []
-            # for channel in request.data.get("channel", []):
-            #     channel["community_setting"] = instance.id
-            #     data_list.append(channel)
-            # serializer = CommunityChannelSerializer(data=data_list, many=True)
-            # serializer.is_valid(raise_exception=True)
-            # serializer.save()
+            community_setting_obj = serializer.save()
+            # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
