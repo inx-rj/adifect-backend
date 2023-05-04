@@ -107,7 +107,7 @@ class TagCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ['community', 'title', 'description']
+        fields = ['community', 'title']
 
 
 class CommunitySettingsSerializer(serializers.ModelSerializer):

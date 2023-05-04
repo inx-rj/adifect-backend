@@ -169,8 +169,7 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
 
                     if not story_tag_obj:
                         story_tag_obj = Tag(tag_id=story_tags.get('id'),
-                                            community_id=community_obj_id, title=story_tags.get('name'),
-                                            description=story_tags.get('name'))
+                                            community_id=community_obj_id, title=story_tags.get('name'))
                         tags_list.append(story_tag_obj)
                     tags_id_list.append(story_tags.get('id'))
                 story_tag_dict[story_item.get('id')] = tags_id_list
