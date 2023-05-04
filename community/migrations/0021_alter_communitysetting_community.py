@@ -16,4 +16,8 @@ class Migration(migrations.Migration):
             name='community',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='community_setting_community', to='community.community'),
         ),
+        migrations.RemoveField(
+            model_name='tag',
+            name='description',
+        ),
     ]
