@@ -4,16 +4,44 @@ from community.models import Community, Story, Tag, Category, StoryTag, StoryCat
     CommunitySetting, Program, CopyCode, CreativeCode
 
 # Register your models here.
-admin.site.register(Community)
-admin.site.register(Tag)
-admin.site.register(Category)
 admin.site.register(StoryTag)
 admin.site.register(StoryCategory)
-admin.site.register(Channel)
 admin.site.register(CommunityChannel)
 admin.site.register(Program)
 admin.site.register(CopyCode)
 admin.site.register(CreativeCode)
+
+
+@admin.register(Community)
+class CommunityAdmin(admin.ModelAdmin):
+    """
+    Customizing admin view of Community Table
+    """
+    list_display = ('id', 'community_id', 'name', 'is_active')
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    """
+    Customizing admin view of Tag Table
+    """
+    list_display = ('id', 'tag_id', 'title', 'is_active')
+
+
+@admin.register(Channel)
+class TagAdmin(admin.ModelAdmin):
+    """
+    Customizing admin view of Channel Table
+    """
+    list_display = ('id', 'name', 'is_active')
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    """
+    Customizing admin view of Category Table
+    """
+    list_display = ('id', 'category_id', 'title', 'is_active')
 
 
 class StoryTagAdmin(admin.TabularInline):

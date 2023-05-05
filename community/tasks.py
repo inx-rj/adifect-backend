@@ -8,7 +8,7 @@ import aiohttp as aiohttp
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -49,7 +49,7 @@ def sync_function(url, headers, params):
                         community_page_repeater_count[params.get('by_community')] = {}
                         repeater_count += 1
                         community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
-                        if community_page_repeater_count[params.get('by_community')][params.get('page')] == 10:
+                        if community_page_repeater_count[params.get('by_community')][params.get('page')] == 5:
                             page += 1
                             repeater_count = 0
                             community_page_repeater_count = {}
@@ -70,10 +70,6 @@ def sync_function(url, headers, params):
 
 @shared_task(name="community_data_entry")
 def community_data_entry():
-    """
-    Community data is fetched from the production url, and then it is being loaded into the database
-    """
-
     try:
         task_list = TaskResult.objects.filter(task_name='community_data_entry').exclude(
             task_id=community_data_entry.request.id).values_list('status', flat=True)
@@ -82,9 +78,7 @@ def community_data_entry():
             logger.info("## TASK ALREADY RUNNING.")
             return
 
-        start_time = time.time()
         community_url = os.environ.get('COMMUNITY_URL')
-        story_url = os.environ.get('STORY_URL')
         community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
         headers = {'Authorization': f'Token {community_data_access_key}'}
         params = {'per_page': 100}
@@ -99,20 +93,17 @@ def community_data_entry():
         logger.info(f"last_community_id ## {last_community_id}")
 
         if last_community_id:
-            data = [community for community in data if community.get('id') == 431]
+            data = [community for community in data if community.get('id') > last_community_id]
 
         new_instances = []
-        # lst_community_id = []
         for item in data:
-            # lst_community_id.append(item.get('id'))
-            if item.get('id') == 431:
-                community_obj = Community(
-                    community_id=item.get('id'),
-                    name=item.get('name'),
-                    client_company_id=item.get('client_company_id'),
-                    community_metadata=item
-                )
-                new_instances.append(community_obj)
+            community_obj = Community(
+                community_id=item.get('id'),
+                name=item.get('name'),
+                client_company_id=item.get('client_company_id'),
+                community_metadata=item
+            )
+            new_instances.append(community_obj)
 
             if len(new_instances) >= 5000:
                 Community.objects.bulk_create(new_instances, ignore_conflicts=True)
@@ -121,7 +112,32 @@ def community_data_entry():
         if new_instances:
             Community.objects.bulk_create(new_instances, ignore_conflicts=True)
 
-        data = [{'id': 431}]
+    except Exception as e:
+        logger.error(f"community_data_entry error ## {e}")
+
+
+
+@shared_task
+def story_data_entry(community_id, instance_community_id=None, instance_community_delete=False):
+    """
+    Community data is fetched from the production url, and then it is being loaded into the database
+    """
+
+    try:
+        if (community_id != instance_community_id) | instance_community_delete:
+            Story.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
+            CommunityChannel.objects.filter(community_setting__community__community_id=instance_community_id).update(is_trashed=True)
+            StoryTag.objects.filter(story__community__community_id=instance_community_id).delete()
+            StoryCategory.objects.filter(story__community__community_id=instance_community_id).delete()
+            if instance_community_delete:
+                return
+        start_time = time.time()
+        story_url = os.environ.get('STORY_URL')
+        community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
+        headers = {'Authorization': f'Token {community_data_access_key}'}
+        params = {'per_page': 100}
+
+        data = [{'id': community_id}]
         for community_id in data:
 
             params['by_community'] = community_id.get('id')
@@ -154,8 +170,7 @@ def community_data_entry():
 
                     if not story_tag_obj:
                         story_tag_obj = Tag(tag_id=story_tags.get('id'),
-                                            community_id=community_obj_id, title=story_tags.get('name'),
-                                            description=story_tags.get('name'))
+                                            community_id=community_obj_id, title=story_tags.get('name'))
                         tags_list.append(story_tag_obj)
                     tags_id_list.append(story_tags.get('id'))
                 story_tag_dict[story_item.get('id')] = tags_id_list

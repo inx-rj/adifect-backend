@@ -37,7 +37,6 @@ class Tag(BaseModel):
                                     null=True, blank=True)
     title = models.TextField()
     is_unique = models.BooleanField(default=True)
-    description = models.TextField()
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -112,7 +111,7 @@ class StoryTagAnalytic(models.Model):
 
 
 class CommunitySetting(BaseModel):
-    community = models.OneToOneField(Community, related_name='community_setting_community',
+    community = models.ForeignKey(Community, related_name='community_setting_community',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     channel = models.ManyToManyField(Channel, through='CommunityChannel', related_name='community_setting_channel')
     is_active = models.BooleanField(default=True)

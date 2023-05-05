@@ -74,7 +74,7 @@ class StorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_community_channels(self, obj):
-        if obj.community.community_setting_community:
+        if obj.community and obj.community.community_setting_community:
             return CommunityChannelSerializer(
                 obj.community.community_setting_community.community_channel_community.all(),
                 many=True).data
@@ -107,7 +107,7 @@ class TagCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ['community', 'title', 'description']
+        fields = ['community', 'title']
 
 
 class CommunitySettingsSerializer(serializers.ModelSerializer):
@@ -123,7 +123,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
         fields = ('id', 'community_id', 'channel', 'is_active')
 
     def validate_community_id(self, value):
-        if CommunitySetting.objects.filter(community=value).exists():
+        if CommunitySetting.objects.filter(is_trashed=False, community=value).exists():
             raise serializers.ValidationError("Community Setting for this community already exists.")
         return value
 
@@ -243,12 +243,11 @@ class CreativeCodeSerializer(serializers.ModelSerializer):
 class AddStoryTagsSerializer(serializers.Serializer):
     story = serializers.PrimaryKeyRelatedField(queryset=Story.objects.filter(is_trashed=False), required=True)
     title = serializers.CharField(required=True)
-    description = serializers.CharField(required=False)
 
     def create(self, validated_data):
         try:
             if StoryTag.objects.filter(story_id=validated_data.get("story"),
-                                       tag_id=validated_data.get("title")).exists():
+                                       tag_id=int(validated_data.get("title"))).exists():
                 raise serializers.ValidationError("Tag already exists in the story.")
             if not Tag.objects.filter(id=validated_data.get('title')).first():
                 raise serializers.ValidationError(
@@ -262,12 +261,15 @@ class AddStoryTagsSerializer(serializers.Serializer):
             if Tag.objects.filter(title__iexact=validated_data.get("title")).exists():
                 raise serializers.ValidationError("Tag already exists in the list.")
 
-            if not validated_data.get("description"):
-                raise serializers.ValidationError({"description": ["This field is required!"]})
-
-            tag_obj = Tag.objects.create(community=community_obj, title=validated_data.get("title"),
-                                         description=validated_data.get("description"))
+            tag_obj = Tag.objects.create(community=community_obj, title=validated_data.get("title"))
 
             story_tag_obj = StoryTag.objects.create(story=validated_data.get("story"), tag=tag_obj)
 
         return story_tag_obj
+
+
+class StoryTagSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = StoryTag
+        fields = "__all__"
