@@ -111,7 +111,8 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     queryset = Community.objects.filter(is_trashed=False).order_by('-id')
-    filter_backends = [OrderingFilter]
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['name', 'tag_community__title']
     ordering_fields = ['name']
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
@@ -195,7 +196,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
         with transaction.atomic():
             CommunityChannel.objects.filter(community_setting=instance).delete()
-            serializer = CommunitySettingsSerializer(instance=instance, data=request.data, context={"channel": request.data.get("channel")})
+            serializer = CommunitySettingsSerializer(instance=instance, data=request.data,
+                                                     context={"channel": request.data.get("channel")})
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
             # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
@@ -354,8 +356,8 @@ class CopyCodeListCreateAPIView(generics.ListCreateAPIView):
     queryset = CopyCode.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['subject_line', 'title']
-    ordering_fields = ['title', 'subject_line']
+    search_fields = ['subject_line', 'title', 'body', 'notes']
+    ordering_fields = ['title', 'subject_line', 'body', 'notes']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def get(self, request, *args, **kwargs):
@@ -424,8 +426,10 @@ class CreativeCodeListCreateAPIView(generics.ListCreateAPIView):
     queryset = CreativeCode.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['title', 'file_name', 'format', 'creative_theme', 'link']
-    ordering_fields = ['title', 'file_name', 'format', 'creative_theme', 'link']
+    search_fields = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel', 'duration',
+                     'link', 'notes']
+    ordering_fields = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
+                       'duration', 'link', 'notes']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def get(self, request, *args, **kwargs):
@@ -483,7 +487,6 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
 
 
 class ExportArticleCsv(APIView):
-
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def post(self, request, *args, **kwargs):
