@@ -566,25 +566,15 @@ class ExportArticleCsv(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class AddStoryTagsView(generics.ListCreateAPIView, generics.DestroyAPIView):
+class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
     """
     API to add tags to existing story and also associate tag to community.
     """
     serializer_class = AddStoryTagsSerializer
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
-    def get_queryset(self):
-        if self.request.method == 'GET':
-            return Tag.objects.filter(
-                community_id=self.kwargs.get("community_id"), is_trashed=False
-            ).exclude(storytag__story_id=self.kwargs.get("story_id"))
-
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
-
-    def list(self, request, *args, **kwargs):
-        serializer = TagSerializer(self.get_queryset(), many=True)
-        return Response({"data": serializer.data, "message": ""}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
