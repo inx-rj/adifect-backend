@@ -27,5 +27,4 @@ urlpatterns = [
          name='retrieve_update_destroy_creative_code'),
     path('story-export/', ExportArticleCsv.as_view(), name="story_export"),
     path('story-tag/', AddStoryTagsView.as_view(), name="story_tag"),
-    path('story-tag/<int:community_id>/<int:story_id>/', AddStoryTagsView.as_view(), name="story_tag"),
 ]
