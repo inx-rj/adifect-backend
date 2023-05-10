@@ -197,7 +197,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         with transaction.atomic():
             CommunityChannel.objects.filter(community_setting=instance).delete()
             serializer = CommunitySettingsSerializer(instance=instance, data=request.data,
-                                                     context={"channel": request.data.get("channel")})
+                                                     context={"channel": request.data.get("channel"),
+                                                              "id": kwargs.get('id')})
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
             # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
