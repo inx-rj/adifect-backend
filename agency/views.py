@@ -1338,6 +1338,7 @@ class DamDuplicateViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
+    pagination_class = CustomPagination
     queryset = Job.objects.filter(status=0).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
@@ -1346,8 +1347,11 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         draft_data = queryset.filter(user=request.user)
-        serializer = self.serializer_class(draft_data, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(draft_data)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({"data": response.data}, status=status.HTTP_200_OK)
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #

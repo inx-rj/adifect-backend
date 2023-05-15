@@ -81,7 +81,7 @@ class StoriesList(generics.ListAPIView, generics.RetrieveAPIView):
     serializer_class = StorySerializer
     filterset_class = StoriesFilter
     pagination_class = CustomPagination
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    # permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
     lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
