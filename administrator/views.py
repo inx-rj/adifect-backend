@@ -1193,7 +1193,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
-    search_fields = ['=company', ]
+    search_fields = ['company__name', 'title']
 
     # pagination_class = FiveRecordsPagination
 
