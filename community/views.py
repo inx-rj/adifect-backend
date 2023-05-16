@@ -1,4 +1,5 @@
 import csv
+import logging
 import os
 import zipfile
 
@@ -34,6 +35,9 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
 from .tasks import story_data_entry
+
+
+logger = logging.getLogger('django')
 
 
 class CommunityList(APIView):
@@ -588,3 +592,23 @@ class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
         serializer.is_valid(raise_exception=True)
         StoryTag.objects.filter(story=serializer.data.get("story"), tag=serializer.data.get("tag")).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OpnSesameViewSet(APIView):
+    def post(self, request, *args, **kwargs):
+        url = request.data.get("url")
+
+        payload = {"username": request.data.get("username"), "password": request.data.get("password")}
+        headers = {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Accept': 'application/json'
+        }
+        response = requests.request("POST", url, headers=headers, json=payload)
+
+        logger.info(f"## Response => {response.text}")
+        logger.info(f"## Response Body => {response.request.body}")
+        logger.info(f"## Response Status Code => {response.status_code}")
+
+        return Response({"data": response.text, "status_code": response.status_code},
+                        status=status.HTTP_200_OK)
+
