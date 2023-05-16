@@ -347,7 +347,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company', 'is_blocked']
-    search_fields = ['=company']
+    search_fields = ['company__name', 'name']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
@@ -1342,7 +1342,7 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.filter(status=0).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
-    search_fields = ['=company']
+    search_fields = ['company__name', 'title']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
