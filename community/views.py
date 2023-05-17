@@ -36,7 +36,6 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
 from .tasks import story_data_entry
 
-
 logger = logging.getLogger('django')
 
 
@@ -595,20 +594,35 @@ class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
 
 
 class OpnSesameViewSet(APIView):
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
     def post(self, request, *args, **kwargs):
-        url = request.data.get("url")
+        try:
+            base_url = os.environ.get("OPNSESAME_API_URL", "")
+            url = request.data.pop("url", "")
+            method = request.data.pop("method", "")
+            token = request.data.pop("token", None)
 
-        payload = {"username": request.data.get("username"), "password": request.data.get("password")}
-        headers = {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Accept': 'application/json'
-        }
-        response = requests.request("POST", url, headers=headers, json=payload)
+            if url == "auth/api-token-auth/":
+                request.data["username"] = os.environ.get("OPNSESAME_USERNAME")
+                request.data["password"] = os.environ.get("OPNSESAME_PASSWORD")
 
-        logger.info(f"## Response => {response.text}")
-        logger.info(f"## Response Body => {response.request.body}")
-        logger.info(f"## Response Status Code => {response.status_code}")
+            headers = {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Accept': 'application/json'
+            }
+            if token:
+                headers["Authorization"] = f"Token {token}"
 
-        return Response({"data": response.text, "status_code": response.status_code},
-                        status=status.HTTP_200_OK)
+            logger.info(f"## URL => {base_url}{url}")
+            response = requests.request(method, f"{base_url}{url}", headers=headers, json=request.data)
 
+            logger.info(f"## Response Body => {response.request.body}")
+            return Response({"data": response.text, "status_code": response.status_code},
+                            status=status.HTTP_200_OK)
+
+        except Exception as err:
+            logger.error(f"## Error in OpnSesameViewSet => {err}")
+
+            return Response({"error": True, "message": SOMETHING_WENT_WRONG},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
