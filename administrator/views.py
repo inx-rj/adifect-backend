@@ -2173,9 +2173,10 @@ class UserPortfolioViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        paginated_data = self.paginate_queryset(queryset)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
+        # paginated_data = self.paginate_queryset(queryset)
+        serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        # return self.get_paginated_response(data=serializer.data)
+        return Response(data=serializer.data)
 
 
 class AgencyJobDetailsViewSet(viewsets.ModelViewSet):
