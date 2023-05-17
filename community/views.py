@@ -184,12 +184,13 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
-        # story_data_entry.delay(community_setting_obj.community.community_id)
+        story_data_entry.delay(community_setting_obj.community.community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        # story_data_entry.delay(instance.community.community_id, instance.community.community_id, instance_community_delete=True)
+        story_data_entry.delay(instance.community.community_id, instance.community.community_id,
+                               instance_community_delete=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -204,7 +205,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                                               "id": kwargs.get('id')})
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
-            # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+            story_data_entry.delay(community_setting_obj.community.community_id, community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
