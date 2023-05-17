@@ -618,7 +618,7 @@ class OpnSesameViewSet(APIView):
             response = requests.request(method, f"{base_url}{url}", headers=headers, json=request.data)
 
             logger.info(f"## Response Body => {response.request.body}")
-            return Response({"data": response.text, "status_code": response.status_code},
+            return Response({"data": response.json(), "status_code": response.status_code},
                             status=status.HTTP_200_OK)
 
         except Exception as err:
