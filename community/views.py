@@ -598,7 +598,7 @@ class OpnSesameViewSet(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            base_url = os.environ.get("OPNSESAME_API_URL")
+            base_url = os.environ.get("OPNSESAME_API_URL", "")
             url = request.data.pop("url", "")
             method = request.data.pop("method", "")
             token = request.data.pop("token", None)
