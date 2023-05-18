@@ -115,7 +115,7 @@ def community_data_entry():
         logger.error(f"community_data_entry error ## {e}")
 
 
-@shared_task
+@shared_task(soft_time_limit=3600)
 def story_data_entry(community_id, instance_community_id=None, instance_community_delete=False):
     """
     Community data is fetched from the production url, and then it is being loaded into the database
@@ -161,7 +161,7 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
         logger.error(f"community_data_entry error ## {e}")
 
 
-@shared_task(name='add_community_stories')
+@shared_task(name='add_community_stories', soft_time_limit=3600)
 def add_community_stories(story_data_list, community_obj_id):
     # sourcery skip: low-code-quality
     story_to_be_create_objs = []
