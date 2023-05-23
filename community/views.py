@@ -7,7 +7,8 @@ import requests
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
+from django.views import View
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
@@ -627,3 +628,20 @@ class OpnSesameViewSet(APIView):
 
             return Response({"error": True, "message": SOMETHING_WENT_WRONG},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class StoryDetailView(View):
+
+    def get(self, request, **kwargs):
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        images = story_obj.get_image()
+
+        return render(request, 'story-detail.html', context={
+            'title': story_obj.title,
+            'lede': story_obj.lede,
+            'image': images[0] if images else "",
+            'body': story_obj.body,
+            'type': 'story',
+            'url': f'https://dev.adifect.com/company-projects/{story_obj.id}',
+            'site_name': 'Adifect'
+        })
