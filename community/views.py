@@ -638,6 +638,7 @@ class StoryDetailView(View):
 
         return render(request, 'story-detail.html', context={
             'title': story_obj.title,
+            'id': story_obj.id,
             'lede': story_obj.lede,
             'image': images[0] if images else "",
             'body': story_obj.body,

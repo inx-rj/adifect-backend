@@ -12,9 +12,16 @@
     {% endif %}
     <meta name="og:site_name" content="{{ site_name }}"/>
     <meta name="og:description" content="{{ lede }}"/>
-    <title>Title</title>
+    <title>{{ title }}</title>
 </head>
 <body>
-    <h1>Hello World!</h1>
 </body>
+<script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", function(){
+        const params = new URLSearchParams(document.location.search).get('fbclid');
+        if (params) {
+            window.location = 'https://dev.adifect.com/company-projects/{{ id }}'
+        }
+});
+</script>
 </html>
