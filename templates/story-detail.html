@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="og:title" content="{{ title }}"/>
+    <meta name="og:type" content="{{ type }}"/>
+    <meta name="og:url" content="{{ url }}"/>
+    {% if image %}
+        <meta name="og:image" content="{{ image }}"/>
+    {% else %}
+        <meta name="og:image" content="https://blog.bit.ai/wp-content/uploads/2023/05/mw1920_Analytics_and_Reporting-01-585x585.png"/>
+    {% endif %}
+    <meta name="og:site_name" content="{{ site_name }}"/>
+    <meta name="og:description" content="{{ body }}"/>
+    <title>Title</title>
+</head>
+<body>
+    <h1>Hello World!</h1>
+</body>
+</html>
