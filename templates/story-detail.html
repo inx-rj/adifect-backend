@@ -11,10 +11,17 @@
         <meta name="og:image" content="https://blog.bit.ai/wp-content/uploads/2023/05/mw1920_Analytics_and_Reporting-01-585x585.png"/>
     {% endif %}
     <meta name="og:site_name" content="{{ site_name }}"/>
-    <meta name="og:description" content="{{ body }}"/>
-    <title>Title</title>
+    <meta name="og:description" content="{{ lede }}"/>
+    <title>{{ title }}</title>
 </head>
 <body>
-    <h1>Hello World!</h1>
 </body>
+<script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", function(){
+        const params = new URLSearchParams(document.location.search).get('fbclid');
+        if (params) {
+            window.location = 'https://dev.adifect.com/company-projects/{{ id }}'
+        }
+});
+</script>
 </html>
