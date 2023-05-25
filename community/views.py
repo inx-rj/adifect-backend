@@ -6,7 +6,6 @@ import zipfile
 import requests
 import io
 
-import magic
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse

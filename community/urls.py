@@ -30,7 +30,6 @@ urlpatterns = [
     path('story-export/', ExportArticleCsv.as_view(), name="story_export"),
     path('story-tag/', AddStoryTagsView.as_view(), name="story_tag"),
     path('open-sesame/', OpnSesameViewSet.as_view(), name="open_sesame"),
-    path('open-sesame/', OpnSesameViewSet.as_view(), name="open_sesame"),
     path('story-page/<int:id>/', StoryDetailView.as_view(), name="story_page"),
     path('import-creative-code/', CreativeCodeImportAPIView.as_view(), name='retrieve_creative_code')
 ]
