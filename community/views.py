@@ -1,11 +1,17 @@
 import csv
-import io
+import logging
 import os
+import zipfile
+
+import requests
+import io
 
 import magic
 from django.db import transaction
 from django.db.models import F
-from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.views import View
 from rest_framework import generics, status
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
@@ -18,19 +24,23 @@ from common.search import get_query
 from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMMUNITY_TAGS_RETRIEVE_SUCCESSFULLY, \
     COMMUNITY_TAGS_STATUS_DATA, COMMUNITY_SETTINGS_SUCCESS, COMMUNITY_SETTINGS_RETRIEVE_SUCCESSFULLY, \
     CHANNEL_RETRIEVED_SUCCESSFULLY, CHANNEL_CREATED_SUCCESSFULLY, CHANNEL_UPDATED_SUCCESSFULLY, \
-    COMMUNITY_SETTINGS_UPDATE_SUCCESS, SOMETHING_WENT_WRONG, COMMUNITY_ID_NOT_PROVIDED, CHANNEL_ID_NOT_PROVIDED, \
-    COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
+    COMMUNITY_SETTINGS_UPDATE_SUCCESS, COMMUNITY_ID_NOT_PROVIDED, COMMUNITY_SETTING_RETRIEVE_SUCCESSFULLY, \
+    STORY_RETRIEVE_SUCCESSFULLY, PROGRAM_RETRIEVED_SUCCESSFULLY, \
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
-    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
+    CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND, \
+    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
-    CreativeCode
+    CreativeCode, StoryTag
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
-    TagCreateSerializer, CommunitySettingsSerializer, CommunitySerializer, ChannelListCreateSerializer, \
+    TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
-    CreativeCodeSerializer
+    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
+from .tasks import story_data_entry
+
+logger = logging.getLogger('django')
 
 
 class CommunityList(APIView):
@@ -78,7 +88,7 @@ class StoriesList(generics.ListAPIView, generics.RetrieveAPIView):
     serializer_class = StorySerializer
     filterset_class = StoriesFilter
     pagination_class = CustomPagination
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    # permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
     lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
@@ -108,7 +118,8 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     queryset = Community.objects.filter(is_trashed=False).order_by('-id')
-    filter_backends = [OrderingFilter]
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['name', 'tag_community__title']
     ordering_fields = ['name']
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
@@ -173,41 +184,32 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                         status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        if not request.data.get('community_id'):
-            return Response({'data': '', 'message': COMMUNITY_ID_NOT_PROVIDED}, status=status.HTTP_400_BAD_REQUEST)
 
-        with transaction.atomic():
-            community_id = request.data.pop('community_id')
-            serializer = self.get_serializer(data={'community': community_id})
-            serializer.is_valid(raise_exception=True)
-            community_setting_obj = serializer.save()
-
-            data_list = []
-            for channel in request.data.get("channel"):
-                channel["community_setting"] = community_setting_obj.id
-                data_list.append(channel)
-            serializer = CommunityChannelSerializer(data=data_list, many=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        community_setting_obj = serializer.save()
+        story_data_entry.delay(community_setting_obj.community.community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        story_data_entry.delay(instance.community.community_id, instance.community.community_id,
+                               instance_community_delete=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.data.get('community_id'):
-            request.data.pop('community_id')
-        CommunityChannel.objects.filter(community_setting=instance).delete()
-        data_list = []
-        for channel in request.data.get("channel"):
-            channel["community_setting"] = instance.id
-            data_list.append(channel)
-        serializer = CommunityChannelSerializer(data=data_list, many=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        community_id = instance.community.community_id
+
+        with transaction.atomic():
+            CommunityChannel.objects.filter(community_setting=instance).delete()
+            serializer = CommunitySettingsSerializer(instance=instance, data=request.data,
+                                                     context={"channel": request.data.get("channel"),
+                                                              "id": kwargs.get('id')})
+            serializer.is_valid(raise_exception=True)
+            community_setting_obj = serializer.save()
+            story_data_entry.delay(community_setting_obj.community.community_id, community_id)
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
@@ -363,8 +365,8 @@ class CopyCodeListCreateAPIView(generics.ListCreateAPIView):
     queryset = CopyCode.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['subject_line', 'title']
-    ordering_fields = ['title', 'subject_line']
+    search_fields = ['subject_line', 'title', 'body', 'notes']
+    ordering_fields = ['title', 'subject_line', 'body', 'notes']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def get(self, request, *args, **kwargs):
@@ -433,8 +435,10 @@ class CreativeCodeListCreateAPIView(generics.ListCreateAPIView):
     queryset = CreativeCode.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['title', 'file_name', 'format', 'creative_theme', 'link']
-    ordering_fields = ['title', 'file_name', 'format', 'creative_theme', 'link']
+    search_fields = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel', 'duration',
+                     'link', 'notes']
+    ordering_fields = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
+                       'duration', 'link', 'notes']
     permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
 
     def get(self, request, *args, **kwargs):
@@ -489,6 +493,162 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
         instance = get_object_or_404(CreativeCode, pk=kwargs.get('id'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExportArticleCsv(APIView):
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            story_obj = Story.objects.get(id=request.data.get("story_id"))
+        except Story.DoesNotExist as err:
+            return Response({"error": True, "message": NOT_FOUND}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            data_columns = request.data.get("data_columns")
+            response = HttpResponse(content_type='application/zip')
+            response['Content-Disposition'] = 'attachment; filename="story_details.zip"'
+
+            # Create a zip file object
+            zip_file = zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED)
+
+            temp_file = 'story_details.csv'
+            with open(temp_file, 'w', newline='', encoding='utf-8') as file:
+                column_values = []
+                column_names = []
+                for col in data_columns:
+                    column_names.append(col)
+                    if col == 'id':
+                        column_values.append(story_obj.id)
+                    elif col == 'story_id':
+                        column_values.append(story_obj.story_id)
+                    elif col == "title":
+                        column_values.append(story_obj.title)
+                    elif col == "lede":
+                        column_values.append(story_obj.lede)
+                    elif col == "image":
+                        column_values.append(story_obj.get_image())
+                    elif col == "community":
+                        column_values.append(story_obj.community.name if story_obj.community else "")
+                    elif col == "community_id":
+                        column_values.append(story_obj.community_id)
+                    elif col == "publication_date":
+                        column_values.append(story_obj.publication_date)
+                    elif col == "status":
+                        column_values.append(story_obj.status)
+                    elif col == "body":
+                        column_values.append(story_obj.body)
+                    elif col == "p_url":
+                        column_values.append(story_obj.p_url)
+                    elif col == "tag":
+                        tags = []
+                        for tag in story_obj.storytag_set.all():
+                            tags.append(tag.tag.title)
+                        column_values.append(tags)
+                    elif col == "category":
+                        categories = []
+                        for category in story_obj.storycategory_set.all():
+                            categories.append(category.category.title)
+                        column_values.append(categories)
+                writer = csv.writer(file)
+                writer.writerow(column_names)
+                writer.writerow(column_values)
+
+            zip_file.write(temp_file, arcname='story.csv')
+
+            if "image" in data_columns:
+                for image in story_obj.get_image():
+                    resp = requests.get(image)
+
+                    if resp.status_code == 200:
+                        zip_file.writestr(image.split("/")[-1], resp.content)
+
+            # Close the zip file and remove the temporary CSV file
+            zip_file.close()
+            os.remove(temp_file)
+
+            return response
+
+        except Exception as err:
+            print(f"{err}")
+            return Response({"error": True, "message": SOMETHING_WENT_WRONG},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
+    """
+    API to add tags to existing story and also associate tag to community.
+    """
+    serializer_class = AddStoryTagsSerializer
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': TAG_TO_STORY_ADDED_SUCCESSFULLY}, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        serializer = StoryTagSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        StoryTag.objects.filter(story=serializer.data.get("story"), tag=serializer.data.get("tag")).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OpnSesameViewSet(APIView):
+    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            base_url = os.environ.get("OPNSESAME_API_URL", "")
+            url = request.data.pop("url", "")
+            method = request.data.pop("method", "")
+            token = request.data.pop("token", None)
+
+            if url == "auth/api-token-auth/":
+                request.data["username"] = os.environ.get("OPNSESAME_USERNAME")
+                request.data["password"] = os.environ.get("OPNSESAME_PASSWORD")
+
+            headers = {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Accept': 'application/json'
+            }
+            if token:
+                headers["Authorization"] = f"Token {token}"
+
+            logger.info(f"## URL => {base_url}{url}")
+            response = requests.request(method, f"{base_url}{url}", headers=headers, json=request.data)
+
+            logger.info(f"## Response Body => {response.request.body}")
+            return Response({"data": response.json(), "status_code": response.status_code},
+                            status=status.HTTP_200_OK)
+
+        except Exception as err:
+            logger.error(f"## Error in OpnSesameViewSet => {err}")
+
+            return Response({"error": True, "message": SOMETHING_WENT_WRONG},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class StoryDetailView(View):
+
+    def get(self, request, **kwargs):
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        images = story_obj.get_image()
+
+        return render(request, 'story-detail.html', context={
+            'title': story_obj.title,
+            'id': story_obj.id,
+            'lede': story_obj.lede,
+            'image': images[0] if images else "",
+            'body': story_obj.body,
+            'type': 'story',
+            'url': f'https://dev.adifect.com/company-projects/{story_obj.id}',
+            'site_name': 'Adifect'
+        })
 
 
 class CreativeCodeImportAPIView(APIView):

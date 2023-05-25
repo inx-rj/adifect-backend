@@ -1,7 +1,8 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
-    CreativeCode, Category
+    CreativeCode, Category, StoryTag
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -16,6 +17,8 @@ class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
 
 class CommunityChannelSerializer(serializers.ModelSerializer):
     channel_data = serializers.SerializerMethodField()
+    channel = serializers.PrimaryKeyRelatedField(queryset=Channel.objects.filter(is_trashed=False),
+                                                 required=True, write_only=True)
 
     class Meta:
         model = CommunityChannel
@@ -62,12 +65,24 @@ class StorySerializer(serializers.ModelSerializer):
 
     community = CommunitySerializer()
     tag = TagSerializer(many=True)
+    community_tags = serializers.SerializerMethodField()
     category = CategorySerializer(many=True)
     image = serializers.SerializerMethodField()
+    community_channels = serializers.SerializerMethodField()
 
     class Meta:
         model = Story
         fields = '__all__'
+
+    def get_community_tags(self, obj):
+        return TagSerializer(obj.community.tag_community.all(), many=True).data
+
+    def get_community_channels(self, obj):
+        if obj.community.community_setting_community:
+            return CommunityChannelSerializer(
+                obj.community.community_setting_community.first().community_channel_community.all(),
+                many=True).data
+        return []
 
     def get_image(self, obj):
         return obj.get_image()
@@ -92,21 +107,59 @@ class TagCreateSerializer(serializers.ModelSerializer):
     """
     Serializer to add tag data.
     """
-    community = serializers.PrimaryKeyRelatedField(required=True, queryset=Community.objects.all())
+    community = serializers.PrimaryKeyRelatedField(required=True, queryset=Community.objects.filter(is_trashed=False))
 
     class Meta:
         model = Tag
-        fields = ['community', 'title', 'description']
+        fields = ['community', 'title']
 
 
 class CommunitySettingsSerializer(serializers.ModelSerializer):
     """
     Community settings serializer to validate and create data.
     """
+    community_id = serializers.PrimaryKeyRelatedField(queryset=Community.objects.filter(is_trashed=False),
+                                                      required=True, write_only=True)
+    channel = CommunityChannelSerializer(many=True, write_only=True)
 
     class Meta:
         model = CommunitySetting
-        fields = ('id', 'community', 'is_active')
+        fields = ('id', 'community_id', 'channel', 'is_active')
+
+    def validate_community_id(self, value):
+        if self.context.get('id'):
+            if CommunitySetting.objects.exclude(id=self.context.get('id')).filter(is_trashed=False, community=value).exists():
+                raise serializers.ValidationError("Community Setting for this community already exists.")
+        elif CommunitySetting.objects.filter(is_trashed=False, community=value).exists():
+            raise serializers.ValidationError("Community Setting for this community already exists.")
+        return value
+
+    def create(self, validated_data):
+        channel_data = validated_data.pop("channel", [])
+        community = validated_data.pop("community_id")
+        with transaction.atomic():
+            instance = CommunitySetting.objects.create(**validated_data, community=community)
+
+            for channel in channel_data:
+                if not channel.get('channel'):
+                    raise serializers.ValidationError({"channel": ["This field is required!"]})
+                channel_obj = Channel.objects.get(id=channel.get('channel').id)
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
+                                                api_key=channel.get('api_key'))
+        return instance
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            instance.community = validated_data.get("community_id")
+            instance.save(update_fields=["community"])
+
+            for channel in validated_data.get("channel", []):
+                if not channel.get('channel'):
+                    raise serializers.ValidationError({"channel": ["This field is required!"]})
+                channel_obj = Channel.objects.get(id=channel.get('channel').id)
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
+                                                api_key=channel.get('api_key'))
+        return instance
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -160,7 +213,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update program
     """
-    community = serializers.PrimaryKeyRelatedField(queryset=Community.objects.all(), required=True)
+    community = serializers.PrimaryKeyRelatedField(queryset=Community.objects.filter(is_trashed=False), required=True)
 
     class Meta:
         model = Program
@@ -192,3 +245,38 @@ class CreativeCodeSerializer(serializers.ModelSerializer):
         model = CreativeCode
         fields = ['id', 'title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
                   'duration', 'link', 'notes']
+
+
+class AddStoryTagsSerializer(serializers.Serializer):
+    story = serializers.PrimaryKeyRelatedField(queryset=Story.objects.filter(is_trashed=False), required=True)
+    title = serializers.CharField(required=True)
+
+    def create(self, validated_data):
+        try:
+            if StoryTag.objects.filter(story_id=validated_data.get("story"),
+                                       tag_id=int(validated_data.get("title"))).exists():
+                raise serializers.ValidationError("Tag already exists in the story.")
+            if not Tag.objects.filter(id=validated_data.get('title')).first():
+                raise serializers.ValidationError(
+                    {"story": [f"Invalid pk \"{validated_data.get('title')}\" - object does not exist."]})
+
+            story_tag_obj = StoryTag.objects.create(story=validated_data.get("story"),
+                                                    tag_id=validated_data.get("title"))
+
+        except (ValueError, TypeError):
+            community_obj = validated_data.get('story').community
+            if Tag.objects.filter(title__iexact=validated_data.get("title")).exists():
+                raise serializers.ValidationError("Tag already exists in the list.")
+
+            tag_obj = Tag.objects.create(community=community_obj, title=validated_data.get("title"))
+
+            story_tag_obj = StoryTag.objects.create(story=validated_data.get("story"), tag=tag_obj)
+
+        return story_tag_obj
+
+
+class StoryTagSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = StoryTag
+        fields = "__all__"

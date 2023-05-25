@@ -3,7 +3,9 @@ from django.urls import path
 from community.views import StoriesList, CommunityTagsListCreate, CommunityList, CommunitySettingsView, \
     ChannelListCreateAPIView, ChannelRetrieveUpdateDestroyAPIView, ProgramRetrieveUpdateDestroyAPIView, \
     ProgramListCreateAPIView, CopyCodeListCreateAPIView, CopyCodeRetrieveUpdateDestroyAPIView, \
-    CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, CreativeCodeImportAPIView
+    CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, ExportArticleCsv, AddStoryTagsView, \
+    OpnSesameViewSet, StoryDetailView, CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, \
+    CreativeCodeImportAPIView
 
 urlpatterns = [
     path('stories/', StoriesList.as_view(), name='list_stories'),
@@ -25,5 +27,10 @@ urlpatterns = [
     path('creative-code/', CreativeCodeListCreateAPIView.as_view(), name='list_create_creative_code'),
     path('creative-code/<int:id>/', CreativeCodeRetrieveUpdateDestroyAPIView.as_view(),
          name='retrieve_update_destroy_creative_code'),
+    path('story-export/', ExportArticleCsv.as_view(), name="story_export"),
+    path('story-tag/', AddStoryTagsView.as_view(), name="story_tag"),
+    path('open-sesame/', OpnSesameViewSet.as_view(), name="open_sesame"),
+    path('open-sesame/', OpnSesameViewSet.as_view(), name="open_sesame"),
+    path('story-page/<int:id>/', StoryDetailView.as_view(), name="story_page"),
     path('import-creative-code/', CreativeCodeImportAPIView.as_view(), name='retrieve_creative_code')
 ]

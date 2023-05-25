@@ -15,7 +15,8 @@ from PIL import Image
 import sys
 import datetime
 
-from community.models import Channel
+from community.models import Channel, Community
+
 
 # from administrator.models import Skills
 
@@ -275,8 +276,10 @@ class TestModal(models.Model):
 
 
 class Audience(BaseModel):
+    community = models.ForeignKey(Community, related_name='audience_community', on_delete=models.SET_NULL, null=True, blank=True)
     audience_id = models.CharField(max_length=10, unique=True)
     title = models.CharField(max_length=200)
+    geography = models.CharField(max_length=500, null=True, blank=True)
     channel = models.ManyToManyField(Channel, through='AudienceChannel', related_name='audience_channel')
     is_active = models.BooleanField(default=True)
 
@@ -290,7 +293,11 @@ class Audience(BaseModel):
 class AudienceChannel(BaseModel):
     audience = models.ForeignKey(Audience, related_name='audience_channel_audience', on_delete=models.SET_NULL, null=True, blank=True)
     channel = models.ForeignKey(Channel, related_name='audience_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
-    url = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, null=True, blank=True)
+    device = models.CharField(max_length=200, null=True, blank=True)
+    language = models.CharField(max_length=200, null=True, blank=True)
+    age = models.CharField(max_length=200, null=True, blank=True)
+    gender = models.CharField(max_length=200, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'AudienceChannels'
