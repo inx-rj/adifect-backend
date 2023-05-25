@@ -4,8 +4,7 @@ from community.views import StoriesList, CommunityTagsListCreate, CommunityList,
     ChannelListCreateAPIView, ChannelRetrieveUpdateDestroyAPIView, ProgramRetrieveUpdateDestroyAPIView, \
     ProgramListCreateAPIView, CopyCodeListCreateAPIView, CopyCodeRetrieveUpdateDestroyAPIView, \
     CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, ExportArticleCsv, AddStoryTagsView, \
-    OpnSesameViewSet, StoryDetailView, CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, \
-    CreativeCodeImportAPIView
+    OpnSesameViewSet, StoryDetailView, CreativeCodeImportAPIView
 
 urlpatterns = [
     path('stories/', StoriesList.as_view(), name='list_stories'),
