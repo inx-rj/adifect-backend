@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -29,7 +30,8 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
     CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND, \
-    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
+    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, \
+    CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode, StoryTag
@@ -653,7 +655,7 @@ class StoryDetailView(View):
 
 class CreativeCodeImportAPIView(APIView):
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         csv_file = request.FILES.get('csv_file')
         if not csv_file:
             return Response({"error": "true",
@@ -663,12 +665,7 @@ class CreativeCodeImportAPIView(APIView):
             decoded_file = csv_file.read().decode('utf-8')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
-            if not any(reader):
-                return Response({"error": "true",
-                                 "message": "File is empty"}, status=status.HTTP_400_BAD_REQUEST)
-            mime = magic.Magic(mime=True)
-            file_type = mime.from_buffer(csv_file.read(1024))
-            if file_type != 'csv':
+            if not csv_file.name.lower().endswith('csv'):
                 return Response({"error": "true",
                                  "message": "Uploaded file is not a valid CSV file"},
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -678,7 +675,20 @@ class CreativeCodeImportAPIView(APIView):
                              "message": "Uploaded file is not a valid CSV file"},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        creative_code_objs_list = []
         for row in reader:
-            print(row)
-            # CreativeCode.objects.create(name=row['Name'], age=row['Age'], email=row['Email'])
+            creative_code_necessary_data_list = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel',
+                                                 'vertical_pixel', 'duration', 'link', 'notes']
+            for data in creative_code_necessary_data_list:
+                if row.get(data) is None:
+                    raise ValidationError({data: ["This field is required!"]})
+            creative_code_objs = CreativeCode(title=row.get('title'), file_name=row.get('file_name'),
+                                              format=row.get('format'),
+                                              creative_theme=row.get('creative_theme'),
+                                              horizontal_pixel=row.get('horizontal_pixel'),
+                                              vertical_pixel=row.get('vertical_pixel'),
+                                              duration=row.get('duration'), link=row.get('link'),
+                                              notes=row.get('notes'))
+            creative_code_objs_list.append(creative_code_objs)
+        CreativeCode.objects.bulk_create(creative_code_objs_list)
         return Response({'data': "", 'message': CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY})
