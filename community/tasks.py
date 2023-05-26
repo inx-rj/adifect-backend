@@ -211,6 +211,7 @@ def add_community_stories(story_data_list, community_obj_id):
             publication_date=date_format(story_item.get('published_at')),
             body=story_item.get('body'),
             p_url=story_purl,
+            story_url=story_item.get('story_url'),
             story_metadata=story_item
         )
         story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
