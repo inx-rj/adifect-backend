@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from celery import Celery
 from django.conf import settings
@@ -19,8 +20,12 @@ app.config_from_object(settings, namespace='CELERY')
 app.conf.beat_schedule = {
     'reminder-email-every-1-minute': {
         'task': 'approver_reminder_email',
-        'schedule': 30.0,
+        'schedule': timedelta(hours=3),
         # 'args': (16, 16)
+    },
+    'community-data-entry': {
+        'task': 'community_data_entry',
+        'schedule':  timedelta(days=1)
     },
 }
 

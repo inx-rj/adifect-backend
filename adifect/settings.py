@@ -9,14 +9,18 @@ https://docs.djangoproject.com/en/3.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
-
+import logging
 from pathlib import Path
 import os
 from datetime import timedelta
 
+# import pymongo
 from dotenv import load_dotenv
 
 load_dotenv()  # loads the configs from .env
+
+logger = logging.getLogger('django')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -55,18 +59,19 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'notification',
-
+    'common',
+    'community'
     # 'category'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware'
 ]
 
@@ -77,8 +82,7 @@ ROOT_URLCONF = 'adifect.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        # 'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -107,7 +111,6 @@ ASGI_APPLICATION = "adifect.asgi.application"
 
 
 # ------ django celery -----#
-# CELERY_RESULT_BACKEND = "django-db"
 
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = os.environ.get('REDIS_PORT')
@@ -119,8 +122,10 @@ REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
 result_backend = "django-db"
 # CELERY_BROKER_URL = f'redis://{os.environ.get("REDIS_HOST")}'
 CELERY_BROKER_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_EXTENDED = True
 
 CHANNEL_LAYERS = {
     "default": {
@@ -156,6 +161,15 @@ DATABASES = {
         'port': os.environ.get('DB_PORT'),
     }
 }
+
+# logger.info(f"mongo client url --> {os.environ.get('MONGO_CLIENT_URL')}")
+# logger.info(f"mongo db name --> {os.environ.get('MONGO_DB_NAME')}")
+# logger.info(f"mongo collection name --> {os.environ.get('MONGO_COLLECTION_NAME')}")
+#
+# mongo_client = pymongo.MongoClient(os.environ.get('MONGO_CLIENT_URL'))
+# logger.info(f"mongo_client --> {mongo_client}")
+# mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
+# company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -212,6 +226,7 @@ SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
 #---- send grid help support  email ----#
 HELP_EMAIL_SUPPORT = os.environ.get('HELP_EMAIL_SUPPORT')
+ABC="mukesh"
 
 
 FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
@@ -231,7 +246,9 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PAGINATION_CLASS': 'common.pagination.CustomPagination',
+    'PAGE_SIZE': 10
 }
 
 SIMPLE_JWT = {
