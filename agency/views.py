@@ -1372,10 +1372,16 @@ class MyProjectViewSet(viewsets.ModelViewSet):
         user = request.user
         queryset = self.filter_queryset(self.get_queryset())
         ordering = request.GET.get('ordering', None)
-        filter_data = queryset.filter(
-            pk__in=Subquery(
-                queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
-            )).order_by(ordering)
+        if ordering:
+            filter_data = queryset.filter(
+                pk__in=Subquery(
+                    queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
+                )).order_by(ordering)
+        else:
+            filter_data = queryset.filter(
+                pk__in=Subquery(
+                    queryset.filter(job__user=user).order_by('job_id').distinct('job_id').values('pk')
+                ))
         if request.GET.get('job__is_active', None) == 'true':
             filter_data = filter_data.filter(job__is_active=True)
         paginated_data = self.paginate_queryset(filter_data)

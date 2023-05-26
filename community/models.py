@@ -76,6 +76,7 @@ class Story(BaseModel):
     status = models.CharField(max_length=50, null=True, blank=True)
     body = models.TextField(null=True, blank=True)
     p_url = models.CharField(max_length=8, unique=True)
+    story_url = models.URLField(max_length=500, blank=True, null=True)
     tag = models.ManyToManyField(Tag, related_name='story_tag', through='StoryTag')
     category = models.ManyToManyField(Category, related_name='story_category', through='StoryCategory')
     analytic = models.ManyToManyField(Tag, related_name='story_analytic', through='StoryTagAnalytic')

@@ -69,10 +69,19 @@ class StorySerializer(serializers.ModelSerializer):
     category = CategorySerializer(many=True)
     image = serializers.SerializerMethodField()
     community_channels = serializers.SerializerMethodField()
+    published_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Story
-        fields = '__all__'
+        # fields = '__all__'
+        exclude = ('story_metadata',)
+
+    def get_published_at(self, obj):
+        return obj.story_metadata.get('published_at')
+
+    def get_updated_at(self, obj):
+        return obj.story_metadata.get('updated_at')
 
     def get_community_tags(self, obj):
         return TagSerializer(obj.community.tag_community.all(), many=True).data
