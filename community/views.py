@@ -653,6 +653,9 @@ class StoryDetailView(View):
 
 class CreativeCodeImportAPIView(APIView):
 
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
     def post(self, request, *args, **kwargs):
         csv_file = request.FILES.get('csv_file')
         if not csv_file:
@@ -674,12 +677,17 @@ class CreativeCodeImportAPIView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         creative_code_objs_list = []
+        creative_code_necessary_data_list = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel',
+                                             'vertical_pixel', 'duration', 'link', 'notes']
+        missing_row_data = {}
+        reader_flag = False
         for row in reader:
-            creative_code_necessary_data_list = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel',
-                                                 'vertical_pixel', 'duration', 'link', 'notes']
+            reader_flag = True
             for data in creative_code_necessary_data_list:
                 if row.get(data) is None:
-                    raise ValidationError({data: ["This field is required!"]})
+                    missing_row_data[data] = ["This field is required!"]
+            if missing_row_data:
+                    raise ValidationError(missing_row_data)
             creative_code_objs = CreativeCode(title=row.get('title'), file_name=row.get('file_name'),
                                               format=row.get('format'),
                                               creative_theme=row.get('creative_theme'),
@@ -688,5 +696,10 @@ class CreativeCodeImportAPIView(APIView):
                                               duration=row.get('duration'), link=row.get('link'),
                                               notes=row.get('notes'))
             creative_code_objs_list.append(creative_code_objs)
+
+        if not reader_flag:
+            for data in creative_code_necessary_data_list:
+                missing_row_data[data] = ["This field is required!"]
+            raise ValidationError(missing_row_data)
         CreativeCode.objects.bulk_create(creative_code_objs_list)
         return Response({'data': "", 'message': CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY})
