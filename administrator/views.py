@@ -197,6 +197,7 @@ class IndustryViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class LevelViewSet(viewsets.ModelViewSet):
     serializer_class = LevelSerializer
+    pagination_class = None
     queryset = Level.objects.filter(is_trashed=False).order_by('-modified')
 
 
