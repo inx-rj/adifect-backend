@@ -522,6 +522,8 @@ class ExportArticleCsv(APIView):
                         column_values.append(story_obj.id)
                     elif col == 'story_id':
                         column_values.append(story_obj.story_id)
+                    elif col == 'story_url':
+                        column_values.append(story_obj.story_url)
                     elif col == "title":
                         column_values.append(story_obj.title)
                     elif col == "lede":
