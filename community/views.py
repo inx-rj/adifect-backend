@@ -534,7 +534,7 @@ class ExportArticleCsv(APIView):
                         column_values.append(story_obj.community.name if story_obj.community else "")
                     elif col == "community_id":
                         column_values.append(story_obj.community_id)
-                    elif col == "publication_date":
+                    elif col == "publication":
                         column_values.append(story_obj.publication_date)
                     elif col == "status":
                         column_values.append(story_obj.status)
@@ -552,6 +552,8 @@ class ExportArticleCsv(APIView):
                         for category in story_obj.storycategory_set.all():
                             categories.append(category.category.title)
                         column_values.append(categories)
+                    else:
+                        column_values.append("")
                 writer = csv.writer(file)
                 writer.writerow(column_names)
                 writer.writerow(column_values)
