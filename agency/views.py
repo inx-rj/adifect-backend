@@ -537,7 +537,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 return Response({'message': 'Agency does not exists', 'error': True},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            if InviteMember.objects.filter(Q(company=company) & (Q(email=email) | Q(user__user__email=email))).exclude(
+            if InviteMember.objects.filter(Q(company=company) & Q(is_inactive=False) & (Q(email=email) | Q(user__user__email=email))).exclude(
                     status=2):
                 return Response({'message': 'The user is Already Invited.', 'error': True},
                                 status=status.HTTP_400_BAD_REQUEST)
