@@ -556,9 +556,9 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 exclusive_decode = StringEncoder.encode(self, 0)
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__user__email=email, agency=agency, company=company).first()
+            invite = InviteMember.objects.filter(user__user__email=email, is_inactive=False, agency=agency, company=company).first()
             if not invite:
-                invite = InviteMember.objects.filter(email=email, agency=agency, company=company).first()
+                invite = InviteMember.objects.filter(email=email, is_inactive=False, agency=agency, company=company).first()
             if not user:
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
