@@ -556,9 +556,9 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                 exclusive_decode = StringEncoder.encode(self, 0)
             from_email = Email(SEND_GRID_FROM_EMAIL)
             to_email = To(email)
-            invite = InviteMember.objects.filter(user__user__email=email, agency=agency, company=company).first()
+            invite = InviteMember.objects.filter(user__user__email=email, is_inactive=False, agency=agency, company=company).first()
             if not invite:
-                invite = InviteMember.objects.filter(email=email, agency=agency, company=company).first()
+                invite = InviteMember.objects.filter(email=email, is_inactive=False, agency=agency, company=company).first()
             if not user:
                 email_decode = StringEncoder.encode(self, email)
                 if not invite:
@@ -701,9 +701,12 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         # return Response(context)
 
         instance = self.get_object()
-        user_status = InviteMember.objects.filter(user__user=instance.user.user.id).update(is_inactive=True)
-        if user_status:
-            user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
+        if not instance.user.user:
+            InviteMember.objects.filter(id=instance.id).update(is_inactive=True)
+        else:
+            user_status = InviteMember.objects.filter(user__user=instance.user.user.id).update(is_inactive=True)
+            if user_status:
+                user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
 
         context = {
             'message': 'Deleted Succesfully',

@@ -2078,7 +2078,7 @@ class AgencyCompanyListViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAdmin])
 class AgencyInviteListViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
-    queryset = InviteMember.objects.all().exclude(user=None).order_by('-modified')
+    queryset = InviteMember.objects.filter(is_inactive=False).exclude(user=None).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     # pagination_class = FiveRecordsPagination
     filterset_fields = ['agency', 'user', 'company']
@@ -2769,7 +2769,7 @@ class JobCompletedViewSet(viewsets.ModelViewSet):
                     except Exception as e:
                         print(e)
 
-            Notifications.objects.create(user=instance.user,company=instance.company,
+            Notifications.objects.create(user=instance.user,company=instance.job.company,
                                          notification=f'{instance.job.user.get_full_name()} has completed your job-{instance.job.title}',
                                          notification_type='job_completed', redirect_id=instance.job.id)
             user = instance.job.user
