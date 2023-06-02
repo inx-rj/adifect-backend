@@ -701,9 +701,12 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
         # return Response(context)
 
         instance = self.get_object()
-        user_status = InviteMember.objects.filter(user__user=instance.user.user.id).update(is_inactive=True)
-        if user_status:
-            user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
+        if not instance.user.user:
+            InviteMember.objects.filter(id=instance.id).update(is_inactive=True)
+        else:
+            user_status = InviteMember.objects.filter(user__user=instance.user.user.id).update(is_inactive=True)
+            if user_status:
+                user = CustomUser.objects.filter(id=instance.user.user.id).update(is_inactive=True)
 
         context = {
             'message': 'Deleted Succesfully',
