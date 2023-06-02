@@ -2078,7 +2078,7 @@ class AgencyCompanyListViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAdmin])
 class AgencyInviteListViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
-    queryset = InviteMember.objects.all().exclude(user=None).order_by('-modified')
+    queryset = InviteMember.objects.filter(is_inactive=False).exclude(user=None).order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     # pagination_class = FiveRecordsPagination
     filterset_fields = ['agency', 'user', 'company']
