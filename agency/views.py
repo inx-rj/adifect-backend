@@ -67,11 +67,16 @@ class IndustryViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(Q(user=None) | Q(user=user))
+        if not request.GET.get("page", None):
+            serializer = self.serializer_class(queryset, many=True, context={'request': request})
+            return Response({'data': serializer.data, 'message': INDUSTRY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': INDUSTRY_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': INDUSTRY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAuthenticated])
@@ -93,11 +98,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
         API to get list of company
         """
         self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -353,11 +363,17 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(workflow_data, many=True)
+            return Response({'data': serializer.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
+
         page = self.paginate_queryset(workflow_data)
         if page is not None:
             serializer = self.serializer_class(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -518,11 +534,19 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                                     company__is_active=True,
                                                                     is_inactive=False).order_by(
             '-modified')
+        if request.GET.get('company'):
+            queryset = queryset.filter(company=request.GET.get('company'))
+
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'data': serializer.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -1350,11 +1374,15 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         draft_data = queryset.filter(user=request.user)
+        if not request.GET.get("page", None):
+            serializer = self.serializer_class(draft_data, many=True, context={'request': request})
+            return Response({'data': serializer.data, 'message': ''},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(draft_data)
         if page is not None:
             serializer = self.serializer_class(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({"data": response.data}, status=status.HTTP_200_OK)
+            return Response({"data": response.data, 'message': ''}, status=status.HTTP_200_OK)
 
 
 # --      --   --         --     --    my project --   --       --      --        -- #
@@ -2265,6 +2293,8 @@ class GetAdminMembers(APIView):
         queryset = InviteMember.objects.filter(agency=request.user, user__levels=1, is_trashed=False,
                                                user__isnull=False, agency__is_account_closed=False).order_by(
             '-modified')
+        if request.GET.get('company'):
+            queryset = queryset.filter(company=request.GET.get('company'))
         serializer = InviteMemberSerializer(queryset, many=True)
         context = {
             "user": self.request.user.id,
@@ -2407,6 +2437,10 @@ class CommunityAudienceListView(generics.ListAPIView):
         API to get list of audiences
         """
         self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)

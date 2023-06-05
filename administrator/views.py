@@ -209,11 +209,17 @@ class SkillsViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         self.queryset = self.filter_queryset(self.queryset)
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
+
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAdmin])
@@ -1201,11 +1207,16 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.filter(user=request.user).order_by('-modified')
+        if not request.GET.get("page", None):
+            serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+            return Response({'data': serializer.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(job_data)
         if page is not None:
             serializer = JobTemplateWithAttachmentsSerializer(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         id = pk
@@ -1322,6 +1333,22 @@ class CompanyViewSet(viewsets.ModelViewSet):
     ordering = ['-modified', 'created']
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['=is_active', '=agency']
+    pagination_class = CustomPagination
+
+    def list(self, request, *args, **kwargs):
+        """
+        API to get list of company
+        """
+        self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': ''})
+
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -1387,6 +1414,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         workflow_data = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(workflow_data, many=True)
+            return Response({'data': serializer.data, 'message': WORKFLOW_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
+
         page = self.paginate_queryset(workflow_data)
         if page is not None:
             serializer = self.serializer_class(page, many=True, context={'request': request})
