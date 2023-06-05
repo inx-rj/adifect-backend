@@ -235,15 +235,21 @@ class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['is_active', 'agency', 'is_blocked','name']
+    filterset_fields = ['is_active', 'agency', 'is_blocked', 'name']
     search_fields = ['=is_active']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         # The below condition will get all the company created by the admin member and invited company list.
         company = queryset.filter(Q(invite_company_list__user__user=request.user) | Q(created_by=request.user, agency__is_account_closed=False))
-        serializer = self.serializer_class(company, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(company, many=True, context={'request': request})
+            return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(company)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''}, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         queryset = self.queryset.get(pk=pk)
