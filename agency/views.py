@@ -534,6 +534,9 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                                     company__is_active=True,
                                                                     is_inactive=False).order_by(
             '-modified')
+        if request.GET.get('company'):
+            queryset = queryset.filter(company=request.GET.get('company'))
+
         if not request.GET.get("page", None):
             serializer = self.get_serializer(queryset, many=True)
             return Response({'data': serializer.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY},
@@ -2290,6 +2293,8 @@ class GetAdminMembers(APIView):
         queryset = InviteMember.objects.filter(agency=request.user, user__levels=1, is_trashed=False,
                                                user__isnull=False, agency__is_account_closed=False).order_by(
             '-modified')
+        if request.GET.get('company'):
+            queryset = queryset.filter(company=request.GET.get('company'))
         serializer = InviteMemberSerializer(queryset, many=True)
         context = {
             "user": self.request.user.id,
