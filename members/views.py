@@ -243,7 +243,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         # The below condition will get all the company created by the admin member and invited company list.
         company = queryset.filter(Q(invite_company_list__user__user=request.user) | Q(created_by=request.user, agency__is_account_closed=False))
         if not request.GET.get("page", None):
-            serializer = self.get_serializer(company, many=True, context={'request': request})
+            serializer = self.serializer_class(company, many=True, context={'request': request})
             return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
         page = self.paginate_queryset(company)
         if page is not None:
