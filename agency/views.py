@@ -529,7 +529,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                                     is_inactive=False).order_by(
             '-modified')
         if not request.GET.get("page", None):
-            serializer = self.serializer_class(queryset, many=True, context={'request': request})
+            serializer = self.get_serializer(queryset, many=True)
             return Response({'data': serializer.data, 'message': AGENCY_INVITE_MEMBER_RETRIEVE_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
         page = self.paginate_queryset(queryset)
