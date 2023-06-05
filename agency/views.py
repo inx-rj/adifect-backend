@@ -93,11 +93,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
         API to get list of company
         """
         self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': COMPANY_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
