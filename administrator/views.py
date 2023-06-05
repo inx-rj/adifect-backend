@@ -1322,6 +1322,22 @@ class CompanyViewSet(viewsets.ModelViewSet):
     ordering = ['-modified', 'created']
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['=is_active', '=agency']
+    pagination_class = CustomPagination
+
+    def list(self, request, *args, **kwargs):
+        """
+        API to get list of company
+        """
+        self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': ''})
+
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
