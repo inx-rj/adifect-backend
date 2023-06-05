@@ -1201,11 +1201,16 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         job_data = queryset.filter(user=request.user).order_by('-modified')
+        if not request.GET.get("page", None):
+            serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
+            return Response({'data': serializer.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(job_data)
         if page is not None:
             serializer = JobTemplateWithAttachmentsSerializer(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         id = pk
