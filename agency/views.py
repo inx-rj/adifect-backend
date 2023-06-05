@@ -363,11 +363,17 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
         workflow_data = queryset.filter(agency=user, agency__is_account_closed=False)
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(workflow_data, many=True)
+            return Response({'data': serializer.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
+
         page = self.paginate_queryset(workflow_data)
         if page is not None:
             serializer = self.serializer_class(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY})
+            return Response({'data': response.data, 'message': AGENCY_WORKFLOW_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         data = request.data
