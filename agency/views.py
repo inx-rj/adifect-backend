@@ -2432,6 +2432,10 @@ class CommunityAudienceListView(generics.ListAPIView):
         API to get list of audiences
         """
         self.queryset = self.filter_queryset(self.get_queryset())
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
