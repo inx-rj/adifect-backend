@@ -89,8 +89,8 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Company.objects.filter(Q(agency=user) & (Q(created_by=user) | (Q(created_by__isnull=True))),
-                                          agency__is_account_closed=False).order_by('-modified')
+        queryset = Company.objects.filter((Q(agency=user) & (Q(created_by=user) | (Q(created_by__isnull=True)))) | Q(invite_company_list__user__user=self.request.user),
+                                          agency__is_account_closed=False).order_by('-modified').distinct()
         return queryset
 
     def list(self, request, *args, **kwargs):
