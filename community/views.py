@@ -44,7 +44,7 @@ logger = logging.getLogger('django')
 
 
 class CommunityList(APIView):
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
@@ -122,7 +122,7 @@ class CommunityTagsListCreate(generics.ListCreateAPIView):
     search_fields = ['name', 'tag_community__title']
     ordering_fields = ['name']
     pagination_class = CustomPagination
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         """
@@ -163,7 +163,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
     filter_backends = [OrderingFilter, SearchFilter]
     ordering_fields = ['community__name']
     search_fields = ['community__name']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'id'
 
     def handle_exception(self, exc):
@@ -227,7 +227,7 @@ class ChannelListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name']
     ordering_fields = ['name', 'is_active']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -260,7 +260,7 @@ class ChannelRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
     serializer_class = ChannelRetrieveUpdateDestroySerializer
     queryset = Channel.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get channel"""
@@ -297,7 +297,7 @@ class ProgramListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['community__name', 'title']
     ordering_fields = ['title', 'community__name']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -330,7 +330,7 @@ class ProgramRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
     serializer_class = ProgramSerializer
     queryset = Program.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get program"""
@@ -367,7 +367,7 @@ class CopyCodeListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['subject_line', 'title', 'body', 'notes']
     ordering_fields = ['title', 'subject_line', 'body', 'notes']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -400,7 +400,7 @@ class CopyCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
     serializer_class = CopyCodeSerializer
     queryset = CopyCode.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get copy code"""
@@ -439,7 +439,7 @@ class CreativeCodeListCreateAPIView(generics.ListCreateAPIView):
                      'link', 'notes']
     ordering_fields = ['title', 'file_name', 'format', 'creative_theme', 'horizontal_pixel', 'vertical_pixel',
                        'duration', 'link', 'notes']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -472,7 +472,7 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
     serializer_class = CreativeCodeSerializer
     queryset = CreativeCode.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get creative code"""
@@ -496,7 +496,7 @@ class CreativeCodeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
 
 
 class ExportArticleCsv(APIView):
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -584,7 +584,7 @@ class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
     API to add tags to existing story and also associate tag to community.
     """
     serializer_class = AddStoryTagsSerializer
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
@@ -603,7 +603,7 @@ class AddStoryTagsView(generics.CreateAPIView, generics.DestroyAPIView):
 
 
 class OpnSesameViewSet(APIView):
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
