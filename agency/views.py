@@ -2351,7 +2351,7 @@ class AudienceListCreateView(generics.ListCreateAPIView):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'audience_id']
     ordering_fields = ['id', 'title', 'audience_id']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -2382,7 +2382,7 @@ class AudienceRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
 
     serializer_class = AudienceRetrieveUpdateDestroySerializer
     queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
@@ -2422,7 +2422,7 @@ class CommunityAudienceListView(generics.ListAPIView):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title']
     ordering_fields = ['id', 'title']
-    permission_classes = [IsAuthenticated, IsAuthorizedForListCreate]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self, *args, **kwargs):
         story_obj = Story.objects.filter(id=self.request.query_params.get('story_id')).first()
