@@ -131,7 +131,18 @@ class Job(BaseModel):
         Template = 1
         Post = 2
 
+    MEDIA = 0
+    SMS = 1
+    TEXT_COPY = 2
+
+    CREATE_JOB_TYPE_CHOICES = [
+        (MEDIA, "media"),
+        (SMS, "sms"),
+        (TEXT_COPY, "text copy")
+    ]
+
     title = models.CharField(max_length=250)
+    create_job_type = models.PositiveSmallIntegerField(choices=CREATE_JOB_TYPE_CHOICES, default=MEDIA)
     description = models.TextField(default=None, blank=True, null=True)
     job_type = models.CharField(choices=jobType, max_length=30, default='0', null=True, blank=True)
     level = models.ForeignKey(Level, on_delete=models.SET_NULL, null=True, blank=True)
