@@ -93,8 +93,9 @@ class ProfileEdit(APIView):
         # serializer = EditProfileSerializer(paginated_data, many=True,context={'request':request})
         # return self.get_paginated_response(data=serializer.data)
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
+    def put(self, request, *args, **kwargs):
+        instance = request.user
+        serializer = self.serializer_class(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         request_data = serializer.validated_data
         user = CustomUser.objects.get(id=request.user.id, is_trashed=False)
