@@ -4,7 +4,7 @@ from authentication.models import CustomUser
 from common.models import BaseModel
 
 
-class   IntakeForm(BaseModel):
+class IntakeForm(BaseModel):
     title = models.CharField(max_length=200, unique=True)
 
     class Meta:
@@ -14,13 +14,27 @@ class   IntakeForm(BaseModel):
         return f'{self.id} - {self.title}'
 
 
-class IntakeFormFields(BaseModel):
-    intake_form = models.ForeignKey(IntakeForm, related_name='field_intake_form', on_delete=models.SET_NULL, null=True,
-                                    blank=True)
+class IntakeFormFieldVersion(BaseModel):
+    intake_form = models.ForeignKey(IntakeForm, related_name='intake_form_field_version_form',
+                                    on_delete=models.SET_NULL, null=True, blank=True)
+    version = models.FloatField()
+    user = models.ForeignKey(CustomUser, related_name='intake_form_field_version_user', on_delete=models.SET_NULL,
+                             null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'IntakeFormVersion'
+        unique_together = ('intake_form', 'version')
+
+    def __str__(self):
+        return self.id
+
+
+class IntakeFormFields(models.Model):
+    form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_fields_form_version',
+                                     on_delete=models.SET_NULL, null=True, blank=True)
     field_name = models.CharField(max_length=200)
     field_type = models.CharField(max_length=50)
     options = models.JSONField(null=True, blank=True)
-    version = models.FloatField()
 
     class Meta:
         verbose_name_plural = 'IntakeFormFields'
@@ -29,13 +43,12 @@ class IntakeFormFields(BaseModel):
         return self.id
 
 
-class IntakeFormSubmissions(BaseModel):
-    intake_form = models.ForeignKey(IntakeForm, related_name='submission_intake_form', on_delete=models.SET_NULL,
-                                    null=True, blank=True)
-    user = models.ForeignKey(CustomUser, related_name='intake_form_submission_user', on_delete=models.SET_NULL,
-                             null=True, blank=True)
+class IntakeFormSubmissions(models.Model):
+    form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_submission_form_version',
+                                     on_delete=models.SET_NULL, null=True, blank=True)
+    submitted_user = models.ForeignKey(CustomUser, related_name='intake_form_submission_user',
+                                       on_delete=models.SET_NULL, null=True, blank=True)
     submission_data = models.JSONField()
-    version = models.FloatField()
 
     class Meta:
         verbose_name_plural = 'IntakeFormSubmissions'
