@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, serializers
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -189,11 +191,13 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
-        data = request.data
+        if not request.data.get('data'):
+            raise serializers.ValidationError({"data": ["This field is required!"]})
+        data = json.loads(request.data.get("data"))
         data["submitted_user"] = request.user.id
-        serializer = self.serializer_class(data=data)
+        serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        # serializer.save()
         return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):

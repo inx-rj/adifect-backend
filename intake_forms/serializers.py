@@ -1,5 +1,8 @@
+import os
+import uuid
 from datetime import datetime
 
+import boto3
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import serializers
@@ -73,7 +76,13 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
 class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
     field_name = serializers.CharField(required=True)
     field_type = serializers.CharField(required=True)
-    field_value = serializers.JSONField(required=True)
+    field_value = serializers.JSONField(required=True, allow_null=False)
+
+    def validate_field_value(self, value):
+        if value is None or value:
+            return value
+        else:
+            raise serializers.ValidationError("This field may not be blank.")
 
     @staticmethod
     def is_valid_date(date_string):
@@ -82,6 +91,19 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
             return True
         except ValueError:
             return False
+
+    # @staticmethod
+    # def upload_file_s3(self, file_obj):
+    #     s3_client = boto3.client(
+    #         's3',
+    #         aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    #         aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+    #     )
+    #     uid = uuid.uuid4()
+    #     file_etx = file_obj.name.split('.')[-1]
+    #     s3_client.upload_fileobj(file_obj,
+    #                              os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+    #                              f'intake_form_attachments/{uid}.{file_etx}')
 
     def validate(self, data):
         if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
@@ -92,6 +114,9 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
                 date_string=data.get("field_value").get("start_date")) and not self.is_valid_date(
             date_string=data.get("field_value").get("end_date")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
+
+        if data.get("field_type") == "Upload Attachment":
+            pass
 
         return data
 
@@ -109,6 +134,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
 
     def validate(self, attrs):
+        breakpoint()
         form_field_set = set(IntakeFormFields.objects.filter(form_version=attrs.get("form_version")
                                                              ).values_list('field_name', flat=True))
         submit_form_field_set = set()
