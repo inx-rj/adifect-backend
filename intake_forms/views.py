@@ -89,7 +89,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = IntakeFormFieldSerializer
-    queryset = IntakeFormFields.objects.all().order_by('-id')
+    queryset = IntakeFormFields.objects.filter(is_trashed=False).order_by('-id')
     filter_backends = [OrderingFilter, SearchFilter]
     search_fields = ['form_version__intake_form__title', 'field_name', 'field_type']
     ordering_fields = ['id', 'form_version__intake_form__title', 'field_type', 'field_name']
@@ -140,7 +140,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def get(self, request, *args, **kwargs):
         """API to get intake form field"""
         form_version_id = self.kwargs.get('id')
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version_id=form_version_id)
+        intake_form_field_obj = IntakeFormFields.objects.filter(form_version_id=form_version_id, is_trashed=False)
         if not intake_form_field_obj:
             raise serializers.ValidationError(
                 {"form_version": [f"Invalid pk \"{self.kwargs.get('id')}\" - object does not exist."]})
@@ -176,7 +176,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def delete(self, request, *args, **kwargs):
         """delete request to inactive intake form field"""
         instance = get_object_or_404(IntakeFormFieldVersion, id=kwargs.get('id'), is_trashed=False)
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version__id=instance.id)
+        intake_form_field_obj = IntakeFormFields.objects.filter(form_version__id=instance.id, is_trashed=False)
         with transaction.atomic():
             intake_form_field_obj.delete()
             instance.delete()
