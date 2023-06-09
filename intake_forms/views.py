@@ -7,9 +7,9 @@ from rest_framework.response import Response
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from intake_forms.constants import INTAKE_FORM_RETRIEVED_SUCCESSFULLY, INTAKE_FORM_CREATED_SUCCESSFULLY, \
-    INTAKE_FORM_UPDATED_SUCCESSFULLY
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion
-from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer
+    INTAKE_FORM_UPDATED_SUCCESSFULLY, INTAKE_FORM_SUBMIT_SUCCESS
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
+from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer, IntakeFormSubmitSerializer
 
 
 class IntakeFormListCreateView(generics.ListCreateAPIView):
@@ -174,3 +174,23 @@ class IntakeFormFieldRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPI
         instance = get_object_or_404(IntakeFormFields, intake_form__id=kwargs.get('id'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IntakeFormSubmit(generics.CreateAPIView):
+    """
+    User Intake form submit API.
+    """
+    serializer_class = IntakeFormSubmitSerializer
+    permission_classes = (IsAuthenticated,)
+    queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+
+    # def handle_exception(self, exc):
+    #     return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        data["submitted_user"] = request.user.id
+        serializer = self.serializer_class(data=data)
+        serializer.is_valid(raise_exception=True)
+        # serializer.save()
+        return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)

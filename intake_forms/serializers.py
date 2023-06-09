@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import serializers
 
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion
+from authentication.models import CustomUser
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
 
 
 class IntakeFormSerializer(serializers.ModelSerializer):
@@ -46,9 +49,9 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
             if fields_data:
-                    form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
-                                                      version=self.context.get('version'),
-                                                      user=self.context.get('user'))
+                form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
+                                                                         version=self.context.get('version'),
+                                                                         user=self.context.get('user'))
             for field in fields_data:
                 if not field.get('field_name'):
                     raise serializers.ValidationError({"field_name": ["This field is required!"]})
@@ -65,3 +68,47 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(e.message_dict) from e
                 IntakeFormFields.objects.create(**field)
         return True
+
+
+class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
+    field_name = serializers.CharField(required=True)
+    field_type = serializers.CharField(required=True)
+    field_value = serializers.JSONField(required=True)
+
+    @staticmethod
+    def is_valid_date(date_string):
+        try:
+            datetime.strptime(date_string, "%Y-%m-%d")
+            return True
+        except ValueError:
+            return False
+
+    def validate(self, data):
+        if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
+            raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
+        elif data.get("field_type") == 'Date' and not self.is_valid_date(date_string=data.get("field_value")):
+            raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
+        elif data.get("field_type") == 'Date Range' and not self.is_valid_date(
+                date_string=data.get("field_value").get("start_date")) and not self.is_valid_date(
+                date_string=data.get("field_value").get("end_date")):
+            raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
+
+        return data
+
+
+class IntakeFormSubmitSerializer(serializers.ModelSerializer):
+    form_version = serializers.PrimaryKeyRelatedField(required=True,
+                                                      queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
+    submitted_user = serializers.PrimaryKeyRelatedField(required=True,
+                                                        queryset=CustomUser.objects.filter(is_trashed=False))
+    fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
+    submission_data = serializers.JSONField(read_only=True)
+
+    class Meta:
+        model = IntakeFormSubmissions
+        fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
+
+    def create(self, validated_data):
+        validated_data["submission_data"] = validated_data.pop("fields")
+        instance = IntakeFormSubmissions.objects.create(**validated_data)
+        return instance
