@@ -5,7 +5,7 @@ from common.models import BaseModel
 
 
 class IntakeForm(BaseModel):
-    title = models.CharField(max_length=200, unique=True)
+    title = models.CharField(max_length=200)
 
     class Meta:
         verbose_name_plural = 'IntakeForms'
@@ -23,10 +23,9 @@ class IntakeFormFieldVersion(BaseModel):
 
     class Meta:
         verbose_name_plural = 'IntakeFormVersion'
-        unique_together = ('intake_form', 'version')
 
     def __str__(self):
-        return self.id
+        return f'{self.id}'
 
 
 class IntakeFormFields(BaseModel):
@@ -40,7 +39,7 @@ class IntakeFormFields(BaseModel):
         verbose_name_plural = 'IntakeFormFields'
 
     def __str__(self):
-        return self.id
+        return f'{self.id}'
 
 
 class IntakeFormSubmissions(BaseModel):
@@ -54,4 +53,4 @@ class IntakeFormSubmissions(BaseModel):
         verbose_name_plural = 'IntakeFormSubmissions'
 
     def __str__(self):
-        return self.id
+        return f'{self.id}'
