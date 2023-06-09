@@ -176,21 +176,28 @@ class IntakeFormFieldRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPI
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class IntakeFormSubmit(generics.CreateAPIView):
+class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     """
     User Intake form submit API.
     """
     serializer_class = IntakeFormSubmitSerializer
     permission_classes = (IsAuthenticated,)
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+    lookup_field = 'id'
 
-    # def handle_exception(self, exc):
-    #     return custom_handle_exception(request=self.request, exc=exc)
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
         data = request.data
         data["submitted_user"] = request.user.id
         serializer = self.serializer_class(data=data)
         serializer.is_valid(raise_exception=True)
-        # serializer.save()
+        serializer.save()
         return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
+
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
+

@@ -109,6 +109,9 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
 
     def validate(self, attrs):
+        form_field_set = set(IntakeFormFields.objects.filter(form_version=attrs.get("form_version")
+                                                             ).values_list('field_name', flat=True))
+        submit_form_field_set = set()
         for field in attrs.get("fields"):
             if not IntakeFormFields.objects.filter(form_version=attrs.get("form_version"),
                                                    field_name=field.get("field_name"),
@@ -116,6 +119,12 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"field": f"Invalid field with field_name => {field.get('field_name')}"
                               f" or field_type => {field.get('field_type')}"})
+
+            submit_form_field_set.add(field.get("field_name"))
+
+        if form_field_set - submit_form_field_set:
+            for field in form_field_set - submit_form_field_set:
+                raise serializers.ValidationError({f"{field}": "This field is required."})
 
         return attrs
 
