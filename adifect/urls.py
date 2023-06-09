@@ -28,6 +28,7 @@ urlpatterns = [
     path('agency/', include('agency.urls')),
     path('members/', include('members.urls')),
     path('community/', include('community.urls')),
+    path('intake-forms/', include('intake_forms.urls')),
 ]
 
 
