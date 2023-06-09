@@ -45,10 +45,11 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if fields_data:
-                    form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
-                                                      version=self.context.get('version'),
-                                                      user=self.context.get('user'))
+            if not fields_data:
+                raise ValidationError({"fields": ["This field is required!"]})
+            form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
+                                              version=self.context.get('version'),
+                                              user=self.context.get('user'))
             for field in fields_data:
                 if not field.get('field_name'):
                     raise serializers.ValidationError({"field_name": ["This field is required!"]})
