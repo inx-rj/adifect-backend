@@ -9,9 +9,9 @@ from rest_framework.views import APIView
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from intake_forms.constants import INTAKE_FORM_RETRIEVED_SUCCESSFULLY, INTAKE_FORM_CREATED_SUCCESSFULLY, \
-    INTAKE_FORM_UPDATED_SUCCESSFULLY
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion
-from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer
+    INTAKE_FORM_UPDATED_SUCCESSFULLY, INTAKE_FORM_SUBMIT_SUCCESS
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
+from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer, IntakeFormSubmitSerializer
 
 
 class IntakeFormListCreateView(generics.ListCreateAPIView):
@@ -181,3 +181,30 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
             intake_form_field_obj.delete()
             instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
+    """
+    User Intake form submit API.
+    """
+    serializer_class = IntakeFormSubmitSerializer
+    permission_classes = (IsAuthenticated,)
+    queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+    lookup_field = 'id'
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        data["submitted_user"] = request.user.id
+        serializer = self.serializer_class(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
+
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
+

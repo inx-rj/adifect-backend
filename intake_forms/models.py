@@ -29,7 +29,7 @@ class IntakeFormFieldVersion(BaseModel):
         return self.id
 
 
-class IntakeFormFields(models.Model):
+class IntakeFormFields(BaseModel):
     form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_fields_form_version',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     field_name = models.CharField(max_length=200)
@@ -43,7 +43,7 @@ class IntakeFormFields(models.Model):
         return self.id
 
 
-class IntakeFormSubmissions(models.Model):
+class IntakeFormSubmissions(BaseModel):
     form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_submission_form_version',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     submitted_user = models.ForeignKey(CustomUser, related_name='intake_form_submission_user',
