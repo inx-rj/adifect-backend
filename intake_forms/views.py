@@ -68,7 +68,7 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def put(self, request, *args, **kwargs):
         """put request to update intake form"""
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data)
+        serializer = self.get_serializer(instance, data=request.data, context={'id': self.kwargs.get('id')})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': "", 'message': INTAKE_FORM_UPDATED_SUCCESSFULLY})

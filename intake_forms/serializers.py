@@ -17,6 +17,14 @@ class IntakeFormSerializer(serializers.ModelSerializer):
         model = IntakeForm
         fields = '__all__'
 
+    def validate_title(self, value):
+        if self.context.get('id'):
+            if IntakeForm.objects.exclude(id=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+                raise serializers.ValidationError("Title already exists.")
+        elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
+            raise serializers.ValidationError("Title already exists.")
+        return value
+
 
 class IntakeFormFieldVersionSerializer(serializers.ModelSerializer):
     """
