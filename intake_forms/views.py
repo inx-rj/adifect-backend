@@ -187,8 +187,8 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     lookup_field = 'id'
 
-    def handle_exception(self, exc):
-        return custom_handle_exception(request=self.request, exc=exc)
+    # def handle_exception(self, exc):
+    #     return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
         if not request.data.get('data'):
@@ -197,7 +197,7 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         data["submitted_user"] = request.user.id
         serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
         serializer.is_valid(raise_exception=True)
-        # serializer.save()
+        serializer.save()
         return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):

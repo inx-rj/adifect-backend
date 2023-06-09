@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 import boto3
+import botocore.exceptions
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import serializers
@@ -92,19 +93,6 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
         except ValueError:
             return False
 
-    # @staticmethod
-    # def upload_file_s3(self, file_obj):
-    #     s3_client = boto3.client(
-    #         's3',
-    #         aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-    #         aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
-    #     )
-    #     uid = uuid.uuid4()
-    #     file_etx = file_obj.name.split('.')[-1]
-    #     s3_client.upload_fileobj(file_obj,
-    #                              os.environ.get('AWS_STORAGE_BUCKET_NAME'),
-    #                              f'intake_form_attachments/{uid}.{file_etx}')
-
     def validate(self, data):
         if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
             raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
@@ -115,8 +103,11 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
             date_string=data.get("field_value").get("end_date")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
-        if data.get("field_type") == "Upload Attachment":
-            pass
+        if data.get("field_type") == "Upload Attachment" and not self.context.get('files').get(data.get("field_value")):
+            raise serializers.ValidationError(
+                {f"{data.get('field_name')}": "File attachment not found for this field."})
+        elif data.get("field_type") == "Upload Attachment" and self.context.get('files').get(data.get("field_value")):
+            data["field_value"] = self.context.get('files').get(data.get("field_value"))
 
         return data
 
@@ -134,7 +125,6 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
 
     def validate(self, attrs):
-        breakpoint()
         form_field_set = set(IntakeFormFields.objects.filter(form_version=attrs.get("form_version")
                                                              ).values_list('field_name', flat=True))
         submit_form_field_set = set()
@@ -154,7 +144,29 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    @staticmethod
+    def upload_file_s3(file_obj):
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+            )
+            uid = uuid.uuid4()
+            file_etx = file_obj.name.split('.')[-1]
+            s3_client.upload_fileobj(file_obj,
+                                     os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+                                     f'intake_form_attachments/{uid}.{file_etx}')
+
+            return f'intake_form_attachments/{uid}.{file_etx}'
+
+        except botocore.exceptions.ClientError as err:
+            print(f"## Error {err}")
+            return ""
+
     def create(self, validated_data):
+        for field in validated_data.get("fields"):
+            if field.get('field_type') == "Upload Attachment":
+                field['field_value'] = self.upload_file_s3(file_obj=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
-        instance = IntakeFormSubmissions.objects.create(**validated_data)
-        return instance
+        return IntakeFormSubmissions.objects.create(**validated_data)
