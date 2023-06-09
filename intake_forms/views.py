@@ -187,8 +187,8 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     lookup_field = 'id'
 
-    # def handle_exception(self, exc):
-    #     return custom_handle_exception(request=self.request, exc=exc)
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
         if not request.data.get('data'):
