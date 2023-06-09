@@ -29,7 +29,7 @@ class IntakeFormFieldVersion(BaseModel):
         return self.id
 
 
-class IntakeFormFields(models.Model):
+class IntakeFormFields(BaseModel):
     form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_fields_form_version',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     field_name = models.CharField(max_length=200)

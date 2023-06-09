@@ -90,7 +90,7 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
         elif data.get("field_type") == 'Date Range' and not self.is_valid_date(
                 date_string=data.get("field_value").get("start_date")) and not self.is_valid_date(
-                date_string=data.get("field_value").get("end_date")):
+            date_string=data.get("field_value").get("end_date")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
         return data
@@ -107,6 +107,17 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     class Meta:
         model = IntakeFormSubmissions
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
+
+    def validate(self, attrs):
+        for field in attrs.get("fields"):
+            if not IntakeFormFields.objects.filter(form_version=attrs.get("form_version"),
+                                                   field_name=field.get("field_name"),
+                                                   field_type=field.get("field_type")).exists():
+                raise serializers.ValidationError(
+                    {"field": f"Invalid field with field_name => {field.get('field_name')}"
+                              f" or field_type => {field.get('field_type')}"})
+
+        return attrs
 
     def create(self, validated_data):
         validated_data["submission_data"] = validated_data.pop("fields")
