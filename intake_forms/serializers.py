@@ -6,6 +6,7 @@ import boto3
 import botocore.exceptions
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Max
 from rest_framework import serializers
 
 from authentication.models import CustomUser
@@ -20,6 +21,24 @@ class IntakeFormSerializer(serializers.ModelSerializer):
     class Meta:
         model = IntakeForm
         fields = '__all__'
+
+    def validate_title(self, value):
+        if self.context.get('id'):
+            if IntakeForm.objects.exclude(id=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+                raise serializers.ValidationError("Title already exists.")
+        elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
+            raise serializers.ValidationError("Title already exists.")
+        return value
+
+    def to_representation(self, instance):
+        rep = super(IntakeFormSerializer, self).to_representation(instance)
+        if instance.intake_form_field_version_form and instance.intake_form_field_version_form.first():
+            form_version_obj = instance.intake_form_field_version_form.first()
+            form_versions = instance.intake_form_field_version_form.all()
+            rep['version'] = form_versions.aggregate(Max('version'))['version__max']
+            rep['created_by'] = form_version_obj.user.username
+            rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
+        return rep
 
 
 class IntakeFormFieldVersionSerializer(serializers.ModelSerializer):
@@ -52,10 +71,11 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if fields_data:
-                form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
-                                                                         version=self.context.get('version'),
-                                                                         user=self.context.get('user'))
+            if not fields_data:
+                raise ValidationError({"fields": ["This field is required!"]})
+            form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
+                                              version=self.context.get('version'),
+                                              user=self.context.get('user'))
             for field in fields_data:
                 if not field.get('field_name'):
                     raise serializers.ValidationError({"field_name": ["This field is required!"]})
