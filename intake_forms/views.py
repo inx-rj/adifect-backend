@@ -1,3 +1,5 @@
+import json
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, serializers
@@ -202,9 +204,18 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
-        data = request.data
+        if not request.data.get('data'):
+            raise serializers.ValidationError({"data": ["This field is required!"]})
+        try:
+            version_id = float(kwargs.get('version_id'))
+        except ValueError:
+            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
+        form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
+                                         version=kwargs.get('version_id'), is_trashed=False)
+        data = json.loads(request.data.get("data"))
+        data['form_version'] = form_version.id
         data["submitted_user"] = request.user.id
-        serializer = self.serializer_class(data=data)
+        serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
@@ -213,3 +224,26 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
+
+
+class ListIntakeFormSubmissions(generics.ListAPIView):
+    """API to get form submissions with versions search filter"""
+
+    serializer_class = IntakeFormSubmitSerializer
+    pagination_class = CustomPagination
+    queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        try:
+            version_id = float(kwargs.get('version_id'))
+        except ValueError:
+            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
+        self.queryset = self.queryset.filter(form_version__intake_form_id=kwargs.get('form_id'),
+                                             form_version__version=kwargs.get('version_id'))
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': 'hh'},
+                            status=status.HTTP_200_OK)

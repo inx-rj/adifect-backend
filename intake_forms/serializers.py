@@ -1,5 +1,9 @@
+import os
+import uuid
 from datetime import datetime
 
+import boto3
+import botocore.exceptions
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
@@ -109,7 +113,13 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
 class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
     field_name = serializers.CharField(required=True)
     field_type = serializers.CharField(required=True)
-    field_value = serializers.JSONField(required=True)
+    field_value = serializers.JSONField(required=True, allow_null=False)
+
+    def validate_field_value(self, value):
+        if value is None or value:
+            return value
+        else:
+            raise serializers.ValidationError("This field may not be blank.")
 
     @staticmethod
     def is_valid_date(date_string):
@@ -129,13 +139,19 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
             date_string=data.get("field_value").get("end_date")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
+        if data.get("field_type") == "Upload Attachment" and not self.context.get('files').get(data.get("field_value")):
+            raise serializers.ValidationError(
+                {f"{data.get('field_name')}": "File attachment not found for this field."})
+        elif data.get("field_type") == "Upload Attachment" and self.context.get('files').get(data.get("field_value")):
+            data["field_value"] = self.context.get('files').get(data.get("field_value"))
+
         return data
 
 
 class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     form_version = serializers.PrimaryKeyRelatedField(required=True,
                                                       queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
-    submitted_user = serializers.PrimaryKeyRelatedField(required=True,
+    submitted_user = serializers.PrimaryKeyRelatedField(required=True, write_only=True,
                                                         queryset=CustomUser.objects.filter(is_trashed=False))
     fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
     submission_data = serializers.JSONField(read_only=True)
@@ -143,6 +159,13 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     class Meta:
         model = IntakeFormSubmissions
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['submitted_by_user'] = instance.submitted_user.username
+        representation['form'] = instance.form_version.intake_form.title
+
+        return representation
 
     def validate(self, attrs):
         form_field_set = set(IntakeFormFields.objects.filter(form_version=attrs.get("form_version")
@@ -164,7 +187,29 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    @staticmethod
+    def upload_file_s3(file_obj):
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+            )
+            uid = uuid.uuid4()
+            file_etx = file_obj.name.split('.')[-1]
+            s3_client.upload_fileobj(file_obj,
+                                     os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+                                     f'intake_form_attachments/{uid}.{file_etx}')
+
+            return f'intake_form_attachments/{uid}.{file_etx}'
+
+        except botocore.exceptions.ClientError as err:
+            print(f"## Error {err}")
+            return ""
+
     def create(self, validated_data):
+        for field in validated_data.get("fields"):
+            if field.get('field_type') == "Upload Attachment":
+                field['field_value'] = self.upload_file_s3(file_obj=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
-        instance = IntakeFormSubmissions.objects.create(**validated_data)
-        return instance
+        return IntakeFormSubmissions.objects.create(**validated_data)
