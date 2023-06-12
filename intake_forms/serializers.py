@@ -31,11 +31,13 @@ class IntakeFormSerializer(serializers.ModelSerializer):
         if instance.intake_form_field_version_form and instance.intake_form_field_version_form.first():
             form_version_obj = instance.intake_form_field_version_form.first()
             form_versions = instance.intake_form_field_version_form.all()
-            rep['version'] = form_versions.aggregate(Max('version'))['version__max']
+            rep['max_version'] = form_versions.aggregate(Max('version'))['version__max']
+            rep['version'] = [form_version.version for form_version in form_versions]
             rep['created_by'] = form_version_obj.user.username
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
         else:
-            rep['version'] = 1.0
+            rep['max_version'] = 1.0
+            rep['version'] = [1.0]
             rep['responses'] = 0
         return rep
 
@@ -55,6 +57,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form field serializer
     """
+    intake_form = IntakeFormSerializer(write_only=True)
     form_version_data = serializers.SerializerMethodField()
     version = serializers.FloatField(required=False)
     field_name = serializers.CharField(required=False)
@@ -72,9 +75,19 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             if not fields_data:
                 raise ValidationError({"fields": ["This field is required!"]})
-            form_version_obj = IntakeFormFieldVersion.objects.create(intake_form=self.context.get('intake_form'),
-                                              version=self.context.get('version'),
-                                              user=self.context.get('user'))
+
+            if self.context.get('id'):
+                intake_form_obj = IntakeForm.objects.get(id=self.context.get('id'))
+                self.context.get('intake_form_field').update(is_trashed=True)
+                self.context.get('intake_form_field_version_obj').update(is_trashed=True)
+            else:
+                intake_form_obj = IntakeForm.objects.create(title=self.context.get('intake_form').get('title'))
+
+            intake_form_field_version_obj = IntakeFormFieldVersion.objects.filter(
+                intake_form_id=intake_form_obj.id).order_by('-version').first()
+            version = intake_form_field_version_obj.version + 1 if intake_form_field_version_obj and intake_form_field_version_obj.version else 1
+            form_version_obj = IntakeFormFieldVersion.objects.create(intake_form_id=intake_form_obj.id,
+                                              version=version, user=self.context.get('user'))
             for field in fields_data:
                 if not field.get('field_name'):
                     raise serializers.ValidationError({"field_name": ["This field is required!"]})
