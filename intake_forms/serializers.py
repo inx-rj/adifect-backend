@@ -34,6 +34,9 @@ class IntakeFormSerializer(serializers.ModelSerializer):
             rep['version'] = form_versions.aggregate(Max('version'))['version__max']
             rep['created_by'] = form_version_obj.user.username
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
+        else:
+            rep['version'] = 1.0
+            rep['responses'] = 0
         return rep
 
 

@@ -25,7 +25,7 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request, *args, **kwargs):
         """
@@ -57,7 +57,7 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request, *args, **kwargs):
         """API to get intake form"""
@@ -94,7 +94,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     search_fields = ['form_version__intake_form__title', 'field_name', 'field_type']
     ordering_fields = ['id', 'form_version__intake_form__title', 'field_type', 'field_name']
     pagination_class = CustomPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request, *args, **kwargs):
         """
@@ -135,7 +135,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request, *args, **kwargs):
         """API to get intake form field"""
@@ -188,7 +188,7 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     User Intake form submit API.
     """
     serializer_class = IntakeFormSubmitSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = []
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     lookup_field = 'id'
 
