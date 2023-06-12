@@ -135,7 +135,7 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
 class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     form_version = serializers.PrimaryKeyRelatedField(required=True,
                                                       queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
-    submitted_user = serializers.PrimaryKeyRelatedField(required=True,
+    submitted_user = serializers.PrimaryKeyRelatedField(required=True, write_only=True,
                                                         queryset=CustomUser.objects.filter(is_trashed=False))
     fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
     submission_data = serializers.JSONField(read_only=True)
@@ -143,6 +143,13 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     class Meta:
         model = IntakeFormSubmissions
         fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['submitted_by_user'] = instance.submitted_user.username
+        representation['form'] = instance.form_version.intake_form.title
+
+        return representation
 
     def validate(self, attrs):
         form_field_set = set(IntakeFormFields.objects.filter(form_version=attrs.get("form_version")

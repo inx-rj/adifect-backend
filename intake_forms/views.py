@@ -168,9 +168,9 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
             intake_form=intake_form_obj).order_by('-version').first()
         version = intake_form_field_version_obj.version + 1 if intake_form_field_version_obj and intake_form_field_version_obj.version else 1
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                     "version": version,
-                                                                     "intake_form": intake_form_obj,
-                                                                     "user": self.request.user})
+                                                                           "version": version,
+                                                                           "intake_form": intake_form_obj,
+                                                                           "user": self.request.user})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': "", 'message': INTAKE_FORM_UPDATED_SUCCESSFULLY})
@@ -200,7 +200,14 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     def post(self, request, *args, **kwargs):
         if not request.data.get('data'):
             raise serializers.ValidationError({"data": ["This field is required!"]})
+        try:
+            version_id = float(kwargs.get('version_id'))
+        except ValueError:
+            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
+        form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
+                                         version=kwargs.get('version_id'), is_trashed=False)
         data = json.loads(request.data.get("data"))
+        data['form_version'] = form_version.id
         data["submitted_user"] = request.user.id
         serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
         serializer.is_valid(raise_exception=True)
@@ -212,3 +219,29 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         serializer = self.get_serializer(instance)
         return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
 
+
+class ListIntakeFormSubmissions(generics.ListAPIView):
+    """API to get form submissions with versions search filter"""
+
+    serializer_class = IntakeFormSubmitSerializer
+    pagination_class = CustomPagination
+    queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['form_version__version']
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        try:
+            version_id = float(kwargs.get('version_id'))
+        except ValueError:
+            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
+        form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
+                                         version=kwargs.get('version_id'), is_trashed=False)
+        self.queryset = self.queryset.filter(form_version_id=form_version.id)
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': 'hh'},
+                            status=status.HTTP_200_OK)
