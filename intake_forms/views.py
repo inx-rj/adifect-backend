@@ -226,8 +226,6 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     serializer_class = IntakeFormSubmitSerializer
     pagination_class = CustomPagination
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
-    filter_backends = [OrderingFilter, SearchFilter]
-    search_fields = ['form_version__version']
     permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
@@ -235,10 +233,8 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
             version_id = float(kwargs.get('version_id'))
         except ValueError:
             raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
-        form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
-                                         version=kwargs.get('version_id'), is_trashed=False)
-        self.queryset = self.queryset.filter(form_version_id=form_version.id)
-        self.queryset = self.filter_queryset(self.queryset)
+        self.queryset = self.queryset.filter(form_version__intake_form_id=kwargs.get('form_id'),
+                                             form_version__version=kwargs.get('version_id'))
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
