@@ -289,7 +289,8 @@ def add_community_audiences(client_id, api_key, community_id):
             new_audience_instances = [Audience(community_id=community_id, name=aud.get('name'),
                                                row_count=aud.get('row_count'), available=aud.get('available'),
                                                opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
-                                               routes=aud.get('routes'), created_at=aud.get('created_at'))
+                                               routes=aud.get('routes'), created_at=date_format(
+                    aud.get('created_at')) if aud.get('created_at') else None)
                                       for aud in audiences]
             Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
             logger.info("Bulk creating audiences done.")
