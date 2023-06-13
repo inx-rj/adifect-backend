@@ -214,7 +214,8 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
                                          version=kwargs.get('version_id'), is_trashed=False)
         data = json.loads(request.data.get("data"))
         data['form_version'] = form_version.id
-        data["submitted_user"] = request.user.id
+        # data["submitted_user"] = request.user.id
+        data["submitted_user"] = None
         serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -232,7 +233,7 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     serializer_class = IntakeFormSubmitSerializer
     pagination_class = CustomPagination
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def list(self, request, *args, **kwargs):
         try:
@@ -245,5 +246,5 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
         if page is not None:
             serializer = self.serializer_class(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': 'hh'},
+            return Response({'data': response.data, 'message': ''},
                             status=status.HTTP_200_OK)
