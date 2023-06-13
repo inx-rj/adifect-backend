@@ -185,7 +185,7 @@ class Audience(BaseModel):
     opted_out = models.BigIntegerField()
     non_mobile = models.CharField(max_length=100)
     routes = models.CharField(max_length=255)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'Audiences'
