@@ -245,5 +245,5 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
         if page is not None:
             serializer = self.serializer_class(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': 'hh'},
+            return Response({'data': response.data, 'message': ''},
                             status=status.HTTP_200_OK)
