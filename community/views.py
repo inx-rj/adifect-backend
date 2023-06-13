@@ -29,7 +29,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
     CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND, \
-    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
+    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY, AUDIENCE_RETRIEVED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode, StoryTag, Audience
@@ -37,7 +37,8 @@ from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
-    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
+    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
+    CommunityAudienceListCreateSerializer
 from .tasks import story_data_entry, add_community_audiences
 from .utils import validate_client_id_opnsesame
 
@@ -739,3 +740,31 @@ class CreativeCodeImportAPIView(APIView):
             raise ValidationError(missing_row_data)
         CreativeCode.objects.bulk_create(creative_code_objs_list)
         return Response({'data': "", 'message': CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY})
+
+
+class CommunityAudienceListCreateView(generics.ListAPIView):
+    """
+    View for view list of all audiences
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = CommunityAudienceListCreateSerializer
+    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['community__name', 'name', 'community__id']
+    ordering_fields = ['id', 'community__name', 'name', 'community__id']
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of audiences
+        """
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})
