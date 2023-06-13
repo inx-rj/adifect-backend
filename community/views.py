@@ -38,7 +38,8 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
-from .tasks import story_data_entry
+from .tasks import story_data_entry, add_community_audiences
+from .utils import validate_client_id_opnsesame
 
 logger = logging.getLogger('django')
 
@@ -189,6 +190,16 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
         story_data_entry.delay(community_setting_obj.community.community_id)
+        opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
+                                                         channel__name__iexact='opnsesame').first()
+        if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,
+                                                           api_key=opn_sesame_obj.api_key):
+            # Call Background task for fetching audiences
+            logger.info("VALID CLIENT_ID")
+            logger.info("Calling background task to add audiences.")
+            add_community_audiences.delay(opn_sesame_obj.url, opn_sesame_obj.api_ley,
+                                          community_setting_obj.community_id)
+
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
