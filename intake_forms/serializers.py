@@ -158,7 +158,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IntakeFormSubmissions
-        fields = ['form_version', 'submitted_user', 'fields', 'submission_data']
+        fields = ['form_version', 'submitted_user', 'fields', 'submission_data', 'created']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
