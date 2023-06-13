@@ -197,7 +197,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             # Call Background task for fetching audiences
             logger.info("VALID CLIENT_ID")
             logger.info("Calling background task to add audiences.")
-            add_community_audiences.delay(opn_sesame_obj.url, opn_sesame_obj.api_ley,
+            add_community_audiences.delay(opn_sesame_obj.url, opn_sesame_obj.api_key,
                                           community_setting_obj.community_id)
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
