@@ -132,18 +132,19 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
     def validate(self, data):
         if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
             raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
-        elif data.get("field_type") == 'Date' and not self.is_valid_date(date_string=data.get("field_value")):
+        elif data.get("field_type") == 'Date' and not self.is_valid_date(date_string=data.get("field_value").get("startDate")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
         elif data.get("field_type") == 'Date Range' and not self.is_valid_date(
-                date_string=data.get("field_value").get("start_date")) and not self.is_valid_date(
-            date_string=data.get("field_value").get("end_date")):
+                date_string=data.get("field_value").get("startDate")) and not self.is_valid_date(
+            date_string=data.get("field_value").get("endDate")):
             raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
-        if data.get("field_type") == "Upload Attachment" and not self.context.get('files').get(data.get("field_value")):
-            raise serializers.ValidationError(
-                {f"{data.get('field_name')}": "File attachment not found for this field."})
-        elif data.get("field_type") == "Upload Attachment" and self.context.get('files').get(data.get("field_value")):
-            data["field_value"] = self.context.get('files').get(data.get("field_value"))
+        if data.get("field_type") == "Upload Attachment":
+            if not self.context.get('files').get(data.get("field_value")):
+                raise serializers.ValidationError(
+                    {f"{data.get('field_name')}": "File attachment not found for this field."})
+            elif self.context.get('files').get(data.get("field_value")):
+                data["field_value"] = self.context.get('files').get(data.get("field_value"))
 
         return data
 
