@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from community.models import Story, Community, Tag, CommunityChannel, CommunitySetting, Channel, Program, CopyCode, \
-    CreativeCode, Category, StoryTag
+    CreativeCode, Category, StoryTag, Audience
 
 
 class ChannelRetrieveUpdateDestroySerializer(serializers.ModelSerializer):
@@ -36,6 +36,15 @@ class CommunitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Community
         fields = '__all__'
+
+class CommunityAudienceSerializer(serializers.ModelSerializer):
+    """
+    Serializer to get community data.
+    """
+
+    class Meta:
+        model = Community
+        fields = ['id', 'name']
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -137,7 +146,8 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
 
     def validate_community_id(self, value):
         if self.context.get('id'):
-            if CommunitySetting.objects.exclude(id=self.context.get('id')).filter(is_trashed=False, community=value).exists():
+            if CommunitySetting.objects.exclude(id=self.context.get('id')).filter(is_trashed=False,
+                                                                                  community=value).exists():
                 raise serializers.ValidationError("Community Setting for this community already exists.")
         elif CommunitySetting.objects.filter(is_trashed=False, community=value).exists():
             raise serializers.ValidationError("Community Setting for this community already exists.")
@@ -289,3 +299,14 @@ class StoryTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoryTag
         fields = "__all__"
+
+
+class CommunityAudienceListCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer to view list of all Audiences
+    """
+    community = CommunityAudienceSerializer()
+
+    class Meta:
+        model = Audience
+        fields = ['id', 'name', 'row_count', 'available', 'opted_out', 'non_mobile', 'routes', 'community']
