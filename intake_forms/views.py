@@ -204,19 +204,17 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
-        if not request.data.get('data'):
-            raise serializers.ValidationError({"data": ["This field is required!"]})
         try:
             version_id = float(kwargs.get('version_id'))
         except ValueError:
             raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
         form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
                                          version=kwargs.get('version_id'), is_trashed=False)
-        data = json.loads(request.data.get("data"))
+        data = request.data
         data['form_version'] = form_version.id
         # data["submitted_user"] = request.user.id
         data["submitted_user"] = None
-        serializer = self.serializer_class(data=data, context={"files": request.FILES, "request": request})
+        serializer = self.serializer_class(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': '', 'message': INTAKE_FORM_SUBMIT_SUCCESS}, status=status.HTTP_201_CREATED)
