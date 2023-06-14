@@ -1,10 +1,12 @@
 import os
+import urllib
 import uuid
 from datetime import datetime
 
 import boto3
 import botocore.exceptions
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Max
 from rest_framework import serializers
@@ -37,7 +39,7 @@ class IntakeFormSerializer(serializers.ModelSerializer):
             form_versions = instance.intake_form_field_version_form.all()
             rep['max_version'] = form_versions.aggregate(Max('version'))['version__max']
             rep['version'] = [form_version.version for form_version in form_versions]
-            rep['created_by'] = form_version_obj.user.username
+            rep['created_by'] = form_version_obj.user.username if form_version_obj.user else "Developer"
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
         else:
             rep['max_version'] = 1.0
@@ -146,11 +148,11 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
                     date_string=data.get("field_value").get("endDate")):
                 raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
-        if data.get("field_type") == "Upload Attachment":
-            if not self.context.get('files').get(data.get("field_value")):
-                raise serializers.ValidationError(
-                    {f"{data.get('field_name')}": "File attachment not found for this field."})
-            data["field_value"] = self.context.get('files').get(data.get("field_value"))
+        # if data.get("field_type") == "Upload Attachment":
+        #     if not self.context.get('files').get(data.get("field_value")):
+        #         raise serializers.ValidationError(
+        #             {f"{data.get('field_name')}": "File attachment not found for this field."})
+        #     data["field_value"] = self.context.get('files').get(data.get("field_value"))
 
         return data
 
@@ -170,7 +172,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        representation['submitted_by_user'] = None
+        representation['submitted_by_user'] = "Developer"
         representation['form'] = instance.form_version.intake_form.title
 
         return representation
@@ -196,28 +198,31 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         return attrs
 
     @staticmethod
-    def upload_file_s3(file_obj):
+    def upload_file_s3(image_str):
         try:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-                aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
-            )
-            uid = uuid.uuid4()
-            file_etx = file_obj.name.split('.')[-1]
-            s3_client.upload_fileobj(file_obj,
-                                     os.environ.get('AWS_STORAGE_BUCKET_NAME'),
-                                     f'intake_form_attachments/{uid}.{file_etx}')
+            file_ext = image_str.split(";")[0].split('/')[-1]
+            file_name = f'{uuid.uuid4()}.{file_ext}'
 
-            return f'intake_form_attachments/{uid}.{file_etx}'
+            # Retrieve the image content from the URL
+            response = urllib.request.urlopen(image_str)
+            with open(file_name, "wb") as file_obj:
+                # Write the image content to the file object
+                file_obj.write(response.read())
 
-        except botocore.exceptions.ClientError as err:
-            print(f"## Error {err}")
+            with open(file_name, 'rb') as file:
+                # Save the file to S3 using the default storage backend
+                f = default_storage.save(f'intake_form_attachments/{file_name}', file)
+
+            os.remove(file_name)
+            return default_storage.url(f)
+
+        except Exception as err:
+            print(err)
             return ""
 
     def create(self, validated_data):
         for field in validated_data.get("fields"):
             if field.get('field_type') == "Upload Attachment":
-                field['field_value'] = self.upload_file_s3(file_obj=field.get('field_value'))
+                field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
