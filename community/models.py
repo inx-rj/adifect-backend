@@ -177,6 +177,7 @@ class CreativeCode(BaseModel):
 
 
 class Audience(BaseModel):
+    audience_id = models.IntegerField(null=True, blank=True)
     community = models.ForeignKey(Community, related_name='audience_in_community', on_delete=models.SET_NULL,
                                   null=True, blank=True)
     name = models.CharField(max_length=255)
