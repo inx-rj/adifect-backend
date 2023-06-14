@@ -754,15 +754,23 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
     queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['community__name', 'name', 'community__id']
-    ordering_fields = ['id', 'community__name', 'name', 'community__id']
+    search_fields = ['audience_id', 'name']
+    ordering_fields = ['id', 'name', 'audience_id']
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
         API to get list of audiences
         """
-        self.queryset = self.filter_queryset(self.queryset)
+        self.queryset = self.filter_queryset(self.get_queryset())
+
+        if community_id := request.GET.get('community'):
+            self.queryset = self.queryset.filter(community_id=community_id)
+
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
