@@ -286,7 +286,7 @@ def add_community_audiences(client_id, api_key, community_id):
         logger.info("Background task ## add_community_audiences")
         for audiences in audience_generator(client_id=client_id, api_key=api_key):
             logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
-            new_audience_instances = [Audience(community_id=community_id, name=aud.get('name'),
+            new_audience_instances = [Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
                                                row_count=aud.get('row_count'), available=aud.get('available'),
                                                opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
                                                routes=aud.get('routes'), created_at=date_format(

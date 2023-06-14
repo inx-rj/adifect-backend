@@ -309,4 +309,4 @@ class CommunityAudienceListCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Audience
-        fields = ['id', 'name', 'row_count', 'available', 'opted_out', 'non_mobile', 'routes', 'community']
+        fields = ['id', 'audience_id','name', 'row_count', 'available', 'opted_out', 'non_mobile', 'routes', 'community']
