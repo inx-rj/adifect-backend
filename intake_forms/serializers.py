@@ -91,7 +91,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                 intake_form_id=intake_form_obj.id).order_by('-version').first()
             version = intake_form_field_version_obj.version + 1 if intake_form_field_version_obj and intake_form_field_version_obj.version else 1
             form_version_obj = IntakeFormFieldVersion.objects.create(intake_form_id=intake_form_obj.id,
-                                              version=version, user=self.context.get('user'))
+                                                                     version=version, user=self.context.get('user'))
             for field in fields_data:
                 if not field.get('field_name'):
                     raise serializers.ValidationError({"field_name": ["This field is required!"]})
@@ -132,19 +132,25 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
     def validate(self, data):
         if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
             raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
-        elif data.get("field_type") == 'Date' and not self.is_valid_date(date_string=data.get("field_value").get("startDate")):
-            raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
-        elif data.get("field_type") == 'Date Range' and not self.is_valid_date(
-                date_string=data.get("field_value").get("startDate")) and not self.is_valid_date(
-            date_string=data.get("field_value").get("endDate")):
-            raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
+        elif data.get("field_type") == 'Date':
+            if not data.get("field_value").get("startDate"):
+                raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})
+            if not self.is_valid_date(date_string=data.get("field_value").get("startDate")):
+               raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
+        elif data.get("field_type") == 'Date Range':
+            if not data.get("field_value").get("startDate"):
+                raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})
+            if not data.get("field_value").get("endDate"):
+                raise serializers.ValidationError({"field_value": {"endDate": ["This field is required!"]}})
+            if not self.is_valid_date(date_string=data.get("field_value").get("startDate")) and not self.is_valid_date(
+                    date_string=data.get("field_value").get("endDate")):
+                raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date range!"})
 
         if data.get("field_type") == "Upload Attachment":
             if not self.context.get('files').get(data.get("field_value")):
                 raise serializers.ValidationError(
                     {f"{data.get('field_name')}": "File attachment not found for this field."})
-            elif self.context.get('files').get(data.get("field_value")):
-                data["field_value"] = self.context.get('files').get(data.get("field_value"))
+            data["field_value"] = self.context.get('files').get(data.get("field_value"))
 
         return data
 
@@ -163,7 +169,8 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['submitted_by_user'] = instance.submitted_user.username
+        # representation['submitted_by_user'] = instance.submitted_user.username
+        representation['submitted_by_user'] = None
         representation['form'] = instance.form_version.intake_form.title
 
         return representation
