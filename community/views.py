@@ -39,7 +39,7 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
     CommunityAudienceListCreateSerializer
-from .tasks import story_data_entry, add_community_audiences
+from .tasks import add_community_audiences, sync_story_task_main
 from .utils import validate_client_id_opnsesame
 
 logger = logging.getLogger('django')
@@ -190,7 +190,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
-        story_data_entry.delay(community_setting_obj.community.community_id)
+        sync_story_task_main.delay(community_id=community_setting_obj.community_id,
+                                   local_community_id=community_setting_obj.community.community_id)
         opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                          channel__name__iexact='opnsesame').first()
         if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,
