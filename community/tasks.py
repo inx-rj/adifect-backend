@@ -251,12 +251,14 @@ def add_community_stories(story_data_list, community_obj_id):
     # story_tag_instances = []
     for story in story_tag_dict:
         story = Story.objects.get(story_id=story)
-        story.tag.add(*story_tag_dict.get(story, []))
+        story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
+                                                   ).values_list('id', flat=True)))
 
     # story_category_instances = []
     for story in story_category_dict:
         story = Story.objects.get(story_id=story)
-        story.category.add(*story_category_dict.get(story, []))
+        story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
+                                                             ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
