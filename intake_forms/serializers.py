@@ -132,13 +132,16 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
             return False
 
     def validate(self, data):
+        # if not data.get('field_value'):
+        #     raise serializers.ValidationError({data.get('field_name'): [f"{data.get('field_name')} is required"]})
+
         if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
             raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
         elif data.get("field_type") == 'Date':
             if not data.get("field_value").get("startDate"):
                 raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})
             if not self.is_valid_date(date_string=data.get("field_value").get("startDate")):
-               raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
+                raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
         elif data.get("field_type") == 'Date Range':
             if not data.get("field_value").get("startDate"):
                 raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})

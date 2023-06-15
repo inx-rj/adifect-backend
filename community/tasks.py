@@ -8,7 +8,8 @@ import pymongo
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel, Audience
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel, Audience, \
+    CommunitySetting
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -23,7 +24,7 @@ mongo_db = mongo_client[os.environ.get('MONGO_DB_NAME')]
 company_projects_collection = mongo_db[os.environ.get('MONGO_COLLECTION_NAME')]
 
 
-def sync_function(url, headers, params):
+def sync_function(url, headers, params, update=None, last_story_id=None):
     """
     Function for calling asynchronous function to get all community and stories data.
     """
@@ -59,7 +60,17 @@ def sync_function(url, headers, params):
                         continue
                     if not response_data:
                         return
-                    data_list.extend(response_data)
+                    if update:
+                        data = []
+                        for record in response_data:
+                            if record['id'] > last_story_id:
+                                data.append(record)
+                            else:
+                                data_list.extend(data)
+                                return data_list
+                        data_list.extend(data)
+                    else:
+                        data_list.extend(response_data)
                     page += 1
                     repeater_count = 0
 
@@ -240,12 +251,14 @@ def add_community_stories(story_data_list, community_obj_id):
     # story_tag_instances = []
     for story in story_tag_dict:
         story = Story.objects.get(story_id=story)
-        story.tag.add(*story_tag_dict.get(story, []))
+        story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
+                                                   ).values_list('id', flat=True)))
 
     # story_category_instances = []
     for story in story_category_dict:
         story = Story.objects.get(story_id=story)
-        story.category.add(*story_category_dict.get(story, []))
+        story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
+                                                             ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
@@ -297,3 +310,36 @@ def add_community_audiences(client_id, api_key, community_id):
 
     except Exception as err:
         logger.error(f"Error add_community_audiences ## {err}")
+
+
+@shared_task(name='community_update_data_entry')
+def community_update_data_entry():
+    """Function to bulk create new added community story."""
+
+    try:
+        story_url = os.environ.get('STORY_UPDATE_URL')
+        community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
+        headers = {'Authorization': f'Token {community_data_access_key}'}
+        params = {'per_page': 100}
+
+        community_objs = CommunitySetting.objects.all().values_list('community__community_id', flat=True)
+        for community_id in community_objs:
+
+            try:
+                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest('story_id').story_id
+            except Community.DoesNotExist:
+                last_story_id = 0
+
+            params['by_community'] = community_id
+            logger.info(f"Calling Story ASYNC for Community {community_id}")
+            story_data_list = sync_function(story_url, headers, params, update=True, last_story_id=last_story_id)
+            logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+
+            community_obj_id = Community.objects.get(community_id=community_id).id
+            logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+            for ind in range(len(story_data_list) // 1000 + 1):
+                story_data_list_store = story_data_list[ind * 1000: 1000 * (ind + 1)]
+                add_community_stories.delay(story_data_list_store, community_obj_id)
+
+    except Exception as e:
+        logger.error(f"community_data_entry error ## {e}")
