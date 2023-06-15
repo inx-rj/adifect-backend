@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 from celery import Celery
+from celery.schedules import crontab
 from django.conf import settings
 
 
@@ -27,6 +28,10 @@ app.conf.beat_schedule = {
         'task': 'community_data_entry',
         'schedule':  timedelta(days=1)
     },
+        'community-update-data-entry': {
+        'task': 'community_update_data_entry',
+        'schedule': crontab(minute=59, hour=23)
+    }
 }
 
 app.autodiscover_tasks()
