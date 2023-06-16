@@ -100,7 +100,8 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                 field_type = field.get('field_type')
                 if not field_type:
                     raise serializers.ValidationError({"field_type": ["This field is required!"]})
-                if field_type in ['Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
+                if field_type.lower() in ['options', 'radio', 'options_multiple', 'radio_multiple',
+                                          'checkbox', 'checkbox_multiple'] and not field.get('options'):
                     raise serializers.ValidationError({"options": ["Please give options!"]})
 
                 field['form_version'] = form_version_obj
@@ -135,14 +136,14 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
         # if not data.get('field_value'):
         #     raise serializers.ValidationError({data.get('field_name'): [f"{data.get('field_name')} is required"]})
 
-        if data.get("field_type") == 'Short Answer' and len(data.get("field_value")) > 500:
+        if data.get("field_type") == 'text' and len(data.get("field_value")) > 500:
             raise serializers.ValidationError({f"{data.get('field_name')}": "Limit 500 characters"})
-        elif data.get("field_type") == 'Date':
+        elif data.get("field_type") == 'date_picker':
             if not data.get("field_value").get("startDate"):
                 raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})
             if not self.is_valid_date(date_string=data.get("field_value").get("startDate")):
                 raise serializers.ValidationError({f"{data.get('field_name')}": "Invalid date!"})
-        elif data.get("field_type") == 'Date Range':
+        elif data.get("field_type") == 'date_range_picker':
             if not data.get("field_value").get("startDate"):
                 raise serializers.ValidationError({"field_value": {"startDate": ["This field is required!"]}})
             if not data.get("field_value").get("endDate"):
@@ -225,7 +226,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         for field in validated_data.get("fields"):
-            if field.get('field_type') == "Upload Attachment":
+            if field.get('field_type') == "file":
                 field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
