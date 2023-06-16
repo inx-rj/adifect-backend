@@ -34,6 +34,7 @@ class IntakeFormFields(BaseModel):
     field_name = models.CharField(max_length=200)
     field_type = models.CharField(max_length=50)
     options = models.JSONField(null=True, blank=True)
+    meta_data = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'IntakeFormFields'

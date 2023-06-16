@@ -140,13 +140,21 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
 
         intake_form_field_obj = IntakeFormFields.objects.filter(form_version__intake_form_id=form_id,
                                                                 form_version__version=version, is_trashed=False)
+        intake_form_data = IntakeForm.objects.filter(id=form_id).first()
+
         if not intake_form_field_obj:
             raise serializers.ValidationError(
                 {"form_version": [
                     f"Invalid pk \"{self.kwargs.get('form_id')}\"\"{self.kwargs.get('version_id')}\" - object does not exist."]})
         serializer = IntakeFormFieldSerializer(intake_form_field_obj, many=True)
+        intake_serializer = IntakeFormSerializer(intake_form_data)
+        data = {
+            "data": serializer.data,
+        }
+        if intake_form_data:
+            data["intake_form"] = intake_serializer.data
 
-        return Response({'data': serializer.data, 'message': INTAKE_FORM_RETRIEVED_SUCCESSFULLY})
+        return Response({'data': data, 'message': INTAKE_FORM_RETRIEVED_SUCCESSFULLY})
 
     def put(self, request, *args, **kwargs):
         """put request to update intake form field"""
