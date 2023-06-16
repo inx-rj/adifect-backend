@@ -233,7 +233,7 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     pagination_class = CustomPagination
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     filter_backends = [OrderingFilter]
-    ordering = ['created', '-created', 'submitted_user', '-submitted_user']
+    ordering_fields = ['created', 'submitted_user__username']
     permission_classes = []
 
     def list(self, request, *args, **kwargs):
