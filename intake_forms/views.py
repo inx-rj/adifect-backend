@@ -112,7 +112,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         """API to create intake form field"""
         serializer = self.get_serializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                     "user": self.request.user,
+                                                                     "user": None,
                                                                      "intake_form": request.data.get('intake_form')
                                                                      })
         serializer.is_valid(raise_exception=True)
@@ -171,7 +171,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
                                                                               version=version)
 
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                           "user": self.request.user,
+                                                                           "user": None,
                                                                            "intake_form": request.data.get(
                                                                                'intake_form'),
                                                                            "id": self.kwargs.get('form_id'),
