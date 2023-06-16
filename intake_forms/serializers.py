@@ -52,11 +52,10 @@ class IntakeFormFieldVersionSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form field
     """
-    intake_form = IntakeFormSerializer()
 
     class Meta:
         model = IntakeFormFieldVersion
-        fields = '__all__'
+        exclude = ['intake_form']
 
 
 class IntakeFormFieldSerializer(serializers.ModelSerializer):
@@ -76,14 +75,32 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     def get_form_version_data(self, obj):
         return IntakeFormFieldVersionSerializer(instance=obj.form_version).data
 
+    def validate(self, attrs):
+        fields_data = self.context.get("fields", [])
+        if not fields_data:
+            raise ValidationError({"fields": ["This field is required!"]})
+
+        for field in fields_data:
+            if not field.get('field_name'):
+                raise serializers.ValidationError({"field_name": ["This field is required!"]})
+
+            field_type = field.get('field_type')
+            if not field_type:
+                raise serializers.ValidationError({"field_type": ["This field is required!"]})
+
+            if field_type in ['options', 'radio', 'options_multiple', 'radio_multiple', 'checkbox', 'checkbox_multiple',
+                              'Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
+                raise serializers.ValidationError({"options": ["Please give options!"]})
+
+        return attrs
+
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if not fields_data:
-                raise ValidationError({"fields": ["This field is required!"]})
-
             if self.context.get('id'):
                 intake_form_obj = IntakeForm.objects.get(id=self.context.get('id'))
+                intake_form_obj.title = self.context.get('intake_form').get('title')
+                intake_form_obj.save()
                 self.context.get('intake_form_field').update(is_trashed=True)
                 self.context.get('intake_form_field_version_obj').update(is_trashed=True)
             else:
@@ -95,16 +112,6 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
             form_version_obj = IntakeFormFieldVersion.objects.create(intake_form_id=intake_form_obj.id,
                                                                      version=version, user=self.context.get('user'))
             for field in fields_data:
-                if not field.get('field_name'):
-                    raise serializers.ValidationError({"field_name": ["This field is required!"]})
-                field_type = field.get('field_type')
-                if not field_type:
-                    raise serializers.ValidationError({"field_type": ["This field is required!"]})
-                if field_type in ['options', 'radio', 'options_multiple', 'radio_multiple',
-                                  'checkbox', 'checkbox_multiple','Dropdown', 'Multi-Select Dropdown',
-                                  'Radio Button'] and not field.get('options'):
-                    raise serializers.ValidationError({"options": ["Please give options!"]})
-
                 field['form_version'] = form_version_obj
                 try:
                     IntakeFormFields(**field).full_clean()
