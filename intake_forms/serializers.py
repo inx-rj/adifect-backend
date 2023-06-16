@@ -88,8 +88,8 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
             if not field_type:
                 raise serializers.ValidationError({"field_type": ["This field is required!"]})
 
-            if field_type.lower() in ['options', 'radio', 'options_multiple', 'radio_multiple',
-                                      'checkbox', 'checkbox_multiple'] and not field.get('options'):
+            if field_type in ['options', 'radio', 'options_multiple', 'radio_multiple', 'checkbox', 'checkbox_multiple',
+                              'Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
                 raise serializers.ValidationError({"options": ["Please give options!"]})
 
         return attrs
