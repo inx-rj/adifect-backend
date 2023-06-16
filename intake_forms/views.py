@@ -163,12 +163,13 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
                                                                               version=version)
 
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                     "user": self.request.user,
-                                                                     "intake_form": request.data.get('intake_form'),
-                                                                     "id": self.kwargs.get('form_id'),
-                                                                     "intake_form_field": intake_form_field_obj,
-                                                                     "intake_form_field_version_obj": intake_form_field_version_obj
-                                                                     })
+                                                                           "user": self.request.user,
+                                                                           "intake_form": request.data.get(
+                                                                               'intake_form'),
+                                                                           "id": self.kwargs.get('form_id'),
+                                                                           "intake_form_field": intake_form_field_obj,
+                                                                           "intake_form_field_version_obj": intake_form_field_version_obj
+                                                                           })
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': "", 'message': INTAKE_FORM_UPDATED_SUCCESSFULLY})
@@ -231,6 +232,8 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     serializer_class = IntakeFormSubmitSerializer
     pagination_class = CustomPagination
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['created', 'submitted_user__username']
     permission_classes = []
 
     def list(self, request, *args, **kwargs):
@@ -238,8 +241,11 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
             version_id = float(kwargs.get('version_id'))
         except ValueError:
             raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
-        self.queryset = self.queryset.filter(form_version__intake_form_id=kwargs.get('form_id'),
-                                             form_version__version=kwargs.get('version_id'))
+
+        self.queryset = self.filter_queryset(self.get_queryset()).filter(
+            form_version__intake_form_id=kwargs.get('form_id'),
+            form_version__version=kwargs.get('version_id'))
+
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
