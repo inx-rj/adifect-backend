@@ -181,10 +181,24 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         model = IntakeFormSubmissions
         fields = ['id', 'form_version', 'submitted_user', 'fields', 'submission_data', 'created']
 
+    @staticmethod
+    def get_submitter_name_if_exists(data):
+        name = ''
+        email = ''
+        for field in data:
+            if field.get('field_name') == 'Submitter Name':
+                name = field.get('field_value')
+            if field.get('field_name') == 'Submitter Email':
+                email = field.get('field_value')
+
+        return name, email
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        representation['submitted_by_user'] = "Developer"
+        user_name, user_email = self.get_submitter_name_if_exists(data=instance.submission_data)
+        representation['submitter_name'] = user_name
+        representation['submitter_email'] = user_email
         representation['form'] = instance.form_version.intake_form.title
 
         return representation
