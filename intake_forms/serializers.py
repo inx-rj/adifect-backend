@@ -101,8 +101,8 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                 intake_form_obj = IntakeForm.objects.get(id=self.context.get('id'))
                 intake_form_obj.title = self.context.get('intake_form').get('title')
                 intake_form_obj.save()
-                self.context.get('intake_form_field').update(is_trashed=True)
-                self.context.get('intake_form_field_version_obj').update(is_trashed=True)
+                # self.context.get('intake_form_field').update(is_trashed=True)
+                # self.context.get('intake_form_field_version_obj').update(is_trashed=True)
             else:
                 intake_form_obj = IntakeForm.objects.create(title=self.context.get('intake_form').get('title'))
 
