@@ -26,6 +26,11 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
 
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
+                     'intake_form_field_version_form__version']
+    ordering_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
+                       'intake_form_field_version_form__version']
     pagination_class = CustomPagination
     permission_classes = []
 
