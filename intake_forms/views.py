@@ -135,18 +135,24 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
         """API to get intake form field"""
         form_id = self.kwargs.get('form_id')
 
-        intake_form_field_version = IntakeFormFieldVersion.objects.filter(intake_form__uuid=form_id)
-        if not intake_form_field_version:
-            raise Http404()
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version=intake_form_field_version.latest('id').id,
-                                                                is_trashed=False)
+        if not self.request.GET.get('version'):
+            intake_form_field_version = IntakeFormFieldVersion.objects.filter(intake_form__uuid=kwargs.get('form_id'),
+                                                                              is_trashed=False)
+            if not intake_form_field_version:
+                raise Http404()
+            form_version = intake_form_field_version.latest('id').id
+        else:
+            form_version_response = get_object_or_404(IntakeFormFieldVersion, intake_form__uuid=kwargs.get('form_id'),
+                                                      version=self.request.GET.get(
+                                                          'version'), is_trashed=False)
+            form_version = form_version_response.id
+
+        intake_form_field_obj = IntakeFormFields.objects.filter(form_version=form_version, is_trashed=False)
 
         intake_form_data = IntakeForm.objects.filter(uuid=form_id).first()
 
         if not intake_form_field_obj:
-            raise serializers.ValidationError(
-                {"form_version": [
-                    f"Invalid pk \"{self.kwargs.get('form_id')}\"\"{self.kwargs.get('version_id')}\" - object does not exist."]})
+            raise Http404()
         serializer = IntakeFormFieldSerializer(intake_form_field_obj, many=True)
         intake_serializer = IntakeFormSerializer(intake_form_data)
         data = {
