@@ -2,9 +2,11 @@ from django.db import models
 
 from authentication.models import CustomUser
 from common.models import BaseModel
+import uuid
 
 
 class IntakeForm(BaseModel):
+    uuid = models.UUIDField(editable=False, default=uuid.uuid4, unique=True)
     title = models.CharField(max_length=200)
 
     class Meta:
@@ -15,6 +17,7 @@ class IntakeForm(BaseModel):
 
 
 class IntakeFormFieldVersion(BaseModel):
+    uuid = models.UUIDField(editable=False, default=uuid.uuid4, unique=True)
     intake_form = models.ForeignKey(IntakeForm, related_name='intake_form_field_version_form',
                                     on_delete=models.SET_NULL, null=True, blank=True)
     version = models.FloatField()
@@ -29,6 +32,7 @@ class IntakeFormFieldVersion(BaseModel):
 
 
 class IntakeFormFields(BaseModel):
+    uuid = models.UUIDField(editable=False, default=uuid.uuid4, unique=True)
     form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_fields_form_version',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     field_name = models.CharField(max_length=200)
@@ -44,6 +48,7 @@ class IntakeFormFields(BaseModel):
 
 
 class IntakeFormSubmissions(BaseModel):
+    uuid = models.UUIDField(editable=False, default=uuid.uuid4, unique=True)
     form_version = models.ForeignKey(IntakeFormFieldVersion, related_name='intake_form_submission_form_version',
                                      on_delete=models.SET_NULL, null=True, blank=True)
     submitted_user = models.ForeignKey(CustomUser, related_name='intake_form_submission_user',
