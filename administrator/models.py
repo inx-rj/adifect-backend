@@ -10,7 +10,7 @@ from autoslug import AutoSlugField
 from authentication.models import CustomUser
 from django.core.exceptions import ValidationError
 from authentication.manager import SoftDeleteManager
-from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages,InviteMember
+from agency.models import WorksFlow, Company, Industry, InviteMember, Workflow_Stages, InviteMember
 from django.core.validators import MaxValueValidator, MinValueValidator
 from io import BytesIO
 from PIL import Image
@@ -160,15 +160,18 @@ class Job(BaseModel):
                                  null=True)
     job_due_date = models.DateField(default=None, null=True, blank=True)
     due_date_index = models.IntegerField(null=True, blank=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_user", null=True, blank=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Job_user", null=True, blank=True)
     template_name = models.CharField(max_length=250, null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Post)
     is_active = models.BooleanField(default=True)
     is_blocked = models.BooleanField(default=False)
     is_house_member = models.BooleanField(default=False)
     house_member = models.ManyToManyField(InviteMember, blank=True)
-    created_by =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_created_by", null=True, blank=True)
-    assigned_to =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_assigned_by", null=True, blank=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Job_created_by", null=True,
+                                   blank=True)
+    assigned_to = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Job_assigned_by", null=True,
+                                    blank=True)
+
     class Meta:
         verbose_name_plural = 'Job'
 
@@ -195,11 +198,12 @@ class JobAttachments(BaseModel):
     work_sample_thumbnail = models.FileField(upload_to="work_sample_images_thumbnail", blank=True, null=True)
     dam_media_id = models.ForeignKey("agency.DamMedia", on_delete=models.SET_NULL, null=True, blank=True)
     is_video = models.BooleanField(default=False)
+
     def save(self, **kwargs):
         output_size = (250, 250)
         output_thumb = BytesIO()
         if self.job_images:
-            if str(self.job_images).endswith((".mp4", ".mp3", ".mov",".MP4",".MP3",".MOV")):
+            if str(self.job_images).endswith((".mp4", ".mp3", ".mov", ".MP4", ".MP3", ".MOV")):
                 self.job_images_thumbnail = self.job_images
                 self.is_video = True
             else:
@@ -209,8 +213,8 @@ class JobAttachments(BaseModel):
                 img.save(output_thumb, format=img.format, quality=90)
 
                 self.job_images_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                                'image/jpeg',
-                                                                sys.getsizeof(output_thumb), None)
+                                                                 'image/jpeg',
+                                                                 sys.getsizeof(output_thumb), None)
         if self.work_sample_images:
             if str(self.work_sample_images).endswith((".mp4", ".mp3", ".mov")):
                 self.work_sample_thumbnail = self.work_sample_images
@@ -223,8 +227,8 @@ class JobAttachments(BaseModel):
                 img_work_sample.save(output_thumb, format=img_work_sample.format, quality=90)
 
                 self.work_sample_thumbnail = InMemoryUploadedFile(output_thumb, 'ImageField', f"{img_name}_thumb.jpg",
-                                                                'image/jpeg',
-                                                                sys.getsizeof(output_thumb), None)
+                                                                  'image/jpeg',
+                                                                  sys.getsizeof(output_thumb), None)
 
         super(JobAttachments, self).save()
 
@@ -262,7 +266,7 @@ class JobActivity(BaseModel):
     user = models.ForeignKey(CustomUser, related_name='job_activity_user', on_delete=models.SET_NULL, null=True,
                              blank=True)
     activity_status = models.IntegerField(choices=Status.choices, default=Status.Notification)
-    activity_by =  models.IntegerField(choices=Send_by.choices, default=Send_by.agency)
+    activity_by = models.IntegerField(choices=Send_by.choices, default=Send_by.agency)
 
     def __str__(self) -> str:
         return f'{self.job.title}'
@@ -296,8 +300,6 @@ class JobActivityAttachments(BaseModel):
     class Meta:
         verbose_name_plural = 'Job Activity Attachments'
 
- 
-
 
 class JobWorkActivity(BaseModel):
     Activity_choice = (
@@ -305,6 +307,7 @@ class JobWorkActivity(BaseModel):
         ('rejected', 'rejected'),
         ('moved', 'moved'),
         ('submit_approval', 'submit_approval'),
+        ('pending', 'pending')
     )
 
     job_activity_chat = models.ForeignKey(JobActivity, related_name="activity_job_work",
@@ -321,18 +324,18 @@ class JobWorkActivity(BaseModel):
         null=True, blank=True
     )
     message_work = models.CharField(max_length=2000, blank=True, null=True)
+
     class Meta:
         verbose_name_plural = 'Job Work Activity'
 
+
 class JobWorkActivityAttachments(BaseModel):
     work_activity = models.ForeignKey(JobWorkActivity, related_name='job_work_activity_attachments',
-                                          on_delete=models.SET_NULL, null=True, blank=True)
+                                      on_delete=models.SET_NULL, null=True, blank=True)
     work_attachment = models.FileField(upload_to='activity_job_work_attachments', default=None, blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'Job Work Activity Attachments'
-
-
 
 
 class JobApplied(BaseModel):
@@ -475,8 +478,10 @@ class JobTemplate(BaseModel):
 
     is_house_member = models.BooleanField(default=False)
     house_member = models.ManyToManyField(InviteMember, blank=True)
-    created_by =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_template_created_by", null=True, blank=True)
-    assigned_to =  models.ForeignKey(CustomUser, on_delete=models.SET_NULL,related_name="Job_template_assigned_by", null=True, blank=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Job_template_created_by",
+                                   null=True, blank=True)
+    assigned_to = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name="Job_template_assigned_by",
+                                    null=True, blank=True)
 
     # status = models.IntegerField(choices=Status.choices, default=Status.Template)
 
@@ -599,10 +604,12 @@ class MemberApprovals(BaseModel):
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
                                        null=True, blank=True)
     nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
+    work_attachment = models.FileField(upload_to='member_approval_job_work_attachments', default=None, blank=True,
+                                       null=True)
+
     class Meta:
         verbose_name_plural = 'Member Approvals'
 
-        
 
 class JobFeedback(BaseModel):
     receiver_user = models.ForeignKey(CustomUser, related_name='feedback_receiver', on_delete=models.CASCADE, null=True,
@@ -628,6 +635,7 @@ class Help(BaseModel):
     class Meta:
         verbose_name_plural = 'Help'
 
+
 class HelpAttachments(BaseModel):
     attachment = models.ForeignKey(Help, related_name="help_attachments", on_delete=models.SET_NULL, null=True,
                                    blank=True)
@@ -635,8 +643,6 @@ class HelpAttachments(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Help Attachments'
-
-
 
 
 class HelpChat(BaseModel):
@@ -651,9 +657,9 @@ class HelpChat(BaseModel):
         verbose_name_plural = 'Help Chat'
 
 
-
 class HelpChatAttachments(BaseModel):
-    chat_attachments = models.ForeignKey(HelpChat, related_name='chat_attachments_user', on_delete=models.CASCADE, blank=True, null=True)
+    chat_attachments = models.ForeignKey(HelpChat, related_name='chat_attachments_user', on_delete=models.CASCADE,
+                                         blank=True, null=True)
     chat_new_attachments = models.FileField(upload_to='helpchat_attachments', default=None, null=True, blank=True)
 
     class Meta:
