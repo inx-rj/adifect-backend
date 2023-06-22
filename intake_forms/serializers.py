@@ -26,7 +26,7 @@ class IntakeFormSerializer(serializers.ModelSerializer):
 
     def validate_title(self, value):
         if self.context.get('id'):
-            if IntakeForm.objects.exclude(id=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+            if IntakeForm.objects.exclude(uuid=self.context.get('id')).filter(title=value, is_trashed=False).exists():
                 raise serializers.ValidationError("Title already exists.")
         elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
             raise serializers.ValidationError("Title already exists.")
@@ -98,7 +98,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
             if self.context.get('id'):
-                intake_form_obj = IntakeForm.objects.get(id=self.context.get('id'))
+                intake_form_obj = IntakeForm.objects.get(uuid=self.context.get('id'))
                 intake_form_obj.title = self.context.get('intake_form').get('title')
                 intake_form_obj.save()
                 # self.context.get('intake_form_field').update(is_trashed=True)
