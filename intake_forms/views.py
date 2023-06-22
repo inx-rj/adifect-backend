@@ -1,6 +1,7 @@
 import json
 
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, serializers
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -63,7 +64,7 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
 
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
-    lookup_field = 'id'
+    lookup_field = 'uuid'
     permission_classes = []
 
     def get(self, request, *args, **kwargs):
@@ -75,14 +76,14 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def put(self, request, *args, **kwargs):
         """put request to update intake form"""
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, context={'id': self.kwargs.get('id')})
+        serializer = self.get_serializer(instance, data=request.data, context={'id': self.kwargs.get('uuid')})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': "", 'message': INTAKE_FORM_UPDATED_SUCCESSFULLY})
 
     def delete(self, request, *args, **kwargs):
         """delete request to inactive intake form"""
-        instance = get_object_or_404(IntakeForm, pk=kwargs.get('id'), is_trashed=False)
+        instance = get_object_or_404(IntakeForm, uuid=kwargs.get('uuid'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -138,19 +139,25 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def get(self, request, *args, **kwargs):
         """API to get intake form field"""
         form_id = self.kwargs.get('form_id')
-        try:
-            version = float(self.kwargs.get('version_id'))
-        except ValueError:
-            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
 
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version__intake_form_id=form_id,
-                                                                form_version__version=version, is_trashed=False)
-        intake_form_data = IntakeForm.objects.filter(id=form_id).first()
+        if not self.request.GET.get('version'):
+            intake_form_field_version = IntakeFormFieldVersion.objects.filter(intake_form__uuid=kwargs.get('form_id'),
+                                                                              is_trashed=False)
+            if not intake_form_field_version:
+                raise Http404()
+            form_version = intake_form_field_version.latest('id').id
+        else:
+            form_version_response = get_object_or_404(IntakeFormFieldVersion, intake_form__uuid=kwargs.get('form_id'),
+                                                      version=self.request.GET.get(
+                                                          'version'), is_trashed=False)
+            form_version = form_version_response.id
+
+        intake_form_field_obj = IntakeFormFields.objects.filter(form_version=form_version, is_trashed=False)
+
+        intake_form_data = IntakeForm.objects.filter(uuid=form_id).first()
 
         if not intake_form_field_obj:
-            raise serializers.ValidationError(
-                {"form_version": [
-                    f"Invalid pk \"{self.kwargs.get('form_id')}\"\"{self.kwargs.get('version_id')}\" - object does not exist."]})
+            raise Http404()
         serializer = IntakeFormFieldSerializer(intake_form_field_obj, many=True)
         intake_serializer = IntakeFormSerializer(intake_form_data)
         data = {
@@ -163,17 +170,13 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
 
     def put(self, request, *args, **kwargs):
         """put request to update intake form field"""
-        try:
-            version = float(self.kwargs.get('version_id'))
-        except ValueError:
-            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
 
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version__intake_form_id=self.kwargs.get('form_id'),
-                                                                form_version__version=version, is_trashed=False)
+        intake_form_field_obj = IntakeFormFields.objects.filter(
+            form_version__intake_form__uuid=self.kwargs.get('form_id'), is_trashed=False)
         if not intake_form_field_obj:
-            raise serializers.ValidationError('Data not found.')
-        intake_form_field_version_obj = IntakeFormFieldVersion.objects.filter(intake_form_id=self.kwargs.get('form_id'),
-                                                                              version=version)
+            raise Http404()
+        intake_form_field_version_obj = IntakeFormFieldVersion.objects.filter(
+            intake_form__uuid=self.kwargs.get('form_id'))
 
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
                                                                            "user": None,
@@ -189,19 +192,19 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
 
     def delete(self, request, *args, **kwargs):
         """delete request to inactive intake form field"""
-        try:
-            version = float(self.kwargs.get('version_id'))
-        except ValueError:
-            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
-        intake_form_field_obj = IntakeFormFields.objects.filter(form_version__intake_form_id=self.kwargs.get('form_id'),
-                                                                form_version__version=version, is_trashed=False)
+        intake_form_field_obj = IntakeFormFields.objects.filter(
+            form_version__intake_form__uuid=self.kwargs.get('form_id'), is_trashed=False)
         if not intake_form_field_obj:
-            raise serializers.ValidationError('Data not found.')
-        intake_form_field_version_obj = IntakeFormFieldVersion.objects.filter(intake_form_id=self.kwargs.get('form_id'),
-                                                                              version=version)
+            raise Http404()
+        if not (version := request.data.get('version')):
+            raise serializers.ValidationError({"version": "This field is required!"})
+
+        intake_form_field_version_obj = get_object_or_404(IntakeFormFieldVersion,
+                                                          intake_form__uuid=kwargs.get('form_id'),
+                                                          is_trashed=False, version=version)
         with transaction.atomic():
             intake_form_field_obj.update(is_trashed=True)
-            intake_form_field_version_obj.update(is_trashed=True)
+            intake_form_field_version_obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -218,14 +221,12 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
-        try:
-            version_id = float(kwargs.get('version_id'))
-        except ValueError:
-            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
-        form_version = get_object_or_404(IntakeFormFieldVersion, intake_form_id=kwargs.get('form_id'),
-                                         version=kwargs.get('version_id'), is_trashed=False)
+        if not (form_version := IntakeFormFieldVersion.objects.filter(intake_form__uuid=kwargs.get('form_id'),
+                                                                      is_trashed=False)):
+            raise Http404()
+
         data = request.data
-        data['form_version'] = form_version.id
+        data['form_version'] = form_version.latest('id').id
         # data["submitted_user"] = request.user.id
         data["submitted_user"] = None
         serializer = self.serializer_class(data=data)
@@ -250,18 +251,25 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     permission_classes = []
 
     def list(self, request, *args, **kwargs):
-        try:
-            version_id = float(kwargs.get('version_id'))
-        except ValueError:
-            raise serializers.ValidationError({"version_id": [f"expected a number but got {kwargs.get('version_id')}"]})
 
-        self.queryset = self.filter_queryset(self.get_queryset()).filter(
-            form_version__intake_form_id=kwargs.get('form_id'),
-            form_version__version=kwargs.get('version_id'))
+        if self.request.GET.get('version'):
+            self.queryset = self.filter_queryset(self.get_queryset()).filter(
+                form_version__intake_form__uuid=kwargs.get('form_id'),
+                form_version__version=self.request.GET.get('version'))
+        else:
+            latest_form_version_subquery = IntakeFormFieldVersion.objects.filter(
+                intake_form__uuid=kwargs.get('form_id'))
+
+            if not latest_form_version_subquery:
+                raise Http404()
+
+            self.queryset = self.filter_queryset(self.get_queryset()).filter(
+                form_version__intake_form__uuid=kwargs.get('form_id'),
+                form_version__version=latest_form_version_subquery.latest('id').version)
 
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
-            response = self.get_paginated_response(serializer.data)
-            return Response({'data': response.data, 'message': ''},
-                            status=status.HTTP_200_OK)
+        response = self.get_paginated_response(serializer.data)
+        return Response({'data': response.data, 'message': ''},
+                        status=status.HTTP_200_OK)
