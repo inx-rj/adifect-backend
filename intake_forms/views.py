@@ -33,7 +33,7 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
     ordering_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
                        'intake_form_field_version_form__version']
     pagination_class = CustomPagination
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -64,8 +64,8 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
 
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
-    lookup_field = 'uuid'
-    permission_classes = []
+    lookup_field = 'form_slug'
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get intake form"""
@@ -76,14 +76,14 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def put(self, request, *args, **kwargs):
         """put request to update intake form"""
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, context={'id': self.kwargs.get('uuid')})
+        serializer = self.get_serializer(instance, data=request.data, context={'slug_name': self.kwargs.get('slug')})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'data': "", 'message': INTAKE_FORM_UPDATED_SUCCESSFULLY})
 
     def delete(self, request, *args, **kwargs):
         """delete request to inactive intake form"""
-        instance = get_object_or_404(IntakeForm, uuid=kwargs.get('uuid'), is_trashed=False)
+        instance = get_object_or_404(IntakeForm, form_slug=kwargs.get('slug'), is_trashed=False)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -102,7 +102,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     search_fields = ['form_version__intake_form__title', 'field_name', 'field_type']
     ordering_fields = ['id', 'form_version__intake_form__title', 'field_type', 'field_name']
     pagination_class = CustomPagination
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -118,7 +118,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         """API to create intake form field"""
         serializer = self.get_serializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                     "user": None,
+                                                                     "user": request.user,
                                                                      "intake_form": request.data.get('intake_form')
                                                                      })
         serializer.is_valid(raise_exception=True)
@@ -134,27 +134,28 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get intake form field"""
-        form_id = self.kwargs.get('form_id')
+        slug_name = self.kwargs.get('slug')
 
         if not self.request.GET.get('version'):
-            intake_form_field_version = IntakeFormFieldVersion.objects.filter(intake_form__uuid=kwargs.get('form_id'),
-                                                                              is_trashed=False)
+            intake_form_field_version = IntakeFormFieldVersion.objects.filter(
+                intake_form__form_slug=slug_name, is_trashed=False)
             if not intake_form_field_version:
                 raise Http404()
             form_version = intake_form_field_version.latest('id').id
         else:
-            form_version_response = get_object_or_404(IntakeFormFieldVersion, intake_form__uuid=kwargs.get('form_id'),
+            form_version_response = get_object_or_404(IntakeFormFieldVersion,
+                                                      intake_form__form_slug=slug_name,
                                                       version=self.request.GET.get(
                                                           'version'), is_trashed=False)
             form_version = form_version_response.id
 
         intake_form_field_obj = IntakeFormFields.objects.filter(form_version=form_version, is_trashed=False)
 
-        intake_form_data = IntakeForm.objects.filter(uuid=form_id).first()
+        intake_form_data = IntakeForm.objects.filter(form_slug=slug_name).first()
 
         if not intake_form_field_obj:
             raise Http404()
@@ -170,19 +171,20 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
 
     def put(self, request, *args, **kwargs):
         """put request to update intake form field"""
+        slug_name = self.kwargs.get('slug')
 
         intake_form_field_obj = IntakeFormFields.objects.filter(
-            form_version__intake_form__uuid=self.kwargs.get('form_id'), is_trashed=False)
+            form_version__intake_form__form_slug=slug_name, is_trashed=False)
         if not intake_form_field_obj:
             raise Http404()
         intake_form_field_version_obj = IntakeFormFieldVersion.objects.filter(
-            intake_form__uuid=self.kwargs.get('form_id'))
+            intake_form__form_slug=slug_name)
 
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                           "user": None,
+                                                                           "user": request.user,
                                                                            "intake_form": request.data.get(
                                                                                'intake_form'),
-                                                                           "id": self.kwargs.get('form_id'),
+                                                                           "slug_name": slug_name,
                                                                            "intake_form_field": intake_form_field_obj,
                                                                            "intake_form_field_version_obj": intake_form_field_version_obj
                                                                            })
@@ -213,7 +215,7 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     User Intake form submit API.
     """
     serializer_class = IntakeFormSubmitSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     lookup_field = 'id'
 
@@ -221,14 +223,13 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def post(self, request, *args, **kwargs):
-        if not (form_version := IntakeFormFieldVersion.objects.filter(intake_form__uuid=kwargs.get('form_id'),
+        if not (form_version := IntakeFormFieldVersion.objects.filter(intake_form__form_slug=kwargs.get('slug'),
                                                                       is_trashed=False)):
             raise Http404()
 
         data = request.data
         data['form_version'] = form_version.latest('id').id
-        # data["submitted_user"] = request.user.id
-        data["submitted_user"] = None
+        data["submitted_user"] = request.user.id
         serializer = self.serializer_class(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -248,23 +249,23 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     filter_backends = [OrderingFilter]
     ordering_fields = ['created', 'submitted_user__username']
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
 
         if self.request.GET.get('version'):
             self.queryset = self.filter_queryset(self.get_queryset()).filter(
-                form_version__intake_form__uuid=kwargs.get('form_id'),
+                form_version__intake_form__form_slug=kwargs.get('slug'),
                 form_version__version=self.request.GET.get('version'))
         else:
             latest_form_version_subquery = IntakeFormFieldVersion.objects.filter(
-                intake_form__uuid=kwargs.get('form_id'))
+                intake_form__form_slug=kwargs.get('slug'))
 
             if not latest_form_version_subquery:
                 raise Http404()
 
             self.queryset = self.filter_queryset(self.get_queryset()).filter(
-                form_version__intake_form__uuid=kwargs.get('form_id'),
+                form_version__intake_form__form_slug=kwargs.get('slug'),
                 form_version__version=latest_form_version_subquery.latest('id').version)
 
         page = self.paginate_queryset(self.queryset)

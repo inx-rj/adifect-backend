@@ -26,7 +26,8 @@ class IntakeFormSerializer(serializers.ModelSerializer):
 
     def validate_title(self, value):
         if self.context.get('id'):
-            if IntakeForm.objects.exclude(uuid=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+            if IntakeForm.objects.exclude(form_slug=self.context.get('slug_name')).filter(title=value,
+                                                                                          is_trashed=False).exists():
                 raise serializers.ValidationError("Title already exists.")
         elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
             raise serializers.ValidationError("Title already exists.")
@@ -39,7 +40,7 @@ class IntakeFormSerializer(serializers.ModelSerializer):
             form_versions = instance.intake_form_field_version_form.all()
             rep['max_version'] = form_versions.aggregate(Max('version'))['version__max']
             rep['version'] = [form_version.version for form_version in form_versions]
-            rep['created_by'] = form_version_obj.user.username if form_version_obj.user else "Developer"
+            rep['created_by'] = form_version_obj.user.username
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
         else:
             rep['max_version'] = 1.0
@@ -62,7 +63,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form field serializer
     """
-    intake_form = IntakeFormSerializer(write_only=True)
+    # intake_form = IntakeFormSerializer(write_only=True)
     form_version_data = serializers.SerializerMethodField()
     version = serializers.FloatField(required=False)
     field_name = serializers.CharField(required=False)
@@ -92,15 +93,18 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                               'Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
                 raise serializers.ValidationError({"options": ["Please give options!"]})
 
+        if not self.context.get('slug_name'):
+            if IntakeForm.objects.filter(
+                    title=self.context.get('intake_form').get('title')).exists():
+                raise serializers.ValidationError({"intake_form": "Form with this title already exists."})
+
         return attrs
 
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if self.context.get('id'):
-                intake_form_obj = IntakeForm.objects.get(uuid=self.context.get('id'))
-                intake_form_obj.title = self.context.get('intake_form').get('title')
-                intake_form_obj.save()
+            if self.context.get('slug_name'):
+                intake_form_obj = IntakeForm.objects.get(form_slug=self.context.get('slug_name'))
                 # self.context.get('intake_form_field').update(is_trashed=True)
                 # self.context.get('intake_form_field_version_obj').update(is_trashed=True)
             else:
@@ -172,7 +176,7 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
 class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     form_version = serializers.PrimaryKeyRelatedField(required=True,
                                                       queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
-    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True, allow_null=True,
+    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True,
                                                         queryset=CustomUser.objects.filter(is_trashed=False))
     fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
     submission_data = serializers.JSONField(read_only=True)
@@ -181,24 +185,11 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         model = IntakeFormSubmissions
         fields = ['id', 'form_version', 'submitted_user', 'fields', 'submission_data', 'created']
 
-    @staticmethod
-    def get_submitter_name_if_exists(data):
-        name = ''
-        email = ''
-        for field in data:
-            if field.get('field_name') == 'Submitter Name':
-                name = field.get('field_value')
-            if field.get('field_name') == 'Submitter Email':
-                email = field.get('field_value')
-
-        return name, email
-
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        user_name, user_email = self.get_submitter_name_if_exists(data=instance.submission_data)
-        representation['submitter_name'] = user_name
-        representation['submitter_email'] = user_email
+        representation['submitter_name'] = instance.submitted_user.username
+        representation['submitter_email'] = instance.submitted_user.email
         representation['form'] = instance.form_version.intake_form.title
 
         return representation
