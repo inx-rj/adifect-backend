@@ -26,7 +26,8 @@ class IntakeFormSerializer(serializers.ModelSerializer):
 
     def validate_title(self, value):
         if self.context.get('id'):
-            if IntakeForm.objects.exclude(uuid=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+            if IntakeForm.objects.exclude(form_slug=self.context.get('slug_name')).filter(title=value,
+                                                                                          is_trashed=False).exists():
                 raise serializers.ValidationError("Title already exists.")
         elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
             raise serializers.ValidationError("Title already exists.")
@@ -62,7 +63,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form field serializer
     """
-    intake_form = IntakeFormSerializer(write_only=True)
+    # intake_form = IntakeFormSerializer(write_only=True)
     form_version_data = serializers.SerializerMethodField()
     version = serializers.FloatField(required=False)
     field_name = serializers.CharField(required=False)
@@ -92,15 +93,18 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                               'Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
                 raise serializers.ValidationError({"options": ["Please give options!"]})
 
+        if not self.context.get('slug_name'):
+            if IntakeForm.objects.filter(
+                    title=self.context.get('intake_form').get('title')).exists():
+                raise serializers.ValidationError({"intake_form": "Form with this title already exists."})
+
         return attrs
 
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if self.context.get('id'):
-                intake_form_obj = IntakeForm.objects.get(uuid=self.context.get('id'))
-                intake_form_obj.title = self.context.get('intake_form').get('title')
-                intake_form_obj.save()
+            if self.context.get('slug_name'):
+                intake_form_obj = IntakeForm.objects.get(form_slug=self.context.get('slug_name'))
                 # self.context.get('intake_form_field').update(is_trashed=True)
                 # self.context.get('intake_form_field_version_obj').update(is_trashed=True)
             else:
