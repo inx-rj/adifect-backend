@@ -8,8 +8,8 @@ import pymongo
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel, Audience, \
-    CommunitySetting
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel,\
+    CommunitySetting, Audience
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -312,9 +312,10 @@ def add_community_audiences(client_id, api_key, community_id):
         logger.error(f"Error add_community_audiences ## {err}")
 
 
-@shared_task(name='community_update_data_entry')
-def community_update_data_entry():
-    """Function to bulk create new added community story."""
+@shared_task(name='daily_story_updates')
+def daily_story_updates():
+    """Function to daily add newly added stories from local labs
+     for all community settings added in the system"""
 
     try:
         story_url = os.environ.get('STORY_UPDATE_URL')
