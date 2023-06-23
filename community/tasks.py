@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import requests
 
 import aiohttp as aiohttp
 import pymongo
@@ -8,7 +9,7 @@ from celery import shared_task
 from django_celery_results.models import TaskResult
 
 from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel,\
-    CommunitySetting
+    CommunitySetting, Audience
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -250,16 +251,65 @@ def add_community_stories(story_data_list, community_obj_id):
     # story_tag_instances = []
     for story in story_tag_dict:
         story = Story.objects.get(story_id=story)
-        story.tag.add(*story_tag_dict.get(story, []))
+        story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
+                                                   ).values_list('id', flat=True)))
 
     # story_category_instances = []
     for story in story_category_dict:
         story = Story.objects.get(story_id=story)
-        story.category.add(*story_category_dict.get(story, []))
+        story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
+                                                             ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
         logger.info("Added story PURLs.")
+
+
+def audience_generator(client_id, api_key):
+    """Function to call list-audience API and return audiences for community."""
+
+    base_url = os.environ.get("OPNSESAME_API_URL", "")
+    headers = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json',
+        'Authorization': f'Token {api_key}'
+    }
+
+    logger.info(f"Audiences API Headers ## {headers}")
+    logger.info(f"Audiences API URL ## {base_url}{client_id}/audiences")
+    resp = requests.request("GET", f"{base_url}{client_id}/audiences", headers=headers)
+    next_url = None
+    if resp.status_code == 200:
+        next_url = resp.json().get("next")
+        yield resp.json().get("results")
+
+    while next_url:
+        resp = requests.request("GET", f"{base_url}{client_id}/audiences", headers=headers)
+        next_url = resp.json().get("next")
+        yield resp.json().get("results")
+
+    yield []
+
+
+@shared_task(name='add_community_audiences')
+def add_community_audiences(client_id, api_key, community_id):
+    """Function to bulk create audiences fetched from audience generator function."""
+
+    try:
+        logger.info("Background task ## add_community_audiences")
+        for audiences in audience_generator(client_id=client_id, api_key=api_key):
+            logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
+            new_audience_instances = [Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
+                                               row_count=aud.get('row_count'), available=aud.get('available'),
+                                               opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
+                                               routes=aud.get('routes'), created_at=date_format(
+                    aud.get('created_at')) if aud.get('created_at') else None)
+                                      for aud in audiences]
+            Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
+            logger.info("Bulk creating audiences done.")
+
+    except Exception as err:
+        logger.error(f"Error add_community_audiences ## {err}")
 
 
 @shared_task(name='daily_story_updates')
@@ -294,4 +344,3 @@ def daily_story_updates():
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
-

@@ -94,6 +94,7 @@ class SignUpView(APIView):
                     token = str(uuid.uuid4())
                     decodeId = StringEncoder.encode(self, user.id)
                     subject = "Confirm Email"
+                    logger.info(f"## Sending registration email")
                     content = Content("text/html",
                                       f'<div style="background: rgba(36, 114, 252, 0.06) !important;"><table '
                                       f'style="font: Arial, sans-serif; border-collapse: collapse; width: '
@@ -123,6 +124,7 @@ class SignUpView(APIView):
                                       f'color: #384860;"> © 2022 '
                                       f'Adifect</div></div></div></td></tr></tbody></table></div>')
                     data = send_email(from_email, to_email, subject, content)
+                    logger.info(f"## Registration send email => {data}")
                     user.forget_password_token = token
                 else:
                     user.email_verified = True

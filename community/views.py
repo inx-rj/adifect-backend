@@ -29,16 +29,18 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     PROGRAM_UPDATED_SUCCESSFULLY, COPY_CODE_RETRIEVED_SUCCESSFULLY, PROGRAM_CREATED_SUCCESSFULLY, \
     COPY_CODE_CREATED_SUCCESSFULLY, COPY_CODE_UPDATED_SUCCESSFULLY, CREATIVE_CODE_RETRIEVED_SUCCESSFULLY, \
     CREATIVE_CODE_CREATED_SUCCESSFULLY, CREATIVE_CODE_UPDATED_SUCCESSFULLY, SOMETHING_WENT_WRONG, NOT_FOUND, \
-    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY
+    TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY, AUDIENCE_RETRIEVED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
-    CreativeCode, StoryTag
+    CreativeCode, StoryTag, Audience
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
-    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer
-from .tasks import story_data_entry
+    CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
+    CommunityAudienceListCreateSerializer
+from .tasks import story_data_entry, add_community_audiences
+from .utils import validate_client_id_opnsesame
 
 logger = logging.getLogger('django')
 
@@ -189,18 +191,34 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
         story_data_entry.delay(community_setting_obj.community.community_id)
+        opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
+                                                         channel__name__iexact='opnsesame').first()
+        if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,
+                                                           api_key=opn_sesame_obj.api_key):
+            # Call Background task for fetching audiences
+            logger.info("VALID CLIENT_ID")
+            logger.info("Calling background task to add audiences.")
+            add_community_audiences.delay(opn_sesame_obj.url, opn_sesame_obj.api_key,
+                                          community_setting_obj.community_id)
+
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         story_data_entry.delay(instance.community.community_id, instance.community.community_id,
                                instance_community_delete=True)
+        Audience.objects.filter(community_id=instance.community.id).update(is_trashed=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         community_id = instance.community.community_id
+        old_opn_obj = CommunityChannel.objects.filter(community_setting=instance,
+                                                      channel__name__iexact='opnsesame').first()
+        old_opn_url = old_opn_obj.url
+        old_opn_api_key = old_opn_obj.api_key
+        old_community_id = instance.community.id
 
         with transaction.atomic():
             CommunityChannel.objects.filter(community_setting=instance).delete()
@@ -209,7 +227,22 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                                               "id": kwargs.get('id')})
             serializer.is_valid(raise_exception=True)
             community_setting_obj = serializer.save()
+            new_opn_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
+                                                          channel__name__iexact='opnsesame').first()
             story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+
+            if old_community_id != community_setting_obj.community.id or old_opn_url \
+                    != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key:
+                Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
+
+                if new_opn_obj and validate_client_id_opnsesame(client_id=new_opn_obj.url,
+                                                                api_key=new_opn_obj.api_key):
+                    # Call Background task for fetching audiences
+                    logger.info("VALID CLIENT_ID")
+                    logger.info("Calling background task to add audiences.")
+                    add_community_audiences.delay(new_opn_obj.url, new_opn_obj.api_key,
+                                                  community_setting_obj.community_id)
+
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
 
@@ -707,3 +740,39 @@ class CreativeCodeImportAPIView(APIView):
             raise ValidationError(missing_row_data)
         CreativeCode.objects.bulk_create(creative_code_objs_list)
         return Response({'data': "", 'message': CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY})
+
+
+class CommunityAudienceListCreateView(generics.ListAPIView):
+    """
+    View for view list of all audiences
+    """
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = CommunityAudienceListCreateSerializer
+    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['audience_id', 'name']
+    ordering_fields = ['id', 'name', 'audience_id']
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """
+        API to get list of audiences
+        """
+        self.queryset = self.filter_queryset(self.get_queryset())
+
+        if community_id := request.GET.get('community'):
+            self.queryset = self.queryset.filter(community_id=community_id)
+
+        if not request.GET.get("page", None):
+            serializer = self.get_serializer(self.queryset, many=True)
+            return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
+                            status=status.HTTP_200_OK)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})

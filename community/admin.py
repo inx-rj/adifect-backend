@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from community.models import Community, Story, Tag, Category, StoryTag, StoryCategory, Channel, CommunityChannel, \
-    CommunitySetting, Program, CopyCode, CreativeCode
+    CommunitySetting, Program, CopyCode, CreativeCode, Audience
 
 # Register your models here.
 admin.site.register(StoryTag)
@@ -70,3 +70,8 @@ class CommunityChannelAdmin(admin.TabularInline):
 class CommunitySettingsAdmin(admin.ModelAdmin):
     list_display = ('id', 'community', 'is_active')
     inlines = (CommunityChannelAdmin,)
+
+
+@admin.register(Audience)
+class AudienceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'community', 'opted_out', 'available')

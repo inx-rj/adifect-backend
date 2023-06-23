@@ -174,3 +174,23 @@ class CreativeCode(BaseModel):
 
     def __str__(self):
         return f'{self.id} - {self.title}'
+
+
+class Audience(BaseModel):
+    audience_id = models.IntegerField(null=True, blank=True)
+    community = models.ForeignKey(Community, related_name='audience_in_community', on_delete=models.SET_NULL,
+                                  null=True, blank=True)
+    name = models.CharField(max_length=255)
+    row_count = models.BigIntegerField()
+    available = models.BigIntegerField()
+    opted_out = models.BigIntegerField()
+    non_mobile = models.CharField(max_length=100)
+    routes = models.CharField(max_length=255)
+    created_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'Audiences'
+
+    def __str__(self):
+        return f'{self.id} - {self.name}'
+
