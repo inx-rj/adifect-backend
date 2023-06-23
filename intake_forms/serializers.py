@@ -188,8 +188,8 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        representation['submitter_name'] = instance.submitted_user.username
-        representation['submitter_email'] = instance.submitted_user.email
+        representation['submitted_user__first_name'] = instance.submitted_user.get_full_name()
+        representation['submitted_user__email'] = instance.submitted_user.email
         representation['form'] = instance.form_version.intake_form.title
         representation['form_slug'] = instance.form_version.intake_form.form_slug
 
