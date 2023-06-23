@@ -191,6 +191,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         representation['submitter_name'] = instance.submitted_user.username
         representation['submitter_email'] = instance.submitted_user.email
         representation['form'] = instance.form_version.intake_form.title
+        representation['form_slug'] = instance.form_version.intake_form.form_slug
 
         return representation
 
