@@ -27,8 +27,13 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
 
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
+                     'intake_form_field_version_form__version']
+    ordering_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
+                       'intake_form_field_version_form__version']
     pagination_class = CustomPagination
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -60,7 +65,7 @@ class IntakeFormRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     serializer_class = IntakeFormSerializer
     queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
     lookup_field = 'form_slug'
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get intake form"""
@@ -97,7 +102,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     search_fields = ['form_version__intake_form__title', 'field_name', 'field_type']
     ordering_fields = ['id', 'form_version__intake_form__title', 'field_type', 'field_name']
     pagination_class = CustomPagination
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """
@@ -113,7 +118,7 @@ class IntakeFormFieldListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         """API to create intake form field"""
         serializer = self.get_serializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                     "user": None,
+                                                                     "user": request.user,
                                                                      "intake_form": request.data.get('intake_form')
                                                                      })
         serializer.is_valid(raise_exception=True)
@@ -129,7 +134,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """API to get intake form field"""
@@ -176,7 +181,7 @@ class IntakeFormFieldRetrieveUpdateDeleteView(APIView):
             intake_form__form_slug=slug_name)
 
         serializer = IntakeFormFieldSerializer(data=request.data, context={"fields": request.data.get('fields'),
-                                                                           "user": None,
+                                                                           "user": request.user,
                                                                            "intake_form": request.data.get(
                                                                                'intake_form'),
                                                                            "slug_name": slug_name,
@@ -210,7 +215,7 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
     User Intake form submit API.
     """
     serializer_class = IntakeFormSubmitSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     lookup_field = 'id'
 
@@ -224,8 +229,7 @@ class IntakeFormSubmit(generics.CreateAPIView, generics.RetrieveAPIView):
 
         data = request.data
         data['form_version'] = form_version.latest('id').id
-        # data["submitted_user"] = request.user.id
-        data["submitted_user"] = None
+        data["submitted_user"] = request.user.id
         serializer = self.serializer_class(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -245,7 +249,7 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
     queryset = IntakeFormSubmissions.objects.filter(is_trashed=False)
     filter_backends = [OrderingFilter]
     ordering_fields = ['created', 'submitted_user__username']
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
 

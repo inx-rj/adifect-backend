@@ -40,7 +40,7 @@ class IntakeFormSerializer(serializers.ModelSerializer):
             form_versions = instance.intake_form_field_version_form.all()
             rep['max_version'] = form_versions.aggregate(Max('version'))['version__max']
             rep['version'] = [form_version.version for form_version in form_versions]
-            rep['created_by'] = form_version_obj.user.username if form_version_obj.user else "Developer"
+            rep['created_by'] = form_version_obj.user.username
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
         else:
             rep['max_version'] = 1.0
@@ -176,7 +176,7 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
 class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     form_version = serializers.PrimaryKeyRelatedField(required=True,
                                                       queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
-    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True, allow_null=True,
+    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True,
                                                         queryset=CustomUser.objects.filter(is_trashed=False))
     fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
     submission_data = serializers.JSONField(read_only=True)
@@ -188,7 +188,8 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        representation['submitted_by_user'] = "Developer"
+        representation['submitter_name'] = instance.submitted_user.username
+        representation['submitter_email'] = instance.submitted_user.email
         representation['form'] = instance.form_version.intake_form.title
 
         return representation

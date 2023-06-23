@@ -15,15 +15,12 @@ class IntakeForm(BaseModel):
         verbose_name_plural = 'IntakeForms'
 
     def save(self, *args, **kwargs):
-        # Your additional logic here
         self.execute_custom_method()
 
         super().save(*args, **kwargs)
 
     @classmethod
     def create(cls, *args, **kwargs):
-        print("here")
-        # Your additional logic here
         instance = cls(*args, **kwargs)
         instance.execute_custom_method()
 
