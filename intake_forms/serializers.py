@@ -195,6 +195,10 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         representation['form'] = instance.form_version.intake_form.title
         representation['form_slug'] = instance.form_version.intake_form.form_slug
 
+        representation['max_version'] = instance.form_version.version == max(list(
+            IntakeFormFieldVersion.objects.filter(intake_form=instance.form_version.intake_form,
+                                                  is_trashed=False).values_list('version', flat=True)))
+
         return representation
 
     def validate(self, attrs):
@@ -286,5 +290,5 @@ class FormTaskDetailSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         form_task_map_data = FormTaskMapping.objects.filter(form_task_id=instance.id)
         representation['user_details'] = IntakeFormTaskMappingSerializer(form_task_map_data, many=True,
-                                                                      read_only=True).data
+                                                                         read_only=True).data
         return representation
