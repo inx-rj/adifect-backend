@@ -29,6 +29,10 @@ app.conf.beat_schedule = {
     'community-daily-story-updates': {
         'task': 'daily_story_updates',
         'schedule': crontab(hour=1)
+    },
+    'community-settings-story-fetch': {
+        'task': 'story_community_settings',
+        'schedule': timedelta(minutes=20)
     }
 }
 

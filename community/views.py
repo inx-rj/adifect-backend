@@ -32,7 +32,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY, AUDIENCE_RETRIEVED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
-    CreativeCode, StoryTag, Audience
+    CreativeCode, StoryTag, Audience, StoryStatusConfig
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
@@ -190,7 +190,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
-        story_data_entry.delay(community_setting_obj.community.community_id)
+        StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
         opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                          channel__name__iexact='opnsesame').first()
         if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,

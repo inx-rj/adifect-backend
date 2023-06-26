@@ -8,8 +8,8 @@ import pymongo
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel,\
-    CommunitySetting, Audience
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel, \
+    CommunitySetting, Audience, StoryStatusConfig
 from community.utils import get_purl, date_format
 
 logger = logging.getLogger('django')
@@ -77,6 +77,103 @@ def sync_function(url, headers, params, update=None, last_story_id=None):
     asyncio.run(async_func())
 
     return data_list
+
+
+def community_story_sync_function(url: str, headers: dict, params: dict, page: int, is_completed: bool):
+    """
+    Function for calling asynchronous function to get all community and stories data.
+    """
+
+    data_list = []
+
+    if is_completed:
+        return data_list, page, is_completed
+
+    async def community_story_async_func(page):
+        page += 1
+        page_count = 2
+        status = 200
+        repeater_count = 0
+        community_page_repeater_count = {}
+        async with aiohttp.ClientSession(headers=headers) as session:
+            while status == 200 and page_count > 0:
+                full_url = url.format(page=page, per_page=params.get('per_page'),
+                                      by_community=params.get('by_community'))
+                async with session.get(url=full_url) as resp:
+                    try:
+                        logger.info(f"CURRENT URL: {full_url}")
+                        response_data = await resp.json()
+                        status = resp.status
+                    except Exception:
+                        logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
+                        community_page_repeater_count[params.get('by_community')] = {}
+                        repeater_count += 1
+                        community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
+                        if community_page_repeater_count[params.get('by_community')][params.get('page')] == 5:
+                            page += 1
+                            page_count -= 1
+                            repeater_count = 0
+                            community_page_repeater_count = {}
+                        continue
+                    if status != 200:
+                        logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
+                        continue
+                    if not response_data:
+                        # page += 1
+                        # page_count -= 1
+                        return data_list, page, True
+
+                    data_list.extend(response_data)
+                    page_count -= 1
+                    if page_count <= 0:
+                        return data_list, page, False
+                    page += 1
+                    repeater_count = 0
+
+            return data_list, page, False
+
+    data_list, page, is_completed = asyncio.run(community_story_async_func(page))
+
+    return data_list, page, is_completed
+
+
+@shared_task(name="story_community_settings")
+def story_community_settings():
+    """Cron job that fetches stories for community settings that are added in the system"""
+
+    try:
+        story_url = os.environ.get('STORY_UPDATE_URL')
+        community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
+        headers = {'Authorization': f'Token {community_data_access_key}'}
+        params = {'per_page': 100}
+
+        community_objs = CommunitySetting.objects.filter(
+            is_trashed=False).values_list('community__community_id', flat=True)
+
+        for community_id in community_objs:
+            params['by_community'] = community_id
+            logger.info(f"Calling Story ASYNC for Community {community_id}")
+            status_object = StoryStatusConfig.objects.filter(community__community_id=params.get('by_community')).last()
+            last_page = status_object.last_page
+            is_completed = status_object.is_completed
+            story_data_list, last_page_called, is_completed = community_story_sync_function(story_url, headers, params,
+                                                                                            page=last_page,
+                                                                                            is_completed=is_completed)
+
+            logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+
+            community_obj_id = Community.objects.get(community_id=community_id).id
+            logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+
+            if story_data_list:
+                add_community_stories.delay(story_data_list, community_obj_id)
+
+            StoryStatusConfig.objects.filter(
+                community__community_id=params.get('by_community')).update(last_page=last_page_called,
+                                                                           is_completed=is_completed)
+
+    except Exception as e:
+        logger.error(f"community_data_entry error ## {e}")
 
 
 @shared_task(name="community_data_entry")
@@ -252,13 +349,13 @@ def add_community_stories(story_data_list, community_obj_id):
     for story in story_tag_dict:
         story = Story.objects.get(story_id=story)
         story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
-                                                   ).values_list('id', flat=True)))
+                                               ).values_list('id', flat=True)))
 
     # story_category_instances = []
     for story in story_category_dict:
         story = Story.objects.get(story_id=story)
         story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
-                                                             ).values_list('id', flat=True)))
+                                                         ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
@@ -299,12 +396,13 @@ def add_community_audiences(client_id, api_key, community_id):
         logger.info("Background task ## add_community_audiences")
         for audiences in audience_generator(client_id=client_id, api_key=api_key):
             logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
-            new_audience_instances = [Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
-                                               row_count=aud.get('row_count'), available=aud.get('available'),
-                                               opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
-                                               routes=aud.get('routes'), created_at=date_format(
-                    aud.get('created_at')) if aud.get('created_at') else None)
-                                      for aud in audiences]
+            new_audience_instances = [
+                Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
+                         row_count=aud.get('row_count'), available=aud.get('available'),
+                         opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
+                         routes=aud.get('routes'), created_at=date_format(
+                        aud.get('created_at')) if aud.get('created_at') else None)
+                for aud in audiences]
             Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
             logger.info("Bulk creating audiences done.")
 
@@ -327,7 +425,8 @@ def daily_story_updates():
         for community_id in community_objs:
 
             try:
-                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest('story_id').story_id
+                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
+                    'story_id').story_id
             except Community.DoesNotExist:
                 last_story_id = 0
 
