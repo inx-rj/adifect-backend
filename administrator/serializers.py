@@ -1,7 +1,12 @@
 import json
 import os
+import urllib
+import uuid
+from io import BytesIO
 from pyexpat import model
 from statistics import mode
+
+from django.core.files.base import ContentFile
 from rest_framework import serializers
 from authentication.models import CustomUser, CustomUserPortfolio
 from .models import Category, Job, JobAttachments, JobApplied, Level, Skills, \
@@ -871,6 +876,27 @@ class SubmitJobWorkSerializer(serializers.ModelSerializer):
 
 class MemberApprovalsSerializer(serializers.ModelSerializer):
     job_work = SubmitJobWorkSerializer(required=False)
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and 'work_attachment' in data:
+            try:
+
+                file_ext = data['work_attachment'].split(";")[0].split('/')[-1]
+                file_name = f'{uuid.uuid4()}.{file_ext}'
+
+                # Retrieve the file content from the URL
+                response = urllib.request.urlopen(data['work_attachment'])
+                file_data = response.read()
+
+                # Create a ContentFile with the file data and desired name
+                file_obj = ContentFile(file_data, name=file_name)
+
+                data['work_attachment'] = file_obj
+
+
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        return super().to_internal_value(data)
 
     class Meta:
         model = MemberApprovals

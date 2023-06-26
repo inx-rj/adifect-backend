@@ -306,8 +306,7 @@ class JobWorkActivity(BaseModel):
         ('approved', "approved"),
         ('rejected', 'rejected'),
         ('moved', 'moved'),
-        ('submit_approval', 'submit_approval'),
-        ('pending', 'pending')
+        ('submit_approval', 'submit_approval')
     )
 
     job_activity_chat = models.ForeignKey(JobActivity, related_name="activity_job_work",
