@@ -12,9 +12,12 @@ from rest_framework.views import APIView
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from intake_forms.constants import INTAKE_FORM_RETRIEVED_SUCCESSFULLY, INTAKE_FORM_CREATED_SUCCESSFULLY, \
-    INTAKE_FORM_UPDATED_SUCCESSFULLY, INTAKE_FORM_SUBMIT_SUCCESS
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
-from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer, IntakeFormSubmitSerializer
+    INTAKE_FORM_UPDATED_SUCCESSFULLY, INTAKE_FORM_SUBMIT_SUCCESS, INTAKE_FORM_TASK_CREATED_SUCCESSFULLY, \
+    INTAKE_FORM_TASK_UPDATED_SUCCESSFULLY
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions, FormTask, \
+    FormTaskMapping
+from intake_forms.serializers import IntakeFormSerializer, IntakeFormFieldSerializer, IntakeFormSubmitSerializer, \
+    IntakeFormTaskSerializer, IntakeFormTaskMappingSerializer, FormTaskDetailSerializer
 
 
 class IntakeFormListCreateView(generics.ListCreateAPIView):
@@ -274,3 +277,77 @@ class ListIntakeFormSubmissions(generics.ListAPIView):
         response = self.get_paginated_response(serializer.data)
         return Response({'data': response.data, 'message': ''},
                         status=status.HTTP_200_OK)
+
+
+class IntakeFormTaskListCreateView(generics.ListCreateAPIView):
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = IntakeFormTaskSerializer
+    queryset = FormTask.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        assign_to = request.data.pop('assign_to')
+        with transaction.atomic():
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            instance = serializer.save()
+
+            form_task_data = []
+            for assign in assign_to:
+                form_task_data.append({"form_task": instance.id, "assign_to": assign})
+
+            form_task_map_serializer = IntakeFormTaskMappingSerializer(data=form_task_data, many=True)
+            form_task_map_serializer.is_valid(raise_exception=True)
+            form_task_map_serializer.save()
+        return Response({'data': serializer.data, 'message': INTAKE_FORM_TASK_CREATED_SUCCESSFULLY},
+                        status=status.HTTP_201_CREATED)
+
+
+class IntakeFormTaskUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    serializer_class = IntakeFormTaskSerializer
+    queryset = FormTask.objects.filter(is_trashed=False).order_by('-id')
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated]
+    lookup_field = "id"
+
+    def retrieve(self, request, *args, **kwargs):
+        if kwargs.get('id'):
+            form_task_data = self.queryset.get(id=kwargs.get('id'))
+            serializer = FormTaskDetailSerializer(form_task_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, *args, **kwargs):
+        with transaction.atomic():
+            instance = self.get_object()
+            if not request.data.get('assign_to'):
+                raise serializers.ValidationError({"assign_to": "This Field is required!"})
+            assign_to = request.data.pop('assign_to')
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            FormTaskMapping.objects.filter(form_task_id=instance.id).update(is_trashed=True)
+            form_task_data = []
+            for assign in assign_to:
+                form_task_data.append({"form_task": instance.id, "assign_to": assign})
+
+            form_task_map_serializer = IntakeFormTaskMappingSerializer(data=form_task_data, many=True)
+            form_task_map_serializer.is_valid(raise_exception=True)
+            form_task_map_serializer.save()
+        return Response({'data': serializer.data, 'message': INTAKE_FORM_TASK_UPDATED_SUCCESSFULLY})
+
+    def delete(self, request, *args, **kwargs):
+        with transaction.atomic():
+            form_task_instance = get_object_or_404(FormTask, id=kwargs.get('id'), is_trashed=False)
+            form_task_map_instance = get_object_or_404(FormTaskMapping, form_task_id=kwargs.get('id'), is_trashed=False)
+
+            instance = get_object_or_404(FormTask, id=kwargs.get('id'), is_trashed=False)
+            form_task_instance.delete()
+            form_task_map_instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

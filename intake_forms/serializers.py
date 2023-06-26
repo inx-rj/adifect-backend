@@ -11,8 +11,10 @@ from django.db import transaction
 from django.db.models import Max
 from rest_framework import serializers
 
+from administrator.serializers import customUserSerializer
 from authentication.models import CustomUser
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions, FormTask, \
+    FormTaskMapping
 
 
 class IntakeFormSerializer(serializers.ModelSerializer):
@@ -244,3 +246,45 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
                 field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
+
+
+class FormSubmissionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IntakeFormSubmissions
+        fields = ['id', 'form_version', 'submitted_user', 'submission_data', 'created']
+
+
+class IntakeFormTaskSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+
+class IntakeFormTaskMappingSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+    assign_to = customUserSerializer(read_only=True)
+
+    class Meta:
+        model = FormTaskMapping
+        fields = '__all__'
+
+
+class FormTaskDetailSerializer(serializers.ModelSerializer):
+    form_submission = FormSubmissionsSerializer()
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        form_task_map_data = FormTaskMapping.objects.filter(form_task_id=instance.id)
+        representation['user_details'] = IntakeFormTaskMappingSerializer(form_task_map_data, many=True,
+                                                                      read_only=True).data
+        return representation
