@@ -2,7 +2,7 @@ from django.urls import path
 
 from intake_forms.views import IntakeFormRetrieveUpdateDestroyView, IntakeFormListCreateView, \
     IntakeFormFieldListCreateView, IntakeFormSubmit, IntakeFormFieldRetrieveUpdateDeleteView, ListIntakeFormSubmissions, \
-    IntakeFormTaskListCreateView, IntakeFormTaskUpdateDestroyView
+    IntakeFormTaskListCreateView, IntakeFormTaskUpdateDestroyView, AssignUserListView
 
 urlpatterns = [
     path('', IntakeFormListCreateView.as_view(), name='list_create_intake_forms'),
@@ -12,6 +12,7 @@ urlpatterns = [
     path('submit/<str:slug>/', IntakeFormSubmit.as_view(), name='intake_form_submit'),
     path('form_task/', IntakeFormTaskListCreateView.as_view(), name='list_create_intake_form_task'),
     path('form_task/<int:id>/', IntakeFormTaskUpdateDestroyView.as_view(), name='update_destroy_intake_form_task'),
+    path('users/', AssignUserListView.as_view(), name='list_assign_user'),
     path('responses/<str:slug>/', ListIntakeFormSubmissions.as_view(),
          name='list_intake_form_responses'),
     path('<str:form_slug>/', IntakeFormRetrieveUpdateDestroyView.as_view(),

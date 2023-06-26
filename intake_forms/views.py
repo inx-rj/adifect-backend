@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from administrator.serializers import customUserSerializer
+from authentication.models import CustomUser
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from intake_forms.constants import INTAKE_FORM_RETRIEVED_SUCCESSFULLY, INTAKE_FORM_CREATED_SUCCESSFULLY, \
@@ -351,3 +353,14 @@ class IntakeFormTaskUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
             form_task_instance.delete()
             form_task_map_instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AssignUserListView(generics.ListAPIView):
+    serializer_class = customUserSerializer
+    queryset = CustomUser.objects.filter(is_trashed=False).order_by('-id')
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response({'data': serializer.data, 'message': ''}, status=status.HTTP_200_OK)
