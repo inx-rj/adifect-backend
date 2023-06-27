@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import time
+
 import requests
 
 import aiohttp as aiohttp
@@ -108,6 +110,7 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         community_page_repeater_count[params.get('by_community')] = {}
                         repeater_count += 1
+                        time.sleep(2)
                         community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
                         if community_page_repeater_count[params.get('by_community')][params.get('page')] == 5:
                             page += 1
@@ -153,24 +156,26 @@ def story_community_settings():
         for community_id in community_objs:
             params['by_community'] = community_id
             logger.info(f"Calling Story ASYNC for Community {community_id}")
-            status_object = StoryStatusConfig.objects.filter(community__community_id=params.get('by_community')).last()
-            last_page = status_object.last_page
-            is_completed = status_object.is_completed
-            story_data_list, last_page_called, is_completed = community_story_sync_function(story_url, headers, params,
-                                                                                            page=last_page,
-                                                                                            is_completed=is_completed)
+            if status_object := StoryStatusConfig.objects.filter(
+                community__community_id=params.get('by_community'),
+                is_trashed=False,
+            ).last():
+                last_page = status_object.last_page
+                is_completed = status_object.is_completed
+                story_data_list, last_page_called, is_completed = community_story_sync_function(
+                    story_url, headers, params, page=last_page, is_completed=is_completed)
 
-            logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+                logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
 
-            community_obj_id = Community.objects.get(community_id=community_id).id
-            logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+                community_obj_id = Community.objects.get(community_id=community_id).id
+                logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
-            if story_data_list:
-                add_community_stories.delay(story_data_list, community_obj_id)
+                if story_data_list:
+                    add_community_stories.delay(story_data_list, community_obj_id)
 
-            StoryStatusConfig.objects.filter(
-                community__community_id=params.get('by_community')).update(last_page=last_page_called,
-                                                                           is_completed=is_completed)
+                StoryStatusConfig.objects.filter(
+                    community__community_id=params.get('by_community')).update(last_page=last_page_called,
+                                                                               is_completed=is_completed)
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
