@@ -2309,7 +2309,6 @@ def JobWorkSubmitEmail(user, work, approved=None, moved=None):
         print("herrere")
         print(e)
 
-
 def JobWorkApprovalEmail(approver, work):
     try:
         if not work.job_applied.user.profile_img:
@@ -2521,7 +2520,9 @@ class MemberApprovalViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             # ------------- response by member -----#
             self.perform_update(serializer)
+
             if serializer.validated_data['status']:
+
                 # ----------------- create activity ------------------#
                 if serializer.validated_data['status'] == 1:
                     activity = JobActivity.objects.create(job=instance.job_work.job_applied.job, activity_status=3,

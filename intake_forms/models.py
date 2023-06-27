@@ -78,3 +78,28 @@ class IntakeFormSubmissions(BaseModel):
 
     def __str__(self):
         return f'{self.id}'
+
+
+class FormTask(BaseModel):
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    form_submission = models.ForeignKey(IntakeFormSubmissions, related_name='form_map_submission',
+                                        on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'FormTasks'
+
+    def __str__(self):
+        return f'{self.id}--{self.name}--{self.form_submission_id}'
+
+class FormTaskMapping(BaseModel):
+    form_task = models.ForeignKey(FormTask, related_name='form_map_task',
+                                           on_delete=models.SET_NULL, null=True, blank=True)
+    assign_to = models.ForeignKey(CustomUser, related_name='form_map_assign_to',
+                                  on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'FormTaskMappings'
+
+    def __str__(self):
+        return f'{self.id}--{self.form_task_id}--{self.assign_to_id}'

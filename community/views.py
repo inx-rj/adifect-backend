@@ -97,7 +97,7 @@ class StoriesList(generics.ListAPIView, generics.RetrieveAPIView):
         if not kwargs.get('id'):
             self.queryset = self.filter_queryset(self.queryset)
             if search := request.GET.get('search'):
-                entry_query = get_query(search, ['community__name', 'status'])
+                entry_query = get_query(search, ['community__name', 'status', 'title'])
                 self.queryset = self.queryset.filter(entry_query)
             page = self.paginate_queryset(self.queryset)
             if page is not None:
