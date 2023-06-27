@@ -5,7 +5,6 @@ from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
 
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adifect.settings')
 
 app = Celery('adifect')
@@ -14,7 +13,6 @@ app = Celery('adifect')
 # app.conf.update(timezone='Asia/Kolkata')
 
 app.config_from_object(settings, namespace='CELERY')
-
 
 # Celery Schedules - https://docs.celeryproject.org/en/stable/reference/celery.schedules.html
 
@@ -26,11 +24,11 @@ app.conf.beat_schedule = {
     },
     'community-data-entry': {
         'task': 'community_data_entry',
-        'schedule':  timedelta(days=1)
+        'schedule': timedelta(days=1)
     },
-        'community-update-data-entry': {
-        'task': 'community_update_data_entry',
-        'schedule': crontab(minute=59, hour=23)
+    'community-update-data-entry': {
+        'task': 'daily_story_updates',
+        'schedule': crontab(hour=1)
     }
 }
 
