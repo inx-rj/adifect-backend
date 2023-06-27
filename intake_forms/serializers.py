@@ -11,8 +11,10 @@ from django.db import transaction
 from django.db.models import Max
 from rest_framework import serializers
 
+from administrator.serializers import customUserSerializer
 from authentication.models import CustomUser
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions, FormTask, \
+    FormTaskMapping
 
 
 class IntakeFormSerializer(serializers.ModelSerializer):
@@ -26,7 +28,8 @@ class IntakeFormSerializer(serializers.ModelSerializer):
 
     def validate_title(self, value):
         if self.context.get('id'):
-            if IntakeForm.objects.exclude(id=self.context.get('id')).filter(title=value, is_trashed=False).exists():
+            if IntakeForm.objects.exclude(form_slug=self.context.get('slug_name')).filter(title=value,
+                                                                                          is_trashed=False).exists():
                 raise serializers.ValidationError("Title already exists.")
         elif IntakeForm.objects.filter(title=value, is_trashed=False).exists():
             raise serializers.ValidationError("Title already exists.")
@@ -39,7 +42,7 @@ class IntakeFormSerializer(serializers.ModelSerializer):
             form_versions = instance.intake_form_field_version_form.all()
             rep['max_version'] = form_versions.aggregate(Max('version'))['version__max']
             rep['version'] = [form_version.version for form_version in form_versions]
-            rep['created_by'] = form_version_obj.user.username if form_version_obj.user else "Developer"
+            rep['created_by'] = form_version_obj.user.username
             rep['responses'] = IntakeFormSubmissions.objects.filter(form_version__intake_form=instance).count()
         else:
             rep['max_version'] = 1.0
@@ -62,7 +65,7 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form field serializer
     """
-    intake_form = IntakeFormSerializer(write_only=True)
+    # intake_form = IntakeFormSerializer(write_only=True)
     form_version_data = serializers.SerializerMethodField()
     version = serializers.FloatField(required=False)
     field_name = serializers.CharField(required=False)
@@ -92,17 +95,20 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                               'Dropdown', 'Multi-Select Dropdown', 'Radio Button'] and not field.get('options'):
                 raise serializers.ValidationError({"options": ["Please give options!"]})
 
+        if not self.context.get('slug_name'):
+            if IntakeForm.objects.filter(
+                    title=self.context.get('intake_form').get('title')).exists():
+                raise serializers.ValidationError({"intake_form": "Form with this title already exists."})
+
         return attrs
 
     def create(self, validated_data):
         fields_data = self.context.get("fields", [])
         with transaction.atomic():
-            if self.context.get('id'):
-                intake_form_obj = IntakeForm.objects.get(id=self.context.get('id'))
-                intake_form_obj.title = self.context.get('intake_form').get('title')
-                intake_form_obj.save()
-                self.context.get('intake_form_field').update(is_trashed=True)
-                self.context.get('intake_form_field_version_obj').update(is_trashed=True)
+            if self.context.get('slug_name'):
+                intake_form_obj = IntakeForm.objects.get(form_slug=self.context.get('slug_name'))
+                # self.context.get('intake_form_field').update(is_trashed=True)
+                # self.context.get('intake_form_field_version_obj').update(is_trashed=True)
             else:
                 intake_form_obj = IntakeForm.objects.create(title=self.context.get('intake_form').get('title'))
 
@@ -172,7 +178,7 @@ class IntakeFormFieldsSubmitSerializer(serializers.Serializer):
 class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     form_version = serializers.PrimaryKeyRelatedField(required=True,
                                                       queryset=IntakeFormFieldVersion.objects.filter(is_trashed=False))
-    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True, allow_null=True,
+    submitted_user = serializers.PrimaryKeyRelatedField(write_only=True,
                                                         queryset=CustomUser.objects.filter(is_trashed=False))
     fields = IntakeFormFieldsSubmitSerializer(many=True, required=True, write_only=True)
     submission_data = serializers.JSONField(read_only=True)
@@ -184,8 +190,14 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # representation['submitted_by_user'] = instance.submitted_user.username
-        representation['submitted_by_user'] = "Developer"
+        representation['submitted_user__first_name'] = instance.submitted_user.get_full_name()
+        representation['submitted_user__email'] = instance.submitted_user.email
         representation['form'] = instance.form_version.intake_form.title
+        representation['form_slug'] = instance.form_version.intake_form.form_slug
+
+        representation['max_version'] = instance.form_version.version == max(list(
+            IntakeFormFieldVersion.objects.filter(intake_form=instance.form_version.intake_form,
+                                                  is_trashed=False).values_list('version', flat=True)))
 
         return representation
 
@@ -238,3 +250,45 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
                 field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
+
+
+class FormSubmissionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IntakeFormSubmissions
+        fields = ['id', 'form_version', 'submitted_user', 'submission_data', 'created']
+
+
+class IntakeFormTaskSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+
+class IntakeFormTaskMappingSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+    assign_to = customUserSerializer(read_only=True)
+
+    class Meta:
+        model = FormTaskMapping
+        fields = '__all__'
+
+
+class FormTaskDetailSerializer(serializers.ModelSerializer):
+    form_submission = FormSubmissionsSerializer()
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        form_task_map_data = FormTaskMapping.objects.filter(form_task_id=instance.id)
+        representation['user_details'] = IntakeFormTaskMappingSerializer(form_task_map_data, many=True,
+                                                                         read_only=True).data
+        return representation

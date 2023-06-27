@@ -1333,7 +1333,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     ordering_fields = ['modified', 'created']
     ordering = ['-modified', 'created']
     filterset_fields = ['is_active', 'agency', 'is_blocked']
-    search_fields = ['=is_active', '=agency']
+    search_fields = ['is_active', 'agency__username', 'name', 'id']
     pagination_class = CustomPagination
 
     def list(self, request, *args, **kwargs):

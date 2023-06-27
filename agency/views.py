@@ -85,7 +85,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
-    search_fields = ['name', 'created']
+    search_fields = ['name', 'created', 'id']
 
     def get_queryset(self):
         user = self.request.user
