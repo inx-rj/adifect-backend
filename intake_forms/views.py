@@ -287,6 +287,8 @@ class IntakeFormTaskListCreateView(generics.ListCreateAPIView):
 
     serializer_class = IntakeFormTaskSerializer
     queryset = FormTask.objects.filter(is_trashed=False).order_by('-id')
+    filter_backends = [SearchFilter]
+    search_fields = ['name']
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated]
 
