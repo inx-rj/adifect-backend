@@ -751,7 +751,7 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = CommunityAudienceListCreateSerializer
-    queryset = Audience.objects.filter(is_trashed=False).exclude(opted_out=0).order_by('-id')
+    queryset = Audience.objects.filter(is_trashed=False).exclude(row_count=0).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['audience_id', 'name']
