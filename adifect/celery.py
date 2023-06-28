@@ -26,7 +26,7 @@ app.conf.beat_schedule = {
         'task': 'community_data_entry',
         'schedule': timedelta(days=1)
     },
-    'community-update-data-entry': {
+    'community-daily-story-updates': {
         'task': 'daily_story_updates',
         'schedule': crontab(hour=1)
     }
