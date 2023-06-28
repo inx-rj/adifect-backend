@@ -8,7 +8,7 @@ import pymongo
 from celery import shared_task
 from django_celery_results.models import TaskResult
 
-from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel,\
+from community.models import Community, Story, Tag, StoryTag, Category, StoryCategory, CommunityChannel, \
     CommunitySetting, Audience
 from community.utils import get_purl, date_format
 
@@ -252,20 +252,20 @@ def add_community_stories(story_data_list, community_obj_id):
     for story in story_tag_dict:
         story = Story.objects.get(story_id=story)
         story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
-                                                   ).values_list('id', flat=True)))
+                                               ).values_list('id', flat=True)))
 
     # story_category_instances = []
     for story in story_category_dict:
         story = Story.objects.get(story_id=story)
         story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
-                                                             ).values_list('id', flat=True)))
+                                                         ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
         logger.info("Added story PURLs.")
 
 
-def audience_generator(client_id, api_key):
+def audience_generator(client_id, api_key, audience_max_id=None):
     """Function to call list-audience API and return audiences for community."""
 
     base_url = os.environ.get("OPNSESAME_API_URL", "")
@@ -281,12 +281,34 @@ def audience_generator(client_id, api_key):
     next_url = None
     if resp.status_code == 200:
         next_url = resp.json().get("next")
-        yield resp.json().get("results")
+        if audience_max_id:
+            result_data = []
+            for result in resp.json().get("results"):
+                if result.get('id') > audience_max_id:
+                    result_data.append(result)
+                else:
+                    next_url = None
+                    break
+            yield result_data
+        else:
+            yield resp.json().get("results")
 
     while next_url:
-        resp = requests.request("GET", f"{base_url}{client_id}/audiences", headers=headers)
+        logger.info(f"Got the next url ## {next_url}")
+        resp = requests.request("GET", f"{next_url}", headers=headers)
         next_url = resp.json().get("next")
-        yield resp.json().get("results")
+
+        if audience_max_id:
+            result_data = []
+            for result in resp.json().get("results"):
+                if result.get('id') > audience_max_id:
+                    result_data.append(result)
+                else:
+                    next_url = None
+                    break
+            yield result_data
+        else:
+            yield resp.json().get("results")
 
     yield []
 
@@ -299,14 +321,50 @@ def add_community_audiences(client_id, api_key, community_id):
         logger.info("Background task ## add_community_audiences")
         for audiences in audience_generator(client_id=client_id, api_key=api_key):
             logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
-            new_audience_instances = [Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
-                                               row_count=aud.get('row_count'), available=aud.get('available'),
-                                               opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
-                                               routes=aud.get('routes'), created_at=date_format(
-                    aud.get('created_at')) if aud.get('created_at') else None)
-                                      for aud in audiences]
+            new_audience_instances = [
+                Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
+                         row_count=aud.get('row_count'), available=aud.get('available'),
+                         opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
+                         routes=aud.get('routes'), created_at=date_format(
+                        aud.get('created_at')) if aud.get('created_at') else None)
+                for aud in audiences]
             Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
             logger.info("Bulk creating audiences done.")
+
+    except Exception as err:
+        logger.error(f"Error add_community_audiences ## {err}")
+
+
+@shared_task(name='daily_audience_community_updates')
+def daily_audience_community_updates():
+    """Function to bulk create new audiences fetched from audience generator function."""
+
+    try:
+        logger.info("Background task ## add_community_audiences")
+        community_channel_objs = CommunityChannel.objects.filter(is_trashed=False,
+                                                                 channel__name__iexact='opnsesame').values('url',
+                                                                                                           'api_key',
+                                                                                                           'community_setting__community')
+        for community_channel_obj in community_channel_objs:
+            try:
+                audience_max_id = Audience.objects.filter(community=community_channel_obj.community_setting__community,
+                                                          is_trashed=False).order_by('-id').first().audience_id
+            except Exception:
+                audience_max_id = 0
+            for audiences in audience_generator(client_id=community_channel_obj.get('url'),
+                                                api_key=community_channel_obj.get('api_key'),
+                                                audience_max_id=audience_max_id):
+                logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
+                new_audience_instances = [Audience(audience_id=aud.get('id'),
+                                                   community=community_channel_obj.get('community_setting__community'),
+                                                   name=aud.get('name'),
+                                                   row_count=aud.get('row_count'), available=aud.get('available'),
+                                                   opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
+                                                   routes=aud.get('routes'), created_at=date_format(
+                        aud.get('created_at')) if aud.get('created_at') else None)
+                                          for aud in audiences]
+                Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
+                logger.info("Bulk creating audiences done.")
 
     except Exception as err:
         logger.error(f"Error add_community_audiences ## {err}")
@@ -327,7 +385,8 @@ def daily_story_updates():
         for community_id in community_objs:
 
             try:
-                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest('story_id').story_id
+                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
+                    'story_id').story_id
             except Community.DoesNotExist:
                 last_story_id = 0
 
