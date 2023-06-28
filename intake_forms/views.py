@@ -292,6 +292,14 @@ class IntakeFormTaskListCreateView(generics.ListCreateAPIView):
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.filter_queryset(self.queryset)
+        page = self.paginate_queryset(self.queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
+
     def post(self, request, *args, **kwargs):
         assign_to = request.data.pop('assign_to')
         with transaction.atomic():

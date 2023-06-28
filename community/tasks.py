@@ -249,13 +249,17 @@ def add_community_stories(story_data_list, community_obj_id):
         logger.info("## Bulk creating stories success")
 
     # story_tag_instances = []
+    logger.info("## Adding story tags if any")
     for story in story_tag_dict:
+        logger.info(f"## Story tag for story => {story}")
         story = Story.objects.get(story_id=story)
         story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
                                                ).values_list('id', flat=True)))
 
     # story_category_instances = []
+    logger.info("## Adding story category if any")
     for story in story_category_dict:
+        logger.info(f"## Story category for story => {story}")
         story = Story.objects.get(story_id=story)
         story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
                                                          ).values_list('id', flat=True)))
