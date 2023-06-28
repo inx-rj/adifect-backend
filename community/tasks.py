@@ -360,7 +360,7 @@ def daily_audience_community_updates():
                                                 audience_max_id=audience_max_id):
                 logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
                 new_audience_instances = [Audience(audience_id=aud.get('id'),
-                                                   community=community_channel_obj.get('community_setting__community'),
+                                                   community_id=community_channel_obj.get('community_setting__community'),
                                                    name=aud.get('name'),
                                                    row_count=aud.get('row_count'), available=aud.get('available'),
                                                    opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
