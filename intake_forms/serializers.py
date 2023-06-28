@@ -257,6 +257,11 @@ class FormSubmissionsSerializer(serializers.ModelSerializer):
         model = IntakeFormSubmissions
         fields = ['id', 'form_version', 'submitted_user', 'submission_data', 'created']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['submitted_user'] = customUserSerializer(instance.submitted_user, read_only=True).data
+        return representation
+
 
 class IntakeFormTaskSerializer(serializers.ModelSerializer):
     """
@@ -267,16 +272,32 @@ class IntakeFormTaskSerializer(serializers.ModelSerializer):
         model = FormTask
         fields = '__all__'
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        representation['form_task_users'] = IntakeFormTaskMappingSerializer(
+            FormTaskMapping.objects.filter(form_task=instance), many=True).data
+        representation['submitted_user'] = customUserSerializer(instance.form_submission.submitted_user, read_only=True).data
+
+        return representation
+
 
 class IntakeFormTaskMappingSerializer(serializers.ModelSerializer):
     """
     Serializer to retrieve, add and update intake form
     """
-    assign_to = customUserSerializer(read_only=True)
 
     class Meta:
         model = FormTaskMapping
         fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['assign_to'] = customUserSerializer(instance.assign_to, read_only=True).data
+        representation['assign_to']['username'] = f"{representation['assign_to']['first_name']}" \
+                                                  f" {representation['assign_to']['last_name']}"
+
+        return representation
 
 
 class FormTaskDetailSerializer(serializers.ModelSerializer):
