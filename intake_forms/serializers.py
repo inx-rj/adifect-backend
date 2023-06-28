@@ -272,6 +272,15 @@ class IntakeFormTaskSerializer(serializers.ModelSerializer):
         model = FormTask
         fields = '__all__'
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        representation['form_task_users'] = IntakeFormTaskMappingSerializer(
+            FormTaskMapping.objects.filter(form_task=instance), many=True).data
+        representation['submitted_user'] = customUserSerializer(instance.form_submission.submitted_user, read_only=True).data
+
+        return representation
+
 
 class IntakeFormTaskMappingSerializer(serializers.ModelSerializer):
     """
