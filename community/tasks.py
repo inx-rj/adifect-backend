@@ -98,7 +98,7 @@ def community_data_entry():
 
         try:
             last_community_id = Community.objects.latest('community_id').community_id
-        except Community.DoesNotExist:
+        except Exception:
             last_community_id = None
 
         logger.info(f"last_community_id ## {last_community_id}")
@@ -157,7 +157,7 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
 
             try:
                 max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
-            except Story.DoesNotExist:
+            except Exception:
                 max_story_id = 0
 
             story_data_list = [story for story in story_data_list if story.get('id') > max_story_id and story.get(
@@ -170,12 +170,12 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
                 add_community_stories.delay(story_data_list_store, community_obj_id)
 
     except Exception as e:
-        logger.error(f"community_data_entry error ## {e}")
+        logger.error(f"story_data_entry error ## {e}")
 
 
 @shared_task(name='add_community_stories', soft_time_limit=3600)
 def add_community_stories(story_data_list, community_obj_id):
-    # sourcery skip: low-code-quality
+
     story_to_be_create_objs = []
     mongo_story_purls = []
     story_tag_dict = {}
@@ -331,7 +331,8 @@ def add_community_audiences(client_id, api_key, community_id):
                          opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
                          routes=aud.get('routes'), created_at=date_format(
                         aud.get('created_at')) if aud.get('created_at') else None)
-                for aud in audiences]
+                for aud in audiences if not Audience.objects.filter(
+                    is_trashed=False, audience_id=aud.get('id'), community_id=community_id).exists()]
             Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
             logger.info("Bulk creating audiences done.")
 
@@ -360,18 +361,21 @@ def daily_audience_community_updates():
                                                 audience_max_id=audience_max_id):
                 logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
                 new_audience_instances = [Audience(audience_id=aud.get('id'),
-                                                   community_id=community_channel_obj.get('community_setting__community'),
+                                                   community_id=community_channel_obj.get(
+                                                       'community_setting__community'),
                                                    name=aud.get('name'),
                                                    row_count=aud.get('row_count'), available=aud.get('available'),
                                                    opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
                                                    routes=aud.get('routes'), created_at=date_format(
                         aud.get('created_at')) if aud.get('created_at') else None)
-                                          for aud in audiences]
+                                          for aud in audiences if not Audience.objects.filter(
+                        is_trashed=False, audience_id=aud.get('id'),
+                        community_id=community_channel_obj.get('community_setting__community')).exists()]
                 Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
                 logger.info("Bulk creating audiences done.")
 
     except Exception as err:
-        logger.error(f"Error add_community_audiences ## {err}")
+        logger.error(f"Error daily_audience_community_updates ## {err}")
 
 
 @shared_task(name='daily_story_updates')
@@ -391,7 +395,7 @@ def daily_story_updates():
             try:
                 last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
                     'story_id').story_id
-            except Community.DoesNotExist:
+            except Exception:
                 last_story_id = 0
 
             params['by_community'] = community_id
@@ -406,4 +410,4 @@ def daily_story_updates():
                 add_community_stories.delay(story_data_list_store, community_obj_id)
 
     except Exception as e:
-        logger.error(f"community_data_entry error ## {e}")
+        logger.error(f"daily_story_updates error ## {e}")
