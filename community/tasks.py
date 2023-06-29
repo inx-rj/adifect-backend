@@ -433,7 +433,8 @@ def add_community_audiences(client_id, api_key, community_id):
                          opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
                          routes=aud.get('routes'), created_at=date_format(
                         aud.get('created_at')) if aud.get('created_at') else None)
-                for aud in audiences]
+                for aud in audiences if not Audience.objects.filter(
+                    is_trashed=False, audience_id=aud.get('id'), community_id=community_id).exists()]
             Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
             logger.info("Bulk creating audiences done.")
 
@@ -462,13 +463,16 @@ def daily_audience_community_updates():
                                                 audience_max_id=audience_max_id):
                 logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
                 new_audience_instances = [Audience(audience_id=aud.get('id'),
-                                                   community_id=community_channel_obj.get('community_setting__community'),
+                                                   community_id=community_channel_obj.get(
+                                                       'community_setting__community'),
                                                    name=aud.get('name'),
                                                    row_count=aud.get('row_count'), available=aud.get('available'),
                                                    opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
                                                    routes=aud.get('routes'), created_at=date_format(
                         aud.get('created_at')) if aud.get('created_at') else None)
-                                          for aud in audiences]
+                                          for aud in audiences if not Audience.objects.filter(
+                        is_trashed=False, audience_id=aud.get('id'),
+                        community_id=community_channel_obj.get('community_setting__community')).exists()]
                 Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
                 logger.info("Bulk creating audiences done.")
 
