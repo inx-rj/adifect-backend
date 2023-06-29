@@ -37,6 +37,10 @@ app.conf.beat_schedule = {
     'community-settings-story-fetch': {
         'task': 'story_community_settings',
         'schedule': timedelta(minutes=20)
+    },
+    'delete-story-with-deleted-community':  {
+            'task': 'delete_story_with_deleted_community',
+        'schedule': timedelta(days=1)
     }
 }
 

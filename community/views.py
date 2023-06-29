@@ -229,7 +229,8 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             community_setting_obj = serializer.save()
             new_opn_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                           channel__name__iexact='opnsesame').first()
-            story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+            if old_community_id != community_setting_obj.community.id:
+                story_data_entry.delay(community_setting_obj.community.community_id, community_id)
 
             if old_community_id != community_setting_obj.community.id or old_opn_url \
                     != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key:

@@ -242,6 +242,7 @@ def story_data_entry(community_id, instance_community_id=None, instance_communit
                 is_trashed=True)
             StoryTag.objects.filter(story__community__community_id=instance_community_id).delete()
             StoryCategory.objects.filter(story__community__community_id=instance_community_id).delete()
+            StoryStatusConfig.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
             if instance_community_delete:
                 return
         story_url = os.environ.get('STORY_URL')
@@ -513,3 +514,24 @@ def daily_story_updates():
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
+
+
+@shared_task(name='delete_story_with_deleted_community')
+def delete_story_with_deleted_community():
+    """Function to daily remove stories for all community that are deleted from the system"""
+
+    try:
+        community_id_list = CommunitySetting.objects_with_deleted.filter(is_trashed=True).values_list('community_id', flat=True).distinct('community_id')
+        community_list = [
+            community_id
+            for community_id in community_id_list
+            if not CommunitySetting.objects.filter(
+                community_id=community_id
+            ).exists()
+        ]
+        Story.objects.filter(community_id__in=community_list).update(is_trashed=True)
+        StoryTag.objects.filter(story__community_id__in=community_list).delete()
+        StoryCategory.objects.filter(story__community_id__in=community_list).delete()
+        StoryStatusConfig.objects.filter(community_id__in=community_list).update(is_trashed=True)
+    except Exception as e:
+        logger.error(f"Delete Story with error ## {e}")
