@@ -200,7 +200,7 @@ def community_data_entry():
 
         try:
             last_community_id = Community.objects.latest('community_id').community_id
-        except Community.DoesNotExist:
+        except Exception:
             last_community_id = None
 
         logger.info(f"last_community_id ## {last_community_id}")
@@ -448,7 +448,7 @@ def daily_audience_community_updates():
                 logger.info("Bulk creating audiences done.")
 
     except Exception as err:
-        logger.error(f"Error add_community_audiences ## {err}")
+        logger.error(f"Error daily_audience_community_updates ## {err}")
 
 
 @shared_task(name='daily_story_updates')
