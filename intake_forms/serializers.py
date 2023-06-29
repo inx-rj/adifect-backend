@@ -11,8 +11,10 @@ from django.db import transaction
 from django.db.models import Max
 from rest_framework import serializers
 
+from administrator.serializers import customUserSerializer
 from authentication.models import CustomUser
-from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions
+from intake_forms.models import IntakeForm, IntakeFormFields, IntakeFormFieldVersion, IntakeFormSubmissions, FormTask, \
+    FormTaskMapping
 
 
 class IntakeFormSerializer(serializers.ModelSerializer):
@@ -193,6 +195,10 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         representation['form'] = instance.form_version.intake_form.title
         representation['form_slug'] = instance.form_version.intake_form.form_slug
 
+        representation['max_version'] = instance.form_version.version == max(list(
+            IntakeFormFieldVersion.objects.filter(intake_form=instance.form_version.intake_form,
+                                                  is_trashed=False).values_list('version', flat=True)))
+
         return representation
 
     def validate(self, attrs):
@@ -244,3 +250,66 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
                 field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
+
+
+class FormSubmissionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IntakeFormSubmissions
+        fields = ['id', 'form_version', 'submitted_user', 'submission_data', 'created']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['submitted_user'] = customUserSerializer(instance.submitted_user, read_only=True).data
+        return representation
+
+
+class IntakeFormTaskSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        representation['form_task_users'] = IntakeFormTaskMappingSerializer(
+            FormTaskMapping.objects.filter(form_task=instance), many=True).data
+        representation['submitted_user'] = customUserSerializer(instance.form_submission.submitted_user, read_only=True).data
+
+        return representation
+
+
+class IntakeFormTaskMappingSerializer(serializers.ModelSerializer):
+    """
+    Serializer to retrieve, add and update intake form
+    """
+
+    class Meta:
+        model = FormTaskMapping
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['assign_to'] = customUserSerializer(instance.assign_to, read_only=True).data
+        representation['assign_to']['username'] = f"{representation['assign_to']['first_name']}" \
+                                                  f" {representation['assign_to']['last_name']}"
+
+        return representation
+
+
+class FormTaskDetailSerializer(serializers.ModelSerializer):
+    form_submission = FormSubmissionsSerializer()
+
+    class Meta:
+        model = FormTask
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        form_task_map_data = FormTaskMapping.objects.filter(form_task_id=instance.id)
+        representation['user_details'] = IntakeFormTaskMappingSerializer(form_task_map_data, many=True,
+                                                                         read_only=True).data
+        return representation

@@ -97,7 +97,7 @@ class StoriesList(generics.ListAPIView, generics.RetrieveAPIView):
         if not kwargs.get('id'):
             self.queryset = self.filter_queryset(self.queryset)
             if search := request.GET.get('search'):
-                entry_query = get_query(search, ['community__name', 'status'])
+                entry_query = get_query(search, ['community__name', 'status', 'title'])
                 self.queryset = self.queryset.filter(entry_query)
             page = self.paginate_queryset(self.queryset)
             if page is not None:
@@ -751,7 +751,7 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = CommunityAudienceListCreateSerializer
-    queryset = Audience.objects.filter(is_trashed=False).order_by('-id')
+    queryset = Audience.objects.filter(is_trashed=False).exclude(row_count=0).order_by('-id')
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['audience_id', 'name']
@@ -766,6 +766,9 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
 
         if community_id := request.GET.get('community'):
             self.queryset = self.queryset.filter(community_id=community_id)
+
+        self.queryset = self.queryset.filter().order_by('community', 'audience_id'
+                                                        ).distinct('community', 'audience_id')
 
         if not request.GET.get("page", None):
             serializer = self.get_serializer(self.queryset, many=True)
