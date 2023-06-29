@@ -81,25 +81,22 @@ def sync_function(url, headers, params, update=None, last_story_id=None):
     return data_list
 
 
-def community_story_sync_function(url: str, headers: dict, params: dict, page: int, is_completed: bool):
+def community_story_sync_function(url: str, headers: dict, params: dict, page: int):
     """
     Function for calling asynchronous function to get all community and stories data.
     """
 
     data_list = []
 
-    if is_completed:
-        return data_list, page, is_completed
-
-    async def community_story_async_func(page):
-        page += 1
+    async def community_story_async_func(page_n: int):
+        page_n += 1
         page_count = 2
         status = 200
         repeater_count = 0
         community_page_repeater_count = {}
         async with aiohttp.ClientSession(headers=headers) as session:
             while status == 200 and page_count > 0:
-                full_url = url.format(page=page, per_page=params.get('per_page'),
+                full_url = url.format(page=page_n, per_page=params.get('per_page'),
                                       by_community=params.get('by_community'))
                 async with session.get(url=full_url) as resp:
                     try:
@@ -113,7 +110,7 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
                         time.sleep(2)
                         community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
                         if community_page_repeater_count[params.get('by_community')][params.get('page')] == 5:
-                            page += 1
+                            page_n += 1
                             page_count -= 1
                             repeater_count = 0
                             community_page_repeater_count = {}
@@ -122,18 +119,18 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         continue
                     if not response_data:
-                        # page += 1
+                        # page_n += 1
                         # page_count -= 1
-                        return data_list, page, True
+                        return data_list, page_n, True
 
                     data_list.extend(response_data)
                     page_count -= 1
                     if page_count <= 0:
-                        return data_list, page, False
-                    page += 1
+                        return data_list, page_n, False
+                    page_n += 1
                     repeater_count = 0
 
-            return data_list, page, False
+            return data_list, page_n, False
 
     data_list, page, is_completed = asyncio.run(community_story_async_func(page))
 
@@ -162,20 +159,23 @@ def story_community_settings():
             ).last():
                 last_page = status_object.last_page
                 is_completed = status_object.is_completed
-                story_data_list, last_page_called, is_completed = community_story_sync_function(
-                    story_url, headers, params, page=last_page, is_completed=is_completed)
+                if not is_completed:
+                    # If all pages are not covered/completed for this community
+                    story_data_list, last_page_called, is_completed = community_story_sync_function(
+                        story_url, headers, params, page=last_page)
 
-                logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+                    logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
 
-                community_obj_id = Community.objects.get(community_id=community_id).id
-                logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+                    community_obj_id = Community.objects.get(community_id=community_id).id
+                    logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
-                if story_data_list:
-                    add_community_stories.delay(story_data_list, community_obj_id)
+                    if story_data_list:
+                        add_community_stories.delay(story_data_list, community_obj_id)
 
-                StoryStatusConfig.objects.filter(
-                    community__community_id=params.get('by_community')).update(last_page=last_page_called,
-                                                                               is_completed=is_completed)
+                    # Updating the status of pages visited from current job.
+                    StoryStatusConfig.objects.filter(
+                        community__community_id=params.get('by_community')).update(last_page=last_page_called,
+                                                                                   is_completed=is_completed)
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
@@ -229,56 +229,25 @@ def community_data_entry():
         logger.error(f"community_data_entry error ## {e}")
 
 
-@shared_task(soft_time_limit=3600)
-def story_data_entry(community_id, instance_community_id=None, instance_community_delete=False):
-    """
-    Community data is fetched from the production url, and then it is being loaded into the database
-    """
+@shared_task(name="delete_story_data")
+def delete_story_data(community_id, instance_community_id=None):
+    """Job to delete stories whose community setting is either updated or deleted."""
 
     try:
-        if (community_id != instance_community_id) | instance_community_delete:
-            Story.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
-            CommunityChannel.objects.filter(community_setting__community__community_id=instance_community_id).update(
-                is_trashed=True)
-            StoryTag.objects.filter(story__community__community_id=instance_community_id).delete()
-            StoryCategory.objects.filter(story__community__community_id=instance_community_id).delete()
-            StoryStatusConfig.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
-            if instance_community_delete:
-                return
-        story_url = os.environ.get('STORY_URL')
-        community_data_access_key = os.environ.get('COMMUNITY_DATA_ACCESS_KEY')
-        headers = {'Authorization': f'Token {community_data_access_key}'}
-        params = {'per_page': 100}
-
-        data = [{'id': community_id}]
-        for community_id in data:
-
-            params['by_community'] = community_id.get('id')
-            logger.info(f"Calling Story ASYNC for Community {community_id.get('id')}")
-            story_data_list = sync_function(story_url, headers, params)
-            logger.info(f"Total Stories in Community: {community_id.get('id')} is: {len(story_data_list)}")
-
-            try:
-                max_story_id = Story.objects.filter(community_id=community_id.get('id')).latest('story_id').story_id
-            except Story.DoesNotExist:
-                max_story_id = 0
-
-            story_data_list = [story for story in story_data_list if story.get('id') > max_story_id and story.get(
-                'community_id') == community_id.get('id')]
-
-            community_obj_id = Community.objects.get(community_id=community_id.get('id')).id
-            logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
-            for ind in range(len(story_data_list) // 1000 + 1):
-                story_data_list_store = story_data_list[ind * 1000: 1000 * (ind + 1)]
-                add_community_stories.delay(story_data_list_store, community_obj_id)
-
+        Story.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
+        CommunityChannel.objects.filter(community_setting__community__community_id=instance_community_id).update(
+            is_trashed=True)
+        StoryTag.objects.filter(story__community__community_id=instance_community_id).delete()
+        StoryCategory.objects.filter(story__community__community_id=instance_community_id).delete()
+        StoryStatusConfig.objects.filter(community__community_id=instance_community_id).update(is_trashed=True)
     except Exception as e:
-        logger.error(f"community_data_entry error ## {e}")
+        logger.error(f"delete_story_data error ## {e}")
 
 
-@shared_task(name='add_community_stories', soft_time_limit=3600)
+@shared_task(name='add_community_stories')
 def add_community_stories(story_data_list, community_obj_id):
-    # sourcery skip: low-code-quality
+    """Job to add community stories and related metadata."""
+
     story_to_be_create_objs = []
     mongo_story_purls = []
     story_tag_dict = {}
@@ -286,65 +255,66 @@ def add_community_stories(story_data_list, community_obj_id):
 
     for story_item in story_data_list:
 
-        tags_list = []
-        tags_id_list = []
-        for story_tags in story_item.get('story_tags'):
-            story_tag_obj = Tag.objects.filter(tag_id=story_tags.get('id')).first()
+        if not Story.objects.filter(story_id=story_item.get('id')).exists():
+            tags_list = []
+            tags_id_list = []
+            for story_tags in story_item.get('story_tags'):
+                story_tag_obj = Tag.objects.filter(tag_id=story_tags.get('id')).first()
 
-            if not story_tag_obj:
-                story_tag_obj = Tag(tag_id=story_tags.get('id'),
-                                    community_id=community_obj_id, title=story_tags.get('name'))
-                tags_list.append(story_tag_obj)
-            tags_id_list.append(story_tags.get('id'))
-        story_tag_dict[story_item.get('id')] = tags_id_list
+                if not story_tag_obj:
+                    story_tag_obj = Tag(tag_id=story_tags.get('id'),
+                                        community_id=community_obj_id, title=story_tags.get('name'))
+                    tags_list.append(story_tag_obj)
+                tags_id_list.append(story_tags.get('id'))
+            story_tag_dict[story_item.get('id')] = tags_id_list
 
-        Tag.objects.bulk_create(tags_list, ignore_conflicts=True)
+            Tag.objects.bulk_create(tags_list, ignore_conflicts=True)
 
-        # Story Category
+            # Story Category
 
-        categories_list = []
-        categories_id_list = []
-        for story_category in story_item.get('story_categories'):
-            story_category_obj = Category.objects.filter(category_id=story_category.get('id')).first()
+            categories_list = []
+            categories_id_list = []
+            for story_category in story_item.get('story_categories'):
+                story_category_obj = Category.objects.filter(category_id=story_category.get('id')).first()
 
-            if not story_category_obj:
-                story_category_obj = Category(category_id=story_category.get('id'),
-                                              community_id=community_obj_id, title=story_category.get('name'),
-                                              description=story_category.get('name'))
-                categories_list.append(story_category_obj)
-            categories_id_list.append(story_category.get('id'))
-        story_category_dict[story_item.get('id')] = categories_id_list
+                if not story_category_obj:
+                    story_category_obj = Category(category_id=story_category.get('id'),
+                                                  community_id=community_obj_id, title=story_category.get('name'),
+                                                  description=story_category.get('name'))
+                    categories_list.append(story_category_obj)
+                categories_id_list.append(story_category.get('id'))
+            story_category_dict[story_item.get('id')] = categories_id_list
 
-        Category.objects.bulk_create(categories_list, ignore_conflicts=True)
+            Category.objects.bulk_create(categories_list, ignore_conflicts=True)
 
-        story_purl = get_purl()
-        story_obj = Story(
-            story_id=story_item.get('id'),
-            title=story_item.get('headline'),
-            lede=story_item.get('teaser'),
-            community_id=community_obj_id,
-            publication_date=date_format(story_item.get('published_at')),
-            body=story_item.get('body'),
-            p_url=story_purl,
-            story_url=story_item.get('story_url'),
-            story_metadata=story_item
-        )
-        story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
-        mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
+            story_purl = get_purl()
+            story_obj = Story(
+                story_id=story_item.get('id'),
+                title=story_item.get('headline'),
+                lede=story_item.get('teaser'),
+                community_id=community_obj_id,
+                publication_date=date_format(story_item.get('published_at')),
+                body=story_item.get('body'),
+                p_url=story_purl,
+                story_url=story_item.get('story_url'),
+                story_metadata=story_item
+            )
+            story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
+            mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
 
-        if story_item.get('published') and not story_item.get('scheduled'):
-            story_obj.status = 'Published'
-        if not story_item.get('published') and not story_item.get('scheduled'):
-            story_obj.status = 'Draft'
-        if not story_item.get('published') and story_item.get('scheduled'):
-            story_obj.status = 'Scheduled'
-        story_to_be_create_objs.append(story_obj)
+            if story_item.get('published') and not story_item.get('scheduled'):
+                story_obj.status = 'Published'
+            if not story_item.get('published') and not story_item.get('scheduled'):
+                story_obj.status = 'Draft'
+            if not story_item.get('published') and story_item.get('scheduled'):
+                story_obj.status = 'Scheduled'
+            story_to_be_create_objs.append(story_obj)
 
-        if len(story_to_be_create_objs) >= 1000:
-            logger.info("## Bulk creating stories")
-            Story.objects.bulk_create(story_to_be_create_objs, ignore_conflicts=True)
-            logger.info("## Bulk creating stories success")
-            story_to_be_create_objs = []
+            if len(story_to_be_create_objs) >= 1000:
+                logger.info("## Bulk creating stories")
+                Story.objects.bulk_create(story_to_be_create_objs, ignore_conflicts=True)
+                logger.info("## Bulk creating stories success")
+                story_to_be_create_objs = []
 
     if story_to_be_create_objs:
         logger.info("## Bulk creating stories")
@@ -498,7 +468,7 @@ def daily_story_updates():
             try:
                 last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
                     'story_id').story_id
-            except Community.DoesNotExist:
+            except Exception:
                 last_story_id = 0
 
             params['by_community'] = community_id
@@ -513,7 +483,7 @@ def daily_story_updates():
                 add_community_stories.delay(story_data_list_store, community_obj_id)
 
     except Exception as e:
-        logger.error(f"community_data_entry error ## {e}")
+        logger.error(f"daily_story_updates error ## {e}")
 
 
 @shared_task(name='delete_story_with_deleted_community')

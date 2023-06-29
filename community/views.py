@@ -39,7 +39,7 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
     CommunityAudienceListCreateSerializer
-from .tasks import story_data_entry, add_community_audiences
+from .tasks import add_community_audiences, delete_story_data
 from .utils import validate_client_id_opnsesame
 
 logger = logging.getLogger('django')
@@ -205,8 +205,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        story_data_entry.delay(instance.community.community_id, instance.community.community_id,
-                               instance_community_delete=True)
+        # story_data_entry.delay(instance.community.community_id, instance.community.community_id,
+        #                        instance_community_delete=True)
+        delete_story_data.delay(instance.community.community_id, instance.community.community_id)
         Audience.objects.filter(community_id=instance.community.id).update(is_trashed=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -230,7 +231,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             new_opn_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                           channel__name__iexact='opnsesame').first()
             if old_community_id != community_setting_obj.community.id:
-                story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+                # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+                delete_story_data.delay(community_setting_obj.community.community_id, community_id)
+                StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
 
             if old_community_id != community_setting_obj.community.id or old_opn_url \
                     != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key:
