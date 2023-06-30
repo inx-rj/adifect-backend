@@ -95,7 +95,7 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
         repeater_count = 0
         community_page_repeater_count = {}
         async with aiohttp.ClientSession(headers=headers) as session:
-            while status == 200 and page_count > 0:
+            while status == 200:
                 full_url = url.format(page=page_n, per_page=params.get('per_page'),
                                       by_community=params.get('by_community'))
                 async with session.get(url=full_url) as resp:
@@ -155,27 +155,24 @@ def story_community_settings():
             logger.info(f"Calling Story ASYNC for Community {community_id}")
             if status_object := StoryStatusConfig.objects.filter(
                 community__community_id=params.get('by_community'),
-                is_trashed=False,
+                is_trashed=False, is_completed=False
             ).last():
                 last_page = status_object.last_page
-                is_completed = status_object.is_completed
-                if not is_completed:
-                    # If all pages are not covered/completed for this community
-                    story_data_list, last_page_called, is_completed = community_story_sync_function(
-                        story_url, headers, params, page=last_page)
+                story_data_list, last_page_called, is_completed = community_story_sync_function(
+                    story_url, headers, params, page=last_page)
 
-                    logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+                logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
 
-                    community_obj_id = Community.objects.get(community_id=community_id).id
-                    logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+                community_obj_id = Community.objects.get(community_id=community_id).id
+                logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
-                    if story_data_list:
-                        add_community_stories.delay(story_data_list, community_obj_id)
+                if story_data_list:
+                    add_community_stories.delay(story_data_list, community_obj_id)
 
-                    # Updating the status of pages visited from current job.
-                    StoryStatusConfig.objects.filter(
-                        community__community_id=params.get('by_community')).update(last_page=last_page_called,
-                                                                                   is_completed=is_completed)
+                # Updating the status of pages visited from current job.
+                StoryStatusConfig.objects.filter(
+                    community__community_id=params.get('by_community')).update(last_page=last_page_called,
+                                                                               is_completed=is_completed)
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
@@ -252,6 +249,7 @@ def add_community_stories(story_data_list, community_obj_id):
     mongo_story_purls = []
     story_tag_dict = {}
     story_category_dict = {}
+    story_tag_category_data = {}
 
     for story_item in story_data_list:
 
@@ -266,7 +264,7 @@ def add_community_stories(story_data_list, community_obj_id):
                                         community_id=community_obj_id, title=story_tags.get('name'))
                     tags_list.append(story_tag_obj)
                 tags_id_list.append(story_tags.get('id'))
-            story_tag_dict[story_item.get('id')] = tags_id_list
+            # story_tag_dict[story_item.get('id')] = tags_id_list
 
             Tag.objects.bulk_create(tags_list, ignore_conflicts=True)
 
@@ -283,9 +281,11 @@ def add_community_stories(story_data_list, community_obj_id):
                                                   description=story_category.get('name'))
                     categories_list.append(story_category_obj)
                 categories_id_list.append(story_category.get('id'))
-            story_category_dict[story_item.get('id')] = categories_id_list
+            # story_category_dict[story_item.get('id')] = categories_id_list
 
             Category.objects.bulk_create(categories_list, ignore_conflicts=True)
+
+            story_tag_category_data[story_item.get('id')] = {'tags': tags_id_list, 'categories': categories_id_list}
 
             story_purl = get_purl()
             story_obj = Story(
@@ -321,21 +321,17 @@ def add_community_stories(story_data_list, community_obj_id):
         Story.objects.bulk_create(story_to_be_create_objs, ignore_conflicts=True)
         logger.info("## Bulk creating stories success")
 
-    # story_tag_instances = []
-    logger.info("## Adding story tags if any")
-    for story in story_tag_dict:
-        logger.info(f"## Story tag for story => {story}")
+    logger.info("## Adding story tags and categories if any")
+    for story in story_tag_category_data:
+        logger.info(f"## tags and categories for story => {story}")
         story = Story.objects.get(story_id=story)
-        story.tag.add(*list(Tag.objects.filter(tag_id__in=story_tag_dict.get(story.story_id, [])
-                                               ).values_list('id', flat=True)))
 
-    # story_category_instances = []
-    logger.info("## Adding story category if any")
-    for story in story_category_dict:
-        logger.info(f"## Story category for story => {story}")
-        story = Story.objects.get(story_id=story)
-        story.category.add(*list(Category.objects.filter(category_id__in=story_category_dict.get(story.story_id, [])
-                                                         ).values_list('id', flat=True)))
+        story.tag.add(*list(Tag.objects.filter(
+            tag_id__in=story_tag_category_data.get(story.story_id, {}).get("tags", [])
+        ).values_list('id', flat=True)))
+        story.category.add(*list(Category.objects.filter(
+            category_id__in=story_tag_category_data.get(story.story_id, {}).get("categories", [])
+        ).values_list('id', flat=True)))
 
     if mongo_story_purls:
         company_projects_collection.insert_many(mongo_story_purls)
