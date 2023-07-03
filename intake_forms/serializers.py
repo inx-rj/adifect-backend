@@ -123,6 +123,9 @@ class IntakeFormFieldSerializer(serializers.ModelSerializer):
                     IntakeFormFields(**field).full_clean()
                 except ValidationError as e:
                     raise serializers.ValidationError(e.message_dict) from e
+
+                field['field_name'] = field.get('field_name', "").strip()
+                field['field_type'] = field.get('field_type', "").strip()
                 IntakeFormFields.objects.create(**field)
         return True
 
@@ -207,13 +210,13 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
         submit_form_field_set = set()
         for field in attrs.get("fields"):
             if not IntakeFormFields.objects.filter(form_version=attrs.get("form_version"),
-                                                   field_name=field.get("field_name"),
-                                                   field_type=field.get("field_type")).exists():
+                                                   field_name=field.get("field_name", "").strip(),
+                                                   field_type=field.get("field_type", "").strip()).exists():
                 raise serializers.ValidationError(
-                    {"field": f"Invalid field with field_name => {field.get('field_name')}"
-                              f" or field_type => {field.get('field_type')}"})
+                    {"field": f"Invalid field with field_name => {field.get('field_name', '').strip()}"
+                              f" or field_type => {field.get('field_type', '').strip()}"})
 
-            submit_form_field_set.add(field.get("field_name"))
+            submit_form_field_set.add(field.get("field_name", "").strip())
 
         if form_field_set - submit_form_field_set:
             for field in form_field_set - submit_form_field_set:
@@ -246,7 +249,7 @@ class IntakeFormSubmitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         for field in validated_data.get("fields"):
-            if field.get('field_type') in ["file", "Upload Attachment"]:
+            if field.get('field_type').strip() in ["file", "Upload Attachment"]:
                 field['field_value'] = self.upload_file_s3(image_str=field.get('field_value'))
         validated_data["submission_data"] = validated_data.pop("fields")
         return IntakeFormSubmissions.objects.create(**validated_data)
