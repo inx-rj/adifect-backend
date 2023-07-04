@@ -247,74 +247,74 @@ def add_community_stories(story_data_list, community_obj_id):
 
     story_to_be_create_objs = []
     mongo_story_purls = []
-    story_tag_dict = {}
-    story_category_dict = {}
     story_tag_category_data = {}
 
+    # ID list of already exists stories.
+    story_already_exists_id_list = Story.objects.filter(
+        story_id__in=[story.get('id') for story in story_data_list]).values_list('story_id', flat=True)
+
+    # Filtering out not already exists stories.
+    story_data_list = [item for item in story_data_list if item.get('id') not in story_already_exists_id_list]
+
     for story_item in story_data_list:
+        tags_list = []
+        tags_id_list = []
+        for story_tags in story_item.get('story_tags'):
+            story_tag_obj = Tag.objects.filter(tag_id=story_tags.get('id')).first()
 
-        if not Story.objects.filter(story_id=story_item.get('id')).exists():
-            tags_list = []
-            tags_id_list = []
-            for story_tags in story_item.get('story_tags'):
-                story_tag_obj = Tag.objects.filter(tag_id=story_tags.get('id')).first()
+            if not story_tag_obj:
+                story_tag_obj = Tag(tag_id=story_tags.get('id'),
+                                    community_id=community_obj_id, title=story_tags.get('name'))
+                tags_list.append(story_tag_obj)
+            tags_id_list.append(story_tags.get('id'))
 
-                if not story_tag_obj:
-                    story_tag_obj = Tag(tag_id=story_tags.get('id'),
-                                        community_id=community_obj_id, title=story_tags.get('name'))
-                    tags_list.append(story_tag_obj)
-                tags_id_list.append(story_tags.get('id'))
-            # story_tag_dict[story_item.get('id')] = tags_id_list
+        Tag.objects.bulk_create(tags_list, ignore_conflicts=True)   # Bulk creating Tags
 
-            Tag.objects.bulk_create(tags_list, ignore_conflicts=True)
+        # Story Category
+        categories_list = []
+        categories_id_list = []
+        for story_category in story_item.get('story_categories'):
+            story_category_obj = Category.objects.filter(category_id=story_category.get('id')).first()
 
-            # Story Category
+            if not story_category_obj:
+                story_category_obj = Category(category_id=story_category.get('id'),
+                                              community_id=community_obj_id, title=story_category.get('name'),
+                                              description=story_category.get('name'))
+                categories_list.append(story_category_obj)
+            categories_id_list.append(story_category.get('id'))
 
-            categories_list = []
-            categories_id_list = []
-            for story_category in story_item.get('story_categories'):
-                story_category_obj = Category.objects.filter(category_id=story_category.get('id')).first()
+        Category.objects.bulk_create(categories_list, ignore_conflicts=True)    # Bulk creating Categories
 
-                if not story_category_obj:
-                    story_category_obj = Category(category_id=story_category.get('id'),
-                                                  community_id=community_obj_id, title=story_category.get('name'),
-                                                  description=story_category.get('name'))
-                    categories_list.append(story_category_obj)
-                categories_id_list.append(story_category.get('id'))
-            # story_category_dict[story_item.get('id')] = categories_id_list
+        story_tag_category_data[story_item.get('id')] = {'tags': tags_id_list, 'categories': categories_id_list}
 
-            Category.objects.bulk_create(categories_list, ignore_conflicts=True)
+        story_purl = get_purl()
+        story_obj = Story(
+            story_id=story_item.get('id'),
+            title=story_item.get('headline'),
+            lede=story_item.get('teaser'),
+            community_id=community_obj_id,
+            publication_date=date_format(story_item.get('published_at')),
+            body=story_item.get('body'),
+            p_url=story_purl,
+            story_url=story_item.get('story_url'),
+            story_metadata=story_item
+        )
+        story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
+        mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
 
-            story_tag_category_data[story_item.get('id')] = {'tags': tags_id_list, 'categories': categories_id_list}
+        if story_item.get('published') and not story_item.get('scheduled'):
+            story_obj.status = 'Published'
+        if not story_item.get('published') and not story_item.get('scheduled'):
+            story_obj.status = 'Draft'
+        if not story_item.get('published') and story_item.get('scheduled'):
+            story_obj.status = 'Scheduled'
+        story_to_be_create_objs.append(story_obj)
 
-            story_purl = get_purl()
-            story_obj = Story(
-                story_id=story_item.get('id'),
-                title=story_item.get('headline'),
-                lede=story_item.get('teaser'),
-                community_id=community_obj_id,
-                publication_date=date_format(story_item.get('published_at')),
-                body=story_item.get('body'),
-                p_url=story_purl,
-                story_url=story_item.get('story_url'),
-                story_metadata=story_item
-            )
-            story_obj.set_image(story_item.get("images")) if story_item.get("images") else None
-            mongo_story_purls.append({'base_purl': story_purl, "medium": "", "url": ""})
-
-            if story_item.get('published') and not story_item.get('scheduled'):
-                story_obj.status = 'Published'
-            if not story_item.get('published') and not story_item.get('scheduled'):
-                story_obj.status = 'Draft'
-            if not story_item.get('published') and story_item.get('scheduled'):
-                story_obj.status = 'Scheduled'
-            story_to_be_create_objs.append(story_obj)
-
-            if len(story_to_be_create_objs) >= 1000:
-                logger.info("## Bulk creating stories")
-                Story.objects.bulk_create(story_to_be_create_objs, ignore_conflicts=True)
-                logger.info("## Bulk creating stories success")
-                story_to_be_create_objs = []
+        if len(story_to_be_create_objs) >= 1000:
+            logger.info("## Bulk creating stories")
+            Story.objects.bulk_create(story_to_be_create_objs, ignore_conflicts=True)
+            logger.info("## Bulk creating stories success")
+            story_to_be_create_objs = []
 
     if story_to_be_create_objs:
         logger.info("## Bulk creating stories")
