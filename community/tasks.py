@@ -154,8 +154,8 @@ def story_community_settings():
             params['by_community'] = community_id
             logger.info(f"Calling Story ASYNC for Community {community_id}")
             if status_object := StoryStatusConfig.objects.filter(
-                community__community_id=params.get('by_community'),
-                is_trashed=False, is_completed=False
+                    community__community_id=params.get('by_community'),
+                    is_trashed=False, is_completed=False
             ).last():
                 last_page = status_object.last_page
                 story_data_list, last_page_called, is_completed = community_story_sync_function(
@@ -227,7 +227,7 @@ def community_data_entry():
 
 
 @shared_task(name="delete_story_data")
-def delete_story_data(community_id, instance_community_id=None):
+def delete_story_data(instance_community_id=None):
     """Job to delete stories whose community setting is either updated or deleted."""
 
     try:
@@ -461,22 +461,25 @@ def daily_story_updates():
         community_objs = CommunitySetting.objects.all().values_list('community__community_id', flat=True)
         for community_id in community_objs:
 
-            try:
-                last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
-                    'story_id').story_id
-            except Exception:
-                last_story_id = 0
+            if not StoryStatusConfig.objects.filter(
+                    community__community_id=community_id, last_page=0).exists():
 
-            params['by_community'] = community_id
-            logger.info(f"Calling Story ASYNC for Community {community_id}")
-            story_data_list = sync_function(story_url, headers, params, update=True, last_story_id=last_story_id)
-            logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+                try:
+                    last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
+                        'story_id').story_id
+                except Exception:
+                    last_story_id = 0
 
-            community_obj_id = Community.objects.get(community_id=community_id).id
-            logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
-            for ind in range(len(story_data_list) // 1000 + 1):
-                story_data_list_store = story_data_list[ind * 1000: 1000 * (ind + 1)]
-                add_community_stories.delay(story_data_list_store, community_obj_id)
+                params['by_community'] = community_id
+                logger.info(f"Calling Story ASYNC for Community {community_id}")
+                story_data_list = sync_function(story_url, headers, params, update=True, last_story_id=last_story_id)
+                logger.info(f"Total Stories in Community: {community_id} is: {len(story_data_list)}")
+
+                community_obj_id = Community.objects.get(community_id=community_id).id
+                logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
+                for ind in range(len(story_data_list) // 1000 + 1):
+                    story_data_list_store = story_data_list[ind * 1000: 1000 * (ind + 1)]
+                    add_community_stories.delay(story_data_list_store, community_obj_id)
 
     except Exception as e:
         logger.error(f"daily_story_updates error ## {e}")
@@ -487,7 +490,8 @@ def delete_story_with_deleted_community():
     """Function to daily remove stories for all community that are deleted from the system"""
 
     try:
-        community_id_list = CommunitySetting.objects_with_deleted.filter(is_trashed=True).values_list('community_id', flat=True).distinct('community_id')
+        community_id_list = CommunitySetting.objects_with_deleted.filter(
+            is_trashed=True).values_list('community_id', flat=True).distinct('community_id')
         community_list = [
             community_id
             for community_id in community_id_list

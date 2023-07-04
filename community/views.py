@@ -207,7 +207,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         instance = self.get_object()
         # story_data_entry.delay(instance.community.community_id, instance.community.community_id,
         #                        instance_community_delete=True)
-        delete_story_data.delay(instance.community.community_id, instance.community.community_id)
+        delete_story_data.delay(instance.community.community_id)
         Audience.objects.filter(community_id=instance.community.id).update(is_trashed=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -232,7 +232,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                                           channel__name__iexact='opnsesame').first()
             if old_community_id != community_setting_obj.community.id:
                 # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
-                delete_story_data.delay(community_setting_obj.community.community_id, community_id)
+                delete_story_data.delay(community_id)
                 StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
 
             if old_community_id != community_setting_obj.community.id or old_opn_url \
