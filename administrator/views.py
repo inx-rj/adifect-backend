@@ -226,12 +226,22 @@ class SkillsViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAdmin])
 class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['username', 'date_joined', 'email']
+    ordering_fields = ['username', 'date_joined', 'email', 'role', 'is_blocked']
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated]
     queryset = CustomUser.objects.all().order_by('date_joined')
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id).order_by('date_joined')
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': "Users List retrieved successfully!"})
+        # serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        # return Response(data=serializer.data)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
