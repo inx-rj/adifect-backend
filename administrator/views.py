@@ -4705,8 +4705,11 @@ class HelpchatViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpChatSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -4772,8 +4775,11 @@ class AdminHelpModelViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.queryset.order_by('-created')
-        serializer = HelpSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
 
 class AgencyHelpchatViewset(viewsets.ModelViewSet):
@@ -4782,8 +4788,11 @@ class AgencyHelpchatViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.queryset.filter(Q(sender=request.user) | Q(receiver=request.user))
-        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpChatSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
