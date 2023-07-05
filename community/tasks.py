@@ -428,8 +428,8 @@ def daily_audience_community_updates():
                                                                                                            'community_setting__community')
         for community_channel_obj in community_channel_objs:
             try:
-                audience_max_id = Audience.objects.filter(community=community_channel_obj.community_setting__community,
-                                                          is_trashed=False).order_by('-id').first().audience_id
+                audience_max_id = Audience.objects.filter(community_id=community_channel_obj.get('community_setting__community'),
+                                                          ).order_by('-id').first().audience_id
             except Exception:
                 audience_max_id = 0
             for audiences in audience_generator(client_id=community_channel_obj.get('url'),
@@ -479,7 +479,7 @@ def daily_story_updates():
                     community__community_id=community_id, last_page=0).exists():
 
                 try:
-                    last_story_id = Story.objects.filter(community__community_id=community_id, is_trashed=False).latest(
+                    last_story_id = Story.objects.filter(community__community_id=community_id).latest(
                         'story_id').story_id
                 except Exception:
                     last_story_id = 0
