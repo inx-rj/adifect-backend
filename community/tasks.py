@@ -177,9 +177,9 @@ def story_community_settings():
                     add_community_stories.delay(story_data_list, community_obj_id)
 
                 # Updating the status of pages visited from current job.
-                StoryStatusConfig.objects.filter(
-                    community__community_id=params.get('by_community')).update(last_page=last_page_called,
-                                                                               is_completed=is_completed)
+                status_object.last_page = last_page_called
+                status_object.is_completed = is_completed
+                status_object.save(update_fields=['last_page', 'is_completed'])
 
     except Exception as e:
         logger.error(f"community_data_entry error ## {e}")
@@ -358,9 +358,8 @@ def audience_generator(client_id, api_key, audience_max_id=None):
     logger.info(f"Audiences API Headers ## {headers}")
     logger.info(f"Audiences API URL ## {base_url}{client_id}/audiences")
     resp = requests.request("GET", f"{base_url}{client_id}/audiences", headers=headers)
-    next_url = None
-    if resp.status_code == 200:
-        next_url = resp.json().get("next")
+    next_url = True
+    while next_url and resp.status_code == 200:
         if audience_max_id:
             result_data = []
             for result in resp.json().get("results"):
@@ -373,22 +372,9 @@ def audience_generator(client_id, api_key, audience_max_id=None):
         else:
             yield resp.json().get("results")
 
-    while next_url:
         logger.info(f"Got the next url ## {next_url}")
         resp = requests.request("GET", f"{next_url}", headers=headers)
         next_url = resp.json().get("next")
-
-        if audience_max_id:
-            result_data = []
-            for result in resp.json().get("results"):
-                if result.get('id') > audience_max_id:
-                    result_data.append(result)
-                else:
-                    next_url = None
-                    break
-            yield result_data
-        else:
-            yield resp.json().get("results")
 
     yield []
 
