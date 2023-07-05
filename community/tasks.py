@@ -393,6 +393,27 @@ def audience_generator(client_id, api_key, audience_max_id=None):
     yield []
 
 
+def check_already_exists_audience_and_bulk_create(audiences, community_id):
+    """Function to check already exists audiences and bulk create audiences"""
+
+    logger.info(f"Bulk creating audiences ## for community -> {community_id}")
+    # List of audience_id already exists in the system for this community.
+    audience_already_exists_id_list = Audience.objects.filter(
+        audience_id__in=[aud.get('id') for aud in audiences],
+        community_id=community_id).values_list('audience_id', flat=True)
+
+    # Bulk creating audiences.
+    new_audience_instances = [
+        Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
+                 row_count=aud.get('row_count'), available=aud.get('available'),
+                 opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
+                 routes=aud.get('routes'), created_at=date_format(
+                aud.get('created_at')) if aud.get('created_at') else None)
+        for aud in audiences if aud.get('id') not in audience_already_exists_id_list]
+
+    Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
+
+
 @shared_task(name='add_community_audiences')
 def add_community_audiences(client_id, api_key, community_id):
     """Function to bulk create audiences fetched from audience generator function."""
@@ -400,23 +421,8 @@ def add_community_audiences(client_id, api_key, community_id):
     try:
         logger.info("Background task ## add_community_audiences")
         for audiences in audience_generator(client_id=client_id, api_key=api_key):
-            logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
 
-            # List of audience_id already exists in the system for this community.
-            audience_already_exists_id_list = Audience.objects.filter(
-                audience_id__in=[aud.get('id') for aud in audiences],
-                community_id=community_id).values_list('audience_id', flat=True)
-
-            # Bulk creating audiences.
-            new_audience_instances = [
-                Audience(audience_id=aud.get('id'), community_id=community_id, name=aud.get('name'),
-                         row_count=aud.get('row_count'), available=aud.get('available'),
-                         opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
-                         routes=aud.get('routes'), created_at=date_format(
-                        aud.get('created_at')) if aud.get('created_at') else None)
-                for aud in audiences if aud.get('id') not in audience_already_exists_id_list]
-
-            Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
+            check_already_exists_audience_and_bulk_create(audiences=audiences, community_id=community_id)
             logger.info("Bulk creating audiences done.")
 
     except Exception as err:
@@ -429,39 +435,25 @@ def daily_audience_community_updates():
 
     try:
         logger.info("Background task ## add_community_audiences")
-        community_channel_objs = CommunityChannel.objects.filter(is_trashed=False,
-                                                                 channel__name__iexact='opnsesame').values('url',
-                                                                                                           'api_key',
-                                                                                                           'community_setting__community')
+        community_channel_objs = CommunityChannel.objects.filter(
+            is_trashed=False, channel__name__iexact='opnsesame').values('url', 'api_key',
+                                                                        'community_setting__community')
+
         for community_channel_obj in community_channel_objs:
+
             try:
-                audience_max_id = Audience.objects.filter(community_id=community_channel_obj.get('community_setting__community'),
-                                                          ).order_by('-id').first().audience_id
+                audience_max_id = Audience.objects.filter(
+                    community_id=community_channel_obj.get('community_setting__community')
+                ).order_by('-id').first().audience_id
             except Exception:
                 audience_max_id = 0
+
             for audiences in audience_generator(client_id=community_channel_obj.get('url'),
                                                 api_key=community_channel_obj.get('api_key'),
                                                 audience_max_id=audience_max_id):
 
-                # List of audience_id already exists in the system for this community.
-                audience_already_exists_id_list = Audience.objects.filter(
-                    audience_id__in=[aud.get('id') for aud in audiences],
-                    community_id=community_channel_obj.get('community_setting__community')
-                ).values_list('audience_id', flat=True)
-
-                logger.info(f"Bulk creating audiences ## Length of audiences -> {len(audiences)}")
-                new_audience_instances = [Audience(audience_id=aud.get('id'),
-                                                   community_id=community_channel_obj.get(
-                                                       'community_setting__community'),
-                                                   name=aud.get('name'),
-                                                   row_count=aud.get('row_count'), available=aud.get('available'),
-                                                   opted_out=aud.get('opted_out'), non_mobile=aud.get('non_mobile'),
-                                                   routes=aud.get('routes'),
-                                                   created_at=date_format(
-                                                       aud.get('created_at')) if aud.get('created_at') else None)
-                                          for aud in audiences if aud.get('id') not in audience_already_exists_id_list]
-
-                Audience.objects.bulk_create(new_audience_instances, ignore_conflicts=True)
+                check_already_exists_audience_and_bulk_create(
+                    audiences=audiences, community_id=community_channel_obj.get('community_setting__community'))
                 logger.info("Bulk creating audiences done.")
 
     except Exception as err:
