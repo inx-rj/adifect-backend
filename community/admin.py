@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from community.models import Community, Story, Tag, Category, StoryTag, StoryCategory, Channel, CommunityChannel, \
-    CommunitySetting, Program, CopyCode, CreativeCode, Audience
+    CommunitySetting, Program, CopyCode, CreativeCode, Audience, StoryStatusConfig
 
 # Register your models here.
 admin.site.register(StoryTag)
@@ -10,6 +10,7 @@ admin.site.register(CommunityChannel)
 admin.site.register(Program)
 admin.site.register(CopyCode)
 admin.site.register(CreativeCode)
+admin.site.register(StoryStatusConfig)
 
 
 @admin.register(Community)

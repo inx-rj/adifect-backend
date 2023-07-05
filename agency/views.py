@@ -355,9 +355,10 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
     pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user

@@ -194,3 +194,15 @@ class Audience(BaseModel):
     def __str__(self):
         return f'{self.id} - {self.name}'
 
+
+class StoryStatusConfig(BaseModel):
+    community = models.ForeignKey(Community, related_name='story_status_community', on_delete=models.SET_NULL,
+                                  null=True, blank=True)
+    last_page = models.IntegerField(null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name_plural = 'StoryStatusConfigs'
+
+    def __str__(self):
+        return f'{self.id}'
