@@ -153,6 +153,13 @@ def story_community_settings():
         for community_id in community_objs:
             params['by_community'] = community_id
             logger.info(f"Calling Story ASYNC for Community {community_id}")
+
+            if not StoryStatusConfig.objects.filter(
+                    community__community_id=params.get('by_community')).exists():
+                # Adding StoryStatusConfig data for already added community settings.
+                community_obj = Community.objects.get(community_id=params.get('by_community'))
+                StoryStatusConfig.objects.create(community=community_obj, last_page=0)
+
             if status_object := StoryStatusConfig.objects.filter(
                     community__community_id=params.get('by_community'),
                     is_trashed=False, is_completed=False
