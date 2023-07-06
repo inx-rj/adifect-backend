@@ -85,9 +85,10 @@ class IndustryViewSet(viewsets.ModelViewSet):
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['name', 'created', 'id']
+    ordering_fields = ['name', 'created']
 
     def get_queryset(self):
         user = self.request.user
@@ -1372,9 +1373,10 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     pagination_class = CustomPagination
     queryset = Job.objects.filter(status=0).order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['company']
     search_fields = ['company__name', 'title']
+    ordering_fields = ['company__name', 'title']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)

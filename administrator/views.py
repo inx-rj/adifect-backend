@@ -234,7 +234,7 @@ class UserListViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all().order_by('date_joined')
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id).order_by('date_joined')
+        queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -1207,17 +1207,19 @@ def dam_sample_template_images_list(dam_sample_work, job_template_id):
 class JobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = JobTemplate.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    queryset = JobTemplate.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'title', 'template_name']
+    ordering_fields = ['company__name', 'title', 'template_name']
+
 
     # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
-        job_data = queryset.filter(user=request.user).order_by('-modified')
+        job_data = queryset.filter(user=request.user)
         if not request.GET.get("page", None):
             serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
             return Response({'data': serializer.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
@@ -4352,12 +4354,15 @@ class ShareMediaUrl(APIView):
 
 class HelpModelViewset(viewsets.ModelViewSet):
     serializer_class = HelpSerializer
-    queryset = Help.objects.all()
+    queryset = Help.objects.all().order_by('-created')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated]
+    search_fields = ['subject']
+    ordering_fields = ['subject', 'modified']
 
     def list(self, request, *args, **kwargs):
-        queryset = Help.objects.filter(user=request.user).order_by('-created')
+        queryset = self.filter_queryset(self.get_queryset().filter(user=request.user))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = HelpSerializer(page, many=True)
@@ -4781,10 +4786,14 @@ class HelpchatViewset(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class AdminHelpModelViewset(viewsets.ModelViewSet):
     serializer_class = HelpSerializer
-    queryset = Help.objects.all()
+    queryset = Help.objects.all().order_by('-created')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = CustomPagination
+    search_fields = ['subject']
+    ordering_fields = ['subject', 'modified']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.queryset.order_by('-created')
+        queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = HelpSerializer(page, many=True, context={'request': request})
