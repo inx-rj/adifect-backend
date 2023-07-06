@@ -330,7 +330,7 @@ def add_community_stories(story_data_list, community_obj_id):
 
     logger.info("## Adding story tags and categories if any")
     for story in story_tag_category_data:
-        logger.info(f"## tags and categories for story => {story}")
+        # logger.info(f"## tags and categories for story => {story}")
         story = Story.objects.get(story_id=story)
 
         story.tag.add(*list(Tag.objects.filter(
