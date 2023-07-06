@@ -149,7 +149,7 @@ class CopyCode(BaseModel):
     title = models.CharField(max_length=200)
     subject_line = models.CharField(max_length=200)
     body = models.TextField()
-    notes = models.TextField()
+    notes = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name_plural = 'CopyCodes'

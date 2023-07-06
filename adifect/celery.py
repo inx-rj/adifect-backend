@@ -28,7 +28,7 @@ app.conf.beat_schedule = {
     },
     'community-daily-story-updates': {
         'task': 'daily_story_updates',
-        'schedule': timedelta(hours=1)
+        'schedule': timedelta(hours=3)
     },
     'audience-daily-community-updates': {
         'task': 'daily_audience_community_updates',
@@ -36,7 +36,7 @@ app.conf.beat_schedule = {
     },
     'community-settings-story-fetch': {
         'task': 'story_community_settings',
-        'schedule': timedelta(minutes=20)
+        'schedule': timedelta(minutes=15)
     },
     'delete-story-with-deleted-community':  {
             'task': 'delete_story_with_deleted_community',
