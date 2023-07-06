@@ -372,9 +372,10 @@ def audience_generator(client_id, api_key, audience_max_id=None):
         else:
             yield resp.json().get("results")
 
-        logger.info(f"Got the next url ## {next_url}")
-        resp = requests.request("GET", f"{next_url}", headers=headers)
         next_url = resp.json().get("next")
+        if next_url:
+            logger.info(f"Got the next url ## {next_url}")
+            resp = requests.request("GET", f"{next_url}", headers=headers)
 
     yield []
 
