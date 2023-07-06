@@ -345,7 +345,7 @@ def add_community_stories(story_data_list, community_obj_id):
         logger.info("Added story PURLs.")
 
 
-def audience_generator(client_id, api_key, audience_max_id=None):
+def audience_generator(client_id, api_key):
     """Function to call list-audience API and return audiences for community."""
 
     base_url = os.environ.get("OPNSESAME_API_URL", "")
@@ -358,24 +358,15 @@ def audience_generator(client_id, api_key, audience_max_id=None):
     logger.info(f"Audiences API Headers ## {headers}")
     logger.info(f"Audiences API URL ## {base_url}{client_id}/audiences")
     resp = requests.request("GET", f"{base_url}{client_id}/audiences", headers=headers)
-    next_url = True
-    while next_url and resp.status_code == 200:
-        if audience_max_id:
-            result_data = []
-            for result in resp.json().get("results"):
-                if result.get('id') > audience_max_id:
-                    result_data.append(result)
-                else:
-                    next_url = None
-                    break
-            yield result_data
-        else:
-            yield resp.json().get("results")
-
+    next_url = None
+    if resp.status_code == 200:
         next_url = resp.json().get("next")
-        if next_url:
-            logger.info(f"Got the next url ## {next_url}")
-            resp = requests.request("GET", f"{next_url}", headers=headers)
+        yield resp.json().get("results")
+
+    while next_url:
+        resp = requests.request("GET", f"{next_url}", headers=headers)
+        next_url = resp.json().get("next")
+        yield resp.json().get("results")
 
     yield []
 
@@ -416,6 +407,23 @@ def add_community_audiences(client_id, api_key, community_id):
         logger.error(f"Error add_community_audiences ## {err}")
 
 
+def check_newly_added_audiences(audiences, audience_max_id):
+    """Function to check newly added audiences and
+     return break required flag for further API call."""
+
+    is_break = False
+    new_audiences = []
+
+    for aud in audiences:
+        if aud.get("id") > audience_max_id:
+            new_audiences.append(aud)
+        else:
+            is_break = True
+            break
+
+    return is_break, new_audiences
+
+
 @shared_task(name='daily_audience_community_updates')
 def daily_audience_community_updates():
     """Function to bulk create new audiences fetched from audience generator function."""
@@ -436,12 +444,19 @@ def daily_audience_community_updates():
                 audience_max_id = 0
 
             for audiences in audience_generator(client_id=community_channel_obj.get('url'),
-                                                api_key=community_channel_obj.get('api_key'),
-                                                audience_max_id=audience_max_id):
+                                                api_key=community_channel_obj.get('api_key')):
+
+                # Function call to check newly added audiences.
+                is_need_to_break, audiences = check_newly_added_audiences(audiences=audiences,
+                                                                          audience_max_id=audience_max_id)
 
                 check_already_exists_audience_and_bulk_create(
                     audiences=audiences, community_id=community_channel_obj.get('community_setting__community'))
                 logger.info("Bulk creating audiences done.")
+
+                if is_need_to_break:
+                    # No further page check needed.
+                    break
 
     except Exception as err:
         logger.error(f"Error daily_audience_community_updates ## {err}")
