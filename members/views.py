@@ -166,7 +166,7 @@ class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         jobs_id_list_to_exclude = []
-        if request.GET.get('status') in [1, 2]:
+        if request.GET.get('status') in ['1', '2']:
             jobs_id_list_query = self.filter_queryset(self.get_queryset()).filter(
                 approver__user__user=request.user, status__in=[1, 2])
 
