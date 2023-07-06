@@ -526,10 +526,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'email', 'user__user__username']
+    ordering_fields = ['company__name', 'email', 'user__user__username', 'user__levels']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
