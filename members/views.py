@@ -164,10 +164,15 @@ class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
     pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
-        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,
-                                                                  status=0).values_list('job_work__job_applied__job_id',
-                                                                                        flat=True)
-        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
+        if request.GET.get('status') in [1, 2]:
+            jobs_id_list_query = self.filter_queryset(self.get_queryset()).filter(
+                approver__user__user=request.user, status__in=[1, 2])
+        else:
+            jobs_id_list_query = self.filter_queryset(self.get_queryset()).filter(
+                approver__user__user=request.user, status=0)
+
+        jobs_id_list = jobs_id_list_query.values_list('job_work__job_applied__job_id', flat=True)
+        job_data = Job.objects.filter(id__in=list(jobs_id_list)).order_by('-modified')
         paginated_data = self.paginate_queryset(job_data)
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)
