@@ -2163,8 +2163,12 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         # paginated_data = self.paginate_queryset(queryset)
         # serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
-        serializer = InviteMemberSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = InviteMemberSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+        return Response({'data': response.data, 'message': ''}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
