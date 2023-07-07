@@ -63,8 +63,10 @@ class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.all().order_by('-modified')
     pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['user']
+    search_fields = ['industry_name', 'created']
+    ordering_fields = ['industry_name', 'created']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user

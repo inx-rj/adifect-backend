@@ -222,7 +222,7 @@ class SkillsViewSet(viewsets.ModelViewSet):
             return Response({'data': serializer.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
 
-        page = self.paginate_queryset(self.filter_queryset(self.queryset))
+        page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
