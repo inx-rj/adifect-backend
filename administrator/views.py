@@ -3,6 +3,7 @@ from sqlite3 import DatabaseError
 import datetime
 from django.shortcuts import render
 
+from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from .serializers import EditProfileSerializer, CategorySerializer, JobSerializer, JobAttachmentsSerializer, \
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
@@ -208,12 +209,17 @@ class LevelViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class SkillsViewSet(viewsets.ModelViewSet):
+    """Skills API which provides CRUD operations."""
+
     serializer_class = SkillsSerializer
     queryset = Skills.objects.all()
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['skill_name', 'created']
     ordering_fields = ['skill_name', 'created']
     pagination_class = CustomPagination
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
 
     def list(self, request, *args, **kwargs):
         main_queryset = Skills.objects.filter().order_by('-modified')
@@ -229,6 +235,20 @@ class SkillsViewSet(viewsets.ModelViewSet):
             response = self.get_paginated_response(serializer.data)
             return Response({'data': response.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': 'Skill Added Successfully.'},
+                        status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': 'Skill Updated Successfully.'}, status=status.HTTP_200_OK)
 
 
 @permission_classes([IsAdmin])
