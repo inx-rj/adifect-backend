@@ -209,20 +209,21 @@ class LevelViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class SkillsViewSet(viewsets.ModelViewSet):
     serializer_class = SkillsSerializer
-    queryset = Skills.objects.filter().order_by('-modified')
+    queryset = Skills.objects.all()
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['skill_name', 'created']
     ordering_fields = ['skill_name', 'created']
     pagination_class = CustomPagination
 
     def list(self, request, *args, **kwargs):
-        self.queryset = self.filter_queryset(self.queryset)
+        main_queryset = Skills.objects.filter().order_by('-modified')
+        skills_queryset = self.filter_queryset(main_queryset)
         if not request.GET.get("page", None):
-            serializer = self.get_serializer(self.queryset, many=True)
+            serializer = self.get_serializer(skills_queryset, many=True)
             return Response({'data': serializer.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
 
-        page = self.paginate_queryset(self.filter_queryset(self.queryset))
+        page = self.paginate_queryset(self.filter_queryset(main_queryset))
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
