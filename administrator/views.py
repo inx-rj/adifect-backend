@@ -2168,7 +2168,7 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = InviteMemberSerializer(page, many=True, context={'request': request})
             response = self.get_paginated_response(serializer.data)
-        return Response({'data': response.data, 'message': ''}, status=status.HTTP_200_OK)
+            return Response({'data': response.data, 'message': ''}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
