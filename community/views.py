@@ -771,14 +771,25 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
         if community_id := request.GET.get('community'):
             self.queryset = self.queryset.filter(community_id=community_id)
 
-        self.queryset = self.queryset.filter().order_by('community', 'audience_id'
-                                                        ).distinct('community', 'audience_id')
+        if ordering := request.GET.get('ordering', None):
+            main_queryset = self.queryset.filter(
+                id__in=self.queryset.order_by('community', 'audience_id').distinct(
+                        'community', 'audience_id').values_list('id', flat=True)
+            ).order_by(ordering)
+        else:
+            main_queryset = self.queryset.filter(
+                id__in=self.queryset.order_by('community', 'audience_id').distinct(
+                        'community', 'audience_id').values_list('id', flat=True)
+            )
+
+        # self.queryset = self.queryset.filter().order_by('community', 'audience_id'
+        #                                                 ).distinct('community', 'audience_id')
 
         if not request.GET.get("page", None):
-            serializer = self.get_serializer(self.queryset, many=True)
+            serializer = self.get_serializer(main_queryset, many=True)
             return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
-        page = self.paginate_queryset(self.queryset)
+        page = self.paginate_queryset(main_queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
