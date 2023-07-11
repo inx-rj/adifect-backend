@@ -554,22 +554,27 @@ class MemberMyProjectViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)        
 
+
 @permission_classes([IsMarketerMember | IsAdminMember])
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
-    search_fields = ['=company']
+    search_fields = ['company__name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(is_trashed=False,
-                                                                    user__isnull=False,
-                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
-            '-modified').exclude(user__user=self.request.user)
-        serializer = InviteMemberSerializer(queryset, many=True)
-        return Response(serializer.data)
-    
+        queryset = self.filter_queryset(self.get_queryset()).filter(
+            is_trashed=False, user__isnull=False, agency__is_account_closed=False,
+            company__is_active=True).order_by('-modified').exclude(user__user=self.request.user)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
+
 
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
