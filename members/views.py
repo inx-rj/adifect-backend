@@ -554,13 +554,15 @@ class MemberMyProjectViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)        
 
+
 @permission_classes([IsMarketerMember | IsAdminMember])
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
-    search_fields = ['=company']
+    search_fields = ['company__name']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(
@@ -572,7 +574,6 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
             return Response({'data': response.data, 'message': ''})
-
 
 
 def In_house_creator_email(job_details):
