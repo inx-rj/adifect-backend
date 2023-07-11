@@ -563,13 +563,17 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     search_fields = ['=company']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(is_trashed=False,
-                                                                    user__isnull=False,
-                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
-            '-modified').exclude(user__user=self.request.user)
-        serializer = InviteMemberSerializer(queryset, many=True)
-        return Response(serializer.data)
-    
+        queryset = self.filter_queryset(self.get_queryset()).filter(
+            is_trashed=False, user__isnull=False, agency__is_account_closed=False,
+            company__is_active=True).order_by('-modified').exclude(user__user=self.request.user)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
+
+
 
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
