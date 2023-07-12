@@ -212,7 +212,7 @@ class SkillsViewSet(viewsets.ModelViewSet):
     """Skills API which provides CRUD operations."""
 
     serializer_class = SkillsSerializer
-    queryset = Skills.objects.all()
+    queryset = Skills.objects.all().order_by('-modified')
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['skill_name', 'created']
     ordering_fields = ['skill_name', 'created']
@@ -222,14 +222,13 @@ class SkillsViewSet(viewsets.ModelViewSet):
         return custom_handle_exception(request=self.request, exc=exc)
 
     def list(self, request, *args, **kwargs):
-        main_queryset = Skills.objects.filter().order_by('-modified')
-        skills_queryset = self.filter_queryset(main_queryset)
+        skills_queryset = self.filter_queryset(self.get_queryset())
         if not request.GET.get("page", None):
             serializer = self.get_serializer(skills_queryset, many=True)
             return Response({'data': serializer.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
 
-        page = self.paginate_queryset(self.filter_queryset(main_queryset))
+        page = self.paginate_queryset(skills_queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
