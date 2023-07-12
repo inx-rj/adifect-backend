@@ -235,16 +235,25 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                                                           channel__name__iexact='opnsesame').first()
             story_data_entry.delay(community_setting_obj.community.community_id, community_id)
 
-            if new_opn_obj and (old_community_id != community_setting_obj.community.id
-                                or old_opn_url != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key):
+            if old_community_id != community_setting_obj.community.id:
                 Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
 
-                if validate_client_id_opnsesame(client_id=new_opn_obj.url, api_key=new_opn_obj.api_key):
-                    # Call Background task for fetching audiences
-                    logger.info("VALID CLIENT_ID")
-                    logger.info("Calling background task to add audiences.")
-                    add_community_audiences.delay(new_opn_obj.url, new_opn_obj.api_key,
-                                                  community_setting_obj.community_id)
+            if (
+                new_opn_obj
+                and (
+                    old_community_id != community_setting_obj.community.id
+                    or old_opn_url != new_opn_obj.url
+                    or old_opn_api_key != new_opn_obj.api_key
+                )
+                and validate_client_id_opnsesame(
+                    client_id=new_opn_obj.url, api_key=new_opn_obj.api_key
+                )
+            ):
+                # Call Background task for fetching audiences
+                logger.info("VALID CLIENT_ID")
+                logger.info("Calling background task to add audiences.")
+                add_community_audiences.delay(new_opn_obj.url, new_opn_obj.api_key,
+                                              community_setting_obj.community_id)
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
