@@ -238,8 +238,6 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                 # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
                 delete_story_data.delay(community_id)
                 StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
-
-            if old_community_id != community_setting_obj.community.id:
                 Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
 
             if (
