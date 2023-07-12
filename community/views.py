@@ -217,9 +217,13 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         community_id = instance.community.community_id
         old_opn_obj = CommunityChannel.objects.filter(community_setting=instance,
                                                       channel__name__iexact='opnsesame').first()
-        old_opn_url = old_opn_obj.url
-        old_opn_api_key = old_opn_obj.api_key
+        old_opn_url = None
+        old_opn_api_key = None
         old_community_id = instance.community.id
+
+        if old_opn_obj:
+            old_opn_url = old_opn_obj.url
+            old_opn_api_key = old_opn_obj.api_key
 
         with transaction.atomic():
             CommunityChannel.objects.filter(community_setting=instance).delete()
@@ -235,12 +239,11 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                 delete_story_data.delay(community_id)
                 StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
 
-            if old_community_id != community_setting_obj.community.id or old_opn_url \
-                    != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key:
+            if new_opn_obj and (old_community_id != community_setting_obj.community.id
+                                or old_opn_url != new_opn_obj.url or old_opn_api_key != new_opn_obj.api_key):
                 Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
 
-                if new_opn_obj and validate_client_id_opnsesame(client_id=new_opn_obj.url,
-                                                                api_key=new_opn_obj.api_key):
+                if validate_client_id_opnsesame(client_id=new_opn_obj.url, api_key=new_opn_obj.api_key):
                     # Call Background task for fetching audiences
                     logger.info("VALID CLIENT_ID")
                     logger.info("Calling background task to add audiences.")
