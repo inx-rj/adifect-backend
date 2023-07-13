@@ -56,7 +56,9 @@ def sync_function(url, headers, params, update=None, last_story_id=None):
                             page += 1
                             repeater_count = 0
                             community_page_repeater_count = {}
+                        time.sleep(2)
                         continue
+
                     if status != 200:
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         continue
@@ -107,14 +109,15 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         community_page_repeater_count[params.get('by_community')] = {}
                         repeater_count += 1
-                        time.sleep(2)
                         community_page_repeater_count[params.get('by_community')][params.get('page')] = repeater_count
                         if community_page_repeater_count[params.get('by_community')][params.get('page')] == 5:
                             page_n += 1
                             page_count -= 1
                             repeater_count = 0
                             community_page_repeater_count = {}
+                        time.sleep(2)
                         continue
+
                     if status != 200:
                         logger.error(f"URL: {full_url}\nRESPONSE: {await resp.text()}\nSTATUS: {status}")
                         continue
