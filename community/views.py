@@ -32,14 +32,14 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
     TAG_TO_STORY_ADDED_SUCCESSFULLY, CREATIVE_CODE_DATA_IMPORTED_SUCCESSFULLY, AUDIENCE_RETRIEVED_SUCCESSFULLY
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
-    CreativeCode, StoryTag, Audience
+    CreativeCode, StoryTag, Audience, StoryStatusConfig
 from community.permissions import IsAuthorizedForListCreate
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
     CommunityAudienceListCreateSerializer
-from .tasks import story_data_entry, add_community_audiences
+from .tasks import add_community_audiences, delete_story_data
 from .utils import validate_client_id_opnsesame
 
 logger = logging.getLogger('django')
@@ -190,7 +190,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
-        story_data_entry.delay(community_setting_obj.community.community_id)
+        StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
         opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                          channel__name__iexact='opnsesame').first()
         if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,
@@ -205,8 +205,9 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        story_data_entry.delay(instance.community.community_id, instance.community.community_id,
-                               instance_community_delete=True)
+        # story_data_entry.delay(instance.community.community_id, instance.community.community_id,
+        #                        instance_community_delete=True)
+        delete_story_data.delay(instance.community.community_id)
         Audience.objects.filter(community_id=instance.community.id).update(is_trashed=True)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -233,9 +234,10 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
             community_setting_obj = serializer.save()
             new_opn_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                           channel__name__iexact='opnsesame').first()
-            story_data_entry.delay(community_setting_obj.community.community_id, community_id)
-
             if old_community_id != community_setting_obj.community.id:
+                # story_data_entry.delay(community_setting_obj.community.community_id, community_id)
+                delete_story_data.delay(community_id)
+                StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
                 Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
 
             if (
@@ -779,14 +781,25 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
         if community_id := request.GET.get('community'):
             self.queryset = self.queryset.filter(community_id=community_id)
 
-        self.queryset = self.queryset.filter().order_by('community', 'audience_id'
-                                                        ).distinct('community', 'audience_id')
+        if ordering := request.GET.get('ordering', None):
+            main_queryset = self.queryset.filter(
+                id__in=self.queryset.order_by('community', 'audience_id').distinct(
+                        'community', 'audience_id').values_list('id', flat=True)
+            ).order_by(ordering)
+        else:
+            main_queryset = self.queryset.filter(
+                id__in=self.queryset.order_by('community', 'audience_id').distinct(
+                        'community', 'audience_id').values_list('id', flat=True)
+            )
+
+        # self.queryset = self.queryset.filter().order_by('community', 'audience_id'
+        #                                                 ).distinct('community', 'audience_id')
 
         if not request.GET.get("page", None):
-            serializer = self.get_serializer(self.queryset, many=True)
+            serializer = self.get_serializer(main_queryset, many=True)
             return Response({'data': serializer.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
-        page = self.paginate_queryset(self.queryset)
+        page = self.paginate_queryset(main_queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)

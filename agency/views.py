@@ -1,3 +1,5 @@
+import os
+
 from django.shortcuts import render
 from rest_framework.response import Response
 from administrator.models import Job, JobAttachments, JobApplied, MemberApprovals, JobActivity, JobActivityAttachments, \
@@ -61,8 +63,10 @@ class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     queryset = Industry.objects.all().order_by('-modified')
     pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['user']
+    search_fields = ['industry_name', 'created']
+    ordering_fields = ['industry_name', 'created']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
@@ -83,9 +87,10 @@ class IndustryViewSet(viewsets.ModelViewSet):
 class CompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanySerializer
     queryset = Company.objects.all().order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['name', 'created', 'id']
+    ordering_fields = ['name', 'created', 'agency__role']
 
     def get_queryset(self):
         user = self.request.user
@@ -355,9 +360,10 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False).order_by('-modified')
     pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
@@ -522,10 +528,11 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'email', 'user__user__username']
+    ordering_fields = ['company__name', 'email', 'user__user__username', 'user__levels']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
@@ -591,10 +598,11 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                          company=company)
                 decodeId = StringEncoder.encode(self, invite.user.id)
                 try:
-                    subject = "Invitation link to Join Team"
+                    invite_email_from = os.environ.get('INVITE_EMAIL_FROM')
+                    subject = f"You're Invited to Join {invite.company.name} Team"
                     content = Content("text/html",
-                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}</b> Please click the link below to<br />create your account.</div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
-                    data = send_email(from_email, to_email, subject, content)
+                                      f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text"style="padding-top: 80px"><h1 style="font: 24px">Hello,</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}.</b></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/signup-invite/{decodeId}/{exclusive_decode}/{email_decode}"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">Create New Account</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody</table></div>')
+                    data = send_email(invite_email_from, to_email, subject, content)
                     if data:
                         return Response({'message': 'mail Send successfully, Please check your mail'},
                                         status=status.HTTP_200_OK)
@@ -640,11 +648,12 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                         return Response({'message': 'Something went wrong'})
                 elif user.preferred_communication_mode == '0':
                     try:
-                        subject = "Invitation link to Join Team"
+                        invite_email_from = os.environ.get('INVITE_EMAIL_FROM')
+                        subject = f"You're Invited to Join {invite.company.name} Team"
                         content = Content("text/html",
-                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font:24px;color: #000;">Hello, {user.first_name} {user.last_name}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}</b> Please click the  below links.</div><div style="padding: 20px 0px;font-size: 16px color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="display: flex"><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{accept_invite_encode}/{exclusive_decode}><button style="height: 56px;cursor: pointer;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Accept</button></a></div><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{reject_invite_encode}/{exclusive_decode}><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Reject</button></a></div></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect </div></div></div></td></tr></tbody></table></div>')
+                                          f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600" cellpadding="0" cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font:24px;color: #000;">Hello, {user.first_name} {user.last_name}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">You have been invited to join Adifect for <b>{invite.company.name}</b> as <b>{invite.user.get_levels_display()}.</b></div><div style="padding: 20px 0px;font-size: 16px; color: #384860;">Sincerely,<br />The Adifect Team</div></div><div style="display: flex"><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{accept_invite_encode}/{exclusive_decode}><button style="height: 56px;cursor: pointer;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Accept</button></a></div><div style="padding-top: 40px; width: 50%"class="create-new-account"><a href={FRONTEND_SITE_URL}/invite-accept/{decodeId}/{reject_invite_encode}/{exclusive_decode}><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;width: 90%;cursor: pointer;">Reject</button></a></div></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline"> Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect </div></div></div></td></tr></tbody></table></div>')
 
-                        data = send_email(from_email, to_email, subject, content)
+                        data = send_email(invite_email_from, to_email, subject, content)
                         if data:
                             return Response({'message': 'mail Send successfully, Please check your mail'},
                                             status=status.HTTP_200_OK)
@@ -844,7 +853,7 @@ class InviteMemberUserList(APIView):
         agency = request.user
         if level == '3':
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
-                                                       user__user__isnull=False, user__levels__in=[1,3])
+                                                       user__user__isnull=False, user__levels__in=[1,2,3])
         else:
             invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
                                                        user__user__isnull=False)
@@ -1367,9 +1376,10 @@ class DraftJobViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     pagination_class = CustomPagination
     queryset = Job.objects.filter(status=0).order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['company']
     search_fields = ['company__name', 'title']
+    ordering_fields = ['company__name', 'title']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)

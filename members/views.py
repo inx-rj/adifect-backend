@@ -26,6 +26,7 @@ import json
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from adifect.settings import SEND_GRID_API_key, FRONTEND_SITE_URL, LOGO_122_SERVER_PATH, BACKEND_SITE_URL, \
     TWILIO_NUMBER, TWILIO_NUMBER_WHATSAPP, SEND_GRID_FROM_EMAIL
+from common.pagination import CustomPagination
 from helper.helper import StringEncoder, send_text_message, send_skype_message, send_email, send_whatsapp_message
 from django.db.models import Subquery, Q
 from notification.models import Notifications
@@ -161,17 +162,31 @@ class MemberJobListViewSet(viewsets.ModelViewSet):
 class MemberApprovalJobListViewSet(viewsets.ModelViewSet):
     serializer_class = JobsWithAttachmentsSerializer
     queryset = MemberApprovals.objects.all()
-    pagination_class = FiveRecordsPagination
+    pagination_class = CustomPagination
 
     def list(self, request, *args, **kwargs):
-        job_id = self.filter_queryset(self.get_queryset()).filter(approver__user__user=request.user,
-                                                                  status=0).values_list('job_work__job_applied__job_id',
-                                                                                        flat=True)
-        job_data = Job.objects.filter(id__in=list(job_id)).order_by('-modified')
+        jobs_id_list_to_exclude = []
+        if request.GET.get('status') in ['1', '2']:
+            jobs_id_list_query = self.filter_queryset(self.get_queryset()).filter(
+                approver__user__user=request.user, status__in=[1, 2])
+
+            # Getting Ids with status 0 which we will use to exclude jobs.
+            jobs_id_list_to_exclude = self.filter_queryset(self.get_queryset()).filter(
+                approver__user__user=request.user, status=0).values_list(
+                'job_work__job_applied__job_id', flat=True)
+        else:
+            jobs_id_list_query = self.filter_queryset(self.get_queryset()).filter(
+                approver__user__user=request.user, status=0)
+
+        jobs_id_list = jobs_id_list_query.values_list('job_work__job_applied__job_id', flat=True)
+
+        job_data = Job.objects.filter(id__in=jobs_id_list).order_by('-modified').exclude(
+            id__in=jobs_id_list_to_exclude)
         paginated_data = self.paginate_queryset(job_data)
-        serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
-        return self.get_paginated_response(data=serializer.data)
-        # return Response(data=serializer.data, status=status.HTTP_200_OK)
+        if paginated_data is not None:
+            serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
+            response = self.get_paginated_response(data=serializer.data)
+            return Response({"data": response.data, "message": ""})
 
     def retrieve(self, request, pk=None):
         if pk:
@@ -539,22 +554,27 @@ class MemberMyProjectViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(paginated_data, many=True, context={'request': request})
         return self.get_paginated_response(data=serializer.data)        
 
+
 @permission_classes([IsMarketerMember | IsAdminMember])
 class InviteMemberViewSet(viewsets.ModelViewSet):
     serializer_class = InviteMemberSerializer
     queryset = InviteMember.objects.all().order_by('-modified')
+    pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['company']
-    search_fields = ['=company']
+    search_fields = ['company__name']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(is_trashed=False,
-                                                                    user__isnull=False,
-                                                                    agency__is_account_closed=False,company__is_active=True).order_by(
-            '-modified').exclude(user__user=self.request.user)
-        serializer = InviteMemberSerializer(queryset, many=True)
-        return Response(serializer.data)
-    
+        queryset = self.filter_queryset(self.get_queryset()).filter(
+            is_trashed=False, user__isnull=False, agency__is_account_closed=False,
+            company__is_active=True).order_by('-modified').exclude(user__user=self.request.user)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
+
 
 def In_house_creator_email(job_details):
     from_email = Email(SEND_GRID_FROM_EMAIL)
@@ -961,14 +981,14 @@ class MemberInviteMemberUserList(APIView):
 
     def get(self, request, *args, **kwargs):
         company_id = request.GET.get('company', None)
-        level = request.GET.get('level', None)
+        # level = request.GET.get('level', None)
         agency = request.user
-        if level == '3':
-            invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
-                                                       user__user__isnull=False, user__levels=3)
-        else:
-            invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
-                                                       user__user__isnull=False)
+        # if level == '3':
+        #     invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
+        #                                                user__user__isnull=False, user__levels__in=[1,2,3])
+        # else:
+        invited_user = InviteMember.objects.filter(company=company_id,is_blocked=False, status=1,
+                                                   user__user__isnull=False, user__levels__in=[1,2,3])
         if company_id:
             invited_user = invited_user.filter(Q(company_id=company_id) | Q(user__user=agency))
         serializer = self.serializer_class(invited_user, many=True, context={'request': request})

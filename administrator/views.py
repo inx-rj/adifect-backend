@@ -3,6 +3,7 @@ from sqlite3 import DatabaseError
 import datetime
 from django.shortcuts import render
 
+from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
 from .serializers import EditProfileSerializer, CategorySerializer, JobSerializer, JobAttachmentsSerializer, \
     JobAppliedSerializer, LevelSerializer, JobsWithAttachmentsSerializer, SkillsSerializer, \
@@ -191,7 +192,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
-    queryset = Industry.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = Industry.objects.filter().order_by('-modified')
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['industry_name', 'created']
+    ordering_fields = ['industry_name', 'created']
+    pagination_class = CustomPagination
 
 
 # @permission_classes([IsAdmin | IsApproverMember])
@@ -204,34 +209,66 @@ class LevelViewSet(viewsets.ModelViewSet):
 
 @permission_classes([IsAuthenticated])
 class SkillsViewSet(viewsets.ModelViewSet):
+    """Skills API which provides CRUD operations."""
+
     serializer_class = SkillsSerializer
-    queryset = Skills.objects.filter(is_trashed=False).order_by('-modified')
+    queryset = Skills.objects.all().order_by('-modified')
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['skill_name', 'created']
+    ordering_fields = ['skill_name', 'created']
     pagination_class = CustomPagination
 
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
     def list(self, request, *args, **kwargs):
-        self.queryset = self.filter_queryset(self.queryset)
+        skills_queryset = self.filter_queryset(self.get_queryset())
         if not request.GET.get("page", None):
-            serializer = self.get_serializer(self.queryset, many=True)
+            serializer = self.get_serializer(skills_queryset, many=True)
             return Response({'data': serializer.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
 
-        page = self.paginate_queryset(self.queryset)
+        page = self.paginate_queryset(skills_queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
             return Response({'data': response.data, 'message': SKILLS_RETRIEVED_SUCCESSFULLY},
                             status=status.HTTP_200_OK)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': 'Skill Added Successfully.'},
+                        status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': "", 'message': 'Skill Updated Successfully.'}, status=status.HTTP_200_OK)
+
 
 @permission_classes([IsAdmin])
 class UserListViewSet(viewsets.ModelViewSet):
     serializer_class = UserListSerializer
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ['username', 'date_joined', 'email']
+    ordering_fields = ['username', 'date_joined', 'email', 'role', 'is_blocked']
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated]
     queryset = CustomUser.objects.all().order_by('date_joined')
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id).order_by('date_joined')
-        serializer = self.serializer_class(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        queryset = self.filter_queryset(self.get_queryset()).exclude(id=request.user.id)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': "Users List retrieved successfully!"})
+        # serializer = self.serializer_class(queryset, many=True, context={'request': request})
+        # return Response(data=serializer.data)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -1197,17 +1234,19 @@ def dam_sample_template_images_list(dam_sample_work, job_template_id):
 class JobTemplatesViewSet(viewsets.ModelViewSet):
     serializer_class = JobTemplateSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    queryset = JobTemplate.objects.all()
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    queryset = JobTemplate.objects.all().order_by('-modified')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'title', 'template_name']
+    ordering_fields = ['company__name', 'title', 'template_name']
+
 
     # pagination_class = FiveRecordsPagination
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(company__is_active=True)
-        job_data = queryset.filter(user=request.user).order_by('-modified')
+        job_data = queryset.filter(user=request.user)
         if not request.GET.get("page", None):
             serializer = JobTemplateWithAttachmentsSerializer(job_data, many=True, context={'request': request})
             return Response({'data': serializer.data, 'message': JOB_TEMPLATE_RETRIEVED_SUCCESSFULLY},
@@ -2123,8 +2162,12 @@ class AgencyInviteListViewSet(viewsets.ModelViewSet):
         # paginated_data = self.paginate_queryset(queryset)
         # serializer = InviteMemberSerializer(paginated_data, many=True, context={'request': request})
         # return self.get_paginated_response(data=serializer.data)
-        serializer = InviteMemberSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = InviteMemberSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -4342,12 +4385,20 @@ class ShareMediaUrl(APIView):
 
 class HelpModelViewset(viewsets.ModelViewSet):
     serializer_class = HelpSerializer
-    queryset = Help.objects.all()
+    queryset = Help.objects.all().order_by('-created')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = CustomPagination
+    permission_classes = [IsAuthenticated]
+    search_fields = ['subject']
+    ordering_fields = ['subject', 'modified']
 
     def list(self, request, *args, **kwargs):
-        queryset = Help.objects.filter(user=request.user).order_by('-created')
-        serializer = HelpSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        queryset = self.filter_queryset(self.get_queryset().filter(user=request.user))
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpSerializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -4368,7 +4419,8 @@ class HelpModelViewset(viewsets.ModelViewSet):
                 content = Content("text/html",
                                   f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.subject} </h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;">{latest_image.message} </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.user.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.user.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=jobs/details/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
 
-                data = send_email(from_email, to_email, subject, content)
+                # Uncommented the below line once functionality is completed from frontend.
+                # data = send_email(from_email, to_email, subject, content)
             except Exception as e:
                 print(e)
 
@@ -4699,8 +4751,11 @@ class HelpchatViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpChatSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -4739,7 +4794,7 @@ class HelpchatViewset(viewsets.ModelViewSet):
                 content = Content("text/html",
                                   f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"> </div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.receiver.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.receiver.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
 
-                data = send_email(from_email, to_email, subject, content)
+                # data = send_email(from_email, to_email, subject, content)
             except Exception as e:
                 print(e)
 
@@ -4762,12 +4817,19 @@ class HelpchatViewset(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 class AdminHelpModelViewset(viewsets.ModelViewSet):
     serializer_class = HelpSerializer
-    queryset = Help.objects.all()
+    queryset = Help.objects.all().order_by('-created')
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = CustomPagination
+    search_fields = ['subject']
+    ordering_fields = ['subject', 'modified']
 
     def list(self, request, *args, **kwargs):
-        queryset = self.queryset.order_by('-created')
-        serializer = HelpSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data)
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
 
 class AgencyHelpchatViewset(viewsets.ModelViewSet):
@@ -4776,8 +4838,11 @@ class AgencyHelpchatViewset(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.queryset.filter(Q(sender=request.user) | Q(receiver=request.user))
-        serializer = HelpChatSerializer(queryset, many=True, context={'request': request})
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = HelpChatSerializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            return Response({'data': response.data, 'message': ''})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -4798,7 +4863,7 @@ class AgencyHelpchatViewset(viewsets.ModelViewSet):
                 content = Content("text/html",
                                   f'<div style="background: rgba(36, 114, 252, 0.06) !important"><table style="font: Arial, sans-serif;border-collapse: collapse;width: 600px;margin: 0 auto;"width="600"cellpadding="0"cellspacing="0"><tbody><tr><td style="width: 100%; margin: 36px 0 0"><div style="padding: 34px 44px;border-radius: 8px !important;background: #fff;border: 1px solid #dddddd5e;margin-bottom: 50px;margin-top: 50px;"><div class="email-logo"><img style="width: 165px"src="{LOGO_122_SERVER_PATH}"/></div><a href="#"></a><div class="welcome-text" style="padding-top: 80px"><h1 style="font: 24px">{latest_image.chat}</h1></div><div class="welcome-paragraph"><div style="padding: 10px 0px;font-size: 16px;color: #384860;"></div><div style="background-color: rgba(36, 114, 252, 0.1);border-radius: 8px;"><div style="padding: 20px"><div style="display: flex;align-items: center;"><span style="font-size: 14px;color: #2472fc;font-weight: 700;margin-bottom: 0px;padding: 10px 14px;"> user:&nbsp;&nbsp;{latest_image.sender.get_full_name()}<p>email:&nbsp;&nbsp;{latest_image.sender.email}</p></span><span style="font-size: 12px;color: #a0a0a0;font-weight: 500;padding: 10px 14px;margin-bottom: 0px;">{latest_image.created.strftime("%B %d, %Y %H:%M:%p")}</span></div><div style="font-size: 16px;color: #000000;padding-left: 54px;"></div><div style="padding: 11px 54px 0px">{attachments}</div><div style="display: flex"></div></div></div><div style="padding: 20px 0px;font-size: 16px;color: #384860;"></div>Sincerely,<br />The Adifect Team</div><div style="padding-top: 40px"class="create-new-account"><a href="{FRONTEND_SITE_URL}/?redirect=help/"><button style="height: 56px;padding: 15px 44px;background: #2472fc;border-radius: 8px;border-style: none;color: white;font-size: 16px;">View Asset on Adifect</button></a></div><div style="padding: 50px 0px"class="email-bottom-para"><div style="padding: 20px 0px;font-size: 16px;color: #384860;">This email was sent by Adifect. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Adifect? <a href="#"><span style="text-decoration: underline">Unsubscribe.</span></a></div><div style="font-size: 16px; color: #384860">© 2022 Adifect</div></div></div></td></tr></tbody></table></div>')
 
-                data = send_email(from_email, to_email, subject, content)
+                # data = send_email(from_email, to_email, subject, content)
             except Exception as e:
                 print(e)
             context = {
