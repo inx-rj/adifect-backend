@@ -4001,6 +4001,11 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         company = request.GET.get('company', None)
+        try:
+            id = int(id)
+        except Exception as err:
+            id = None
+
         if id:
             fav_folder = DAM.objects.filter(is_favourite=True, parent=id,
                                             is_trashed=False).count()
