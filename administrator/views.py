@@ -3815,26 +3815,20 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
 
-        if serializer.is_valid():
-            if request.data['company']:
-                if request.data.get('company') == "0":
-                    DAM.objects.filter(pk=request.data['dam']).update(company=None)
-                    self.perform_update(serializer)
-                else:
-                    DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
-                    self.perform_update(serializer)
-            else:
-                DAM.objects.filter(pk=request.data['dam']).update(company=None)
-                self.perform_update(serializer)
-            context = {
-                'message': 'Updated Successfully...',
-                'status': status.HTTP_200_OK,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
-        else:
+        if not serializer.is_valid():
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if request.data.get('company'):
+            DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+        else:
+            DAM.objects.filter(pk=request.data['dam']).update(company=None)
+        self.perform_update(serializer)
+        context = {
+            'message': 'Updated Successfully...',
+            'status': status.HTTP_200_OK,
+            'errors': serializer.errors,
+            'data': serializer.data,
+        }
+        return Response(context)
         
     @action(methods=['post'], detail=False, url_path='update_collection', url_name='update_collection')
     def update_collection(self, request, *args, **kwargs):
