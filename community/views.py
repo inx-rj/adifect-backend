@@ -3,6 +3,7 @@ import logging
 import os
 import zipfile
 
+import facebook
 import requests
 import io
 
@@ -11,12 +12,14 @@ from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
+from requests import post
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from twilio.jwt import access_token
 
 from common.exceptions import custom_handle_exception
 from common.pagination import CustomPagination
@@ -39,6 +42,7 @@ from community.serializers import StorySerializer, CommunityTagsSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
     CreativeCodeSerializer, AddStoryTagsSerializer, StoryTagSerializer, TagSerializer, \
     CommunityAudienceListCreateSerializer
+from .facebook_handler import FacebookAPIClient
 from .tasks import add_community_audiences, delete_story_data
 from .utils import validate_client_id_opnsesame
 
@@ -804,3 +808,125 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
             return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})
+
+
+class FacebookPostStoryView(APIView):
+
+    # def obtain_short_lived_token(self, api_key, api_url):
+    #     # sourcery skip: assign-if-exp, instance-method-first-arg-name
+    #     url = 'https://graph.facebook.com/v14.0/oauth/access_token'
+    #     params = {
+    #         'client_id': api_key,
+    #         'client_secret': api_url,
+    #         'grant_type': 'client_credentials'
+    #     }
+    #
+    #     response = requests.post(url, params=params)
+    #     data = response.json()
+    #
+    #     if 'access_token' in data:
+    #         return data['access_token']
+    #     else:
+    #         # Handle error case if access_token is not present in the response
+    #         return None
+    #
+    # def get_access_token(self, api_key, api_url):
+    #     try:
+    #         # Obtain a short-lived access token
+    #         short_lived_token = self.obtain_short_lived_token(api_key, api_url)
+    #         print(short_lived_token, "short_lived_token")
+    #
+    #         # Create a Facebook session
+    #         fb_session = facebook.GraphAPI(version='3.1', access_token=short_lived_token)
+    #         print(fb_session, "fb_session")
+    #         print(api_key, "api_key")
+    #         print(api_url, "api_url")
+    #
+    #         # Obtain a long-lived access token
+    #         long_lived_token = fb_session.extend_access_token(api_key, api_url)
+    #         print(long_lived_token, "long_lived_token")
+    #
+    #         return long_lived_token['access_token']
+    #     except facebook.GraphAPIError as e:
+    #         print(e, "Error")
+    #         # Handle authentication errors
+    #         return None
+
+    def post(self, request):
+        api_key = request.data.get('api_key')
+        api_url = request.data.get('api_url')
+        story = request.data.get('story')
+
+        # url = 'https://graph.facebook.com/v16.0/me/accounts?fields=id,name,access_token'
+        # params = {
+        #     'client_id': api_key,
+        #     'client_secret': api_url,
+        #     'grant_type': 'client_credentials'
+        # }
+        url = f'https://graph.facebook.com/oauth/access_token?client_id={api_key}&client_secret={api_url}&grant_type=client_credentials'
+
+        response = requests.post(url)
+        data = response.json()
+        print(data, "data")
+        if 'access_token' in data:
+            app_access_token = data['access_token']
+        else:
+            # Handle error case if access_token is not present in the response
+            return None
+
+        exchange_url = f'https://graph.facebook.com/{api_key}/accounts'
+        exchange_params = {
+            'access_token': app_access_token
+        }
+
+        exchange_response = requests.post(exchange_url, params=exchange_params)
+        exchange_data = exchange_response.json()
+        print(exchange_data, "exchange_data")
+        user_access_token = exchange_data['data'][0]['access_token']
+
+        # graph = facebook.GraphAPI(access_token)
+        # accounts = graph.get_object('me/accounts', fields='id,name,access_token')
+
+        # Authenticate with Facebook and obtain an access token using the provided API key and URL
+        # ...
+        # access_token = "EAAOAPsUQdMABAIxSBBZBZBy2KsktXIlEhCOsTAKY5c9de2rvPoIVmB1CBrSh2P5WHw3dp0YDzMgqijZCnv4gzvhQZAkwc8IpeEL8qd806PQclFsbaZB0yZCwaPAYTy7GLUr2JsCI8t7mRykOZCeflIkaTvyaM9mI7cwbRaM3jsuSnFuE1ZBIvT0ZAo7IlvynN7r77VygWZBG748DdwqqR08dKE"
+        print(user_access_token, "access_token")
+
+        if user_access_token:
+            print("Inside")
+            # return Response({'message': 'Story posted successfully'})
+            # Create a Facebook API client using the access token
+            fb_client = FacebookAPIClient(access_token)
+
+            # Post the story using the client
+            success = fb_client.post_story(story)
+
+            if success:
+                return Response({'message': 'Story posted successfully'})
+            else:
+                return Response({'message': 'Failed to post story'}, status=400)
+        else:
+            return Response({'message': 'Invalid API key or URL'}, status=400)
+
+    # def post(self, request):
+    #     api_key = request.data.get('api_key')
+    #     api_url = request.data.get('api_url')
+    #     story = request.data.get('story')
+    #
+    #     # graph = facebook.GraphAPI(access_token=f"{api_key}|{api_url}")
+    #     # graph.put_object("me", "feed", message=story)
+    #
+    #     # return Response({'message': 'Post created on Facebook'})
+    #
+    #     url = "https://graph.facebook.com/v2.12/me/feed"
+    #     data = {
+    #         "message": story,
+    #     }
+    #     headers = {
+    #         "Authorization": "OAuth %s|%s" % (api_key, api_url),
+    #         "Content-Type": "application/json"
+    #     }
+    #     response = post(url, data=data, headers=headers)
+    #     # return response
+    #     return Response({'message': 'Post created on Facebook', 'data': response})
+
