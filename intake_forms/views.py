@@ -44,8 +44,8 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
         """
         API to get list of intake form
         """
-        self.queryset = self.filter_queryset(self.queryset)
-        page = self.paginate_queryset(self.queryset)
+        queryset = self.filter_queryset(self.get_queryset().distinct())
+        page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)

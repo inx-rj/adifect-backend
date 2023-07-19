@@ -1447,10 +1447,10 @@ class CompanyViewSet(viewsets.ModelViewSet):
 class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False,company__is_active=True).order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
-    filterset_fields = ['company', 'is_blocked']
-    search_fields = ['=company']
+    search_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name']
 
     def list(self, request, *args, **kwargs):
         workflow_data = self.filter_queryset(self.get_queryset())
