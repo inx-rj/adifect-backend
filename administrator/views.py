@@ -1239,7 +1239,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'title', 'template_name']
-    ordering_fields = ['company__name', 'title', 'template_name']
+    ordering_fields = ['company__name', 'title', 'template_name', 'created', 'modified']
 
 
     # pagination_class = FiveRecordsPagination
