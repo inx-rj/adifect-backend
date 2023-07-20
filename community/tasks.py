@@ -140,9 +140,8 @@ def community_story_sync_function(url: str, headers: dict, params: dict, page: i
     return data_list, page, is_completed
 
 
-@shared_task(name="story_community_settings")
 def story_community_settings():
-    """Cron job that fetches stories for community settings that are added in the system"""
+    """Function that fetches stories for community settings that are added in the system recursively."""
 
     try:
         story_url = os.environ.get('STORY_UPDATE_URL')
@@ -153,9 +152,11 @@ def story_community_settings():
         community_objs = CommunitySetting.objects.filter(
             is_trashed=False).values_list('community__community_id', flat=True)
 
+        if not StoryStatusConfig.objects.filter(is_completed=False).exists():
+            return True
+
         for community_id in community_objs:
             params['by_community'] = community_id
-            logger.info(f"Calling Story ASYNC for Community {community_id}")
 
             if not StoryStatusConfig.objects.filter(
                     community__community_id=params.get('by_community')).exists():
@@ -168,6 +169,8 @@ def story_community_settings():
                     is_trashed=False, is_completed=False
             ).last():
                 last_page = status_object.last_page
+                logger.info(f"Calling Story ASYNC for Community {community_id} ## Last Page ## {last_page}")
+
                 story_data_list, last_page_called, is_completed = community_story_sync_function(
                     story_url, headers, params, page=last_page)
 
@@ -177,15 +180,35 @@ def story_community_settings():
                 logger.info(f"Starting Add Stories for Community Id ## {community_obj_id}")
 
                 if story_data_list:
-                    add_community_stories.delay(story_data_list, community_obj_id)
+                    add_community_stories(story_data_list, community_obj_id)
 
                 # Updating the status of pages visited from current job.
                 status_object.last_page = last_page_called
                 status_object.is_completed = is_completed
                 status_object.save(update_fields=['last_page', 'is_completed'])
 
+        story_community_settings()
+
     except Exception as e:
-        logger.error(f"community_data_entry error ## {e}")
+        logger.error(f"story_community_settings error ## {e}")
+        return False
+
+
+@shared_task(name="story_community_settings_main_handler")
+def story_community_settings_main_handler():
+    """Main story community setting handler that will call story_community_settings()
+     which will recursively fetch stories for added community setting."""
+
+    task_list = TaskResult.objects.filter(task_name='story_community_settings_main_handler').exclude(
+        task_id=story_community_settings_main_handler.request.id).values_list('status', flat=True)
+    if 'STARTED' in task_list or 'PENDING' in task_list:
+        logger.info("story_community_settings_main_handler ## TASK ALREADY RUNNING.")
+        return
+
+    status = story_community_settings()     # Calling recursive function
+    logger.info(f"story_community_settings_main_handler ## COMPLETED with status {status}")
+
+    return True
 
 
 @shared_task(name="community_data_entry")
