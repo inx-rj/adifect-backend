@@ -1239,7 +1239,7 @@ class JobTemplatesViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'title', 'template_name']
-    ordering_fields = ['company__name', 'title', 'template_name']
+    ordering_fields = ['company__name', 'title', 'template_name', 'created', 'modified']
 
 
     # pagination_class = FiveRecordsPagination
@@ -1447,10 +1447,10 @@ class CompanyViewSet(viewsets.ModelViewSet):
 class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorksFlowSerializer
     queryset = WorksFlow.objects.filter(is_trashed=False,company__is_active=True).order_by('-modified')
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
-    filterset_fields = ['company', 'is_blocked']
-    search_fields = ['=company']
+    search_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name']
 
     def list(self, request, *args, **kwargs):
         workflow_data = self.filter_queryset(self.get_queryset())
@@ -3815,26 +3815,20 @@ class DamMediaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(
             instance, data=request.data, partial=partial)
 
-        if serializer.is_valid():
-            if request.data['company']:
-                if request.data.get('company') == "0":
-                    DAM.objects.filter(pk=request.data['dam']).update(company=None)
-                    self.perform_update(serializer)
-                else:
-                    DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
-                    self.perform_update(serializer)
-            else:
-                DAM.objects.filter(pk=request.data['dam']).update(company=None)
-                self.perform_update(serializer)
-            context = {
-                'message': 'Updated Successfully...',
-                'status': status.HTTP_200_OK,
-                'errors': serializer.errors,
-                'data': serializer.data,
-            }
-            return Response(context)
-        else:
+        if not serializer.is_valid():
             return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if request.data.get('company'):
+            DAM.objects.filter(pk=request.data['dam']).update(company=request.data['company'])
+        else:
+            DAM.objects.filter(pk=request.data['dam']).update(company=None)
+        self.perform_update(serializer)
+        context = {
+            'message': 'Updated Successfully...',
+            'status': status.HTTP_200_OK,
+            'errors': serializer.errors,
+            'data': serializer.data,
+        }
+        return Response(context)
         
     @action(methods=['post'], detail=False, url_path='update_collection', url_name='update_collection')
     def update_collection(self, request, *args, **kwargs):
@@ -4001,6 +3995,11 @@ class DamMediaFilterViewSet(viewsets.ModelViewSet):
     def count(self, request, *args, **kwargs):
         id = request.GET.get('id', None)
         company = request.GET.get('company', None)
+        try:
+            id = int(id)
+        except Exception as err:
+            id = None
+
         if id:
             fav_folder = DAM.objects.filter(is_favourite=True, parent=id,
                                             is_trashed=False).count()

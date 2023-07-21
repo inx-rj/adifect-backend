@@ -28,18 +28,18 @@ app.conf.beat_schedule = {
     },
     'community-daily-story-updates': {
         'task': 'daily_story_updates',
-        'schedule': timedelta(hours=3)
+        'schedule': timedelta(hours=5)
     },
     'audience-daily-community-updates': {
         'task': 'daily_audience_community_updates',
-        'schedule': timedelta(hours=3)
+        'schedule': timedelta(hours=5)
     },
-    'community-settings-story-fetch': {
-        'task': 'story_community_settings',
+    'story-community-settings-main-handler': {
+        'task': 'story_community_settings_main_handler',
         'schedule': timedelta(minutes=15)
     },
-    'delete-story-with-deleted-community':  {
-            'task': 'delete_story_with_deleted_community',
+    'delete-story-with-deleted-community': {
+        'task': 'delete_story_with_deleted_community',
         'schedule': timedelta(days=1)
     }
 }
