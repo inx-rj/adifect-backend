@@ -852,10 +852,10 @@ class InviteMemberUserList(APIView):
         level = request.GET.get('level', None)
         agency = request.user
         if level == '3':
-            invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
+            invited_user = InviteMember.objects.filter(is_blocked=False, status=1,
                                                        user__user__isnull=False, user__levels__in=[1,2,3])
         else:
-            invited_user = InviteMember.objects.filter(agency=agency, is_blocked=False, status=1,
+            invited_user = InviteMember.objects.filter(is_blocked=False, status=1,
                                                        user__user__isnull=False)
         if company_id:
             invited_user = invited_user.filter(Q(company_id=company_id) | Q(user__user=agency))
