@@ -96,7 +96,7 @@ class StorySerializer(serializers.ModelSerializer):
         return TagSerializer(obj.community.tag_community.all(), many=True).data
 
     def get_community_channels(self, obj):
-        if obj.community.community_setting_community:
+        if obj.community.community_setting_community.exists():
             return CommunityChannelSerializer(
                 obj.community.community_setting_community.first().community_channel_community.all(),
                 many=True).data
