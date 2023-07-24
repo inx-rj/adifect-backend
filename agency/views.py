@@ -363,7 +363,7 @@ class WorksFlowViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['company', 'is_blocked']
     search_fields = ['company__name', 'name']
-    ordering_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name', 'is_active']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
