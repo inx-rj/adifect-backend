@@ -4,7 +4,8 @@ from community.views import StoriesList, CommunityTagsListCreate, CommunityList,
     ChannelListCreateAPIView, ChannelRetrieveUpdateDestroyAPIView, ProgramRetrieveUpdateDestroyAPIView, \
     ProgramListCreateAPIView, CopyCodeListCreateAPIView, CopyCodeRetrieveUpdateDestroyAPIView, \
     CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, ExportArticleCsv, AddStoryTagsView, \
-    OpnSesameViewSet, StoryDetailView, CreativeCodeImportAPIView, CommunityAudienceListCreateView
+    OpnSesameViewSet, StoryDetailView, CreativeCodeImportAPIView, CommunityAudienceListCreateView, \
+    FacebookPostHandlerAPIView
 
 urlpatterns = [
     path('stories/', StoriesList.as_view(), name='list_stories'),
@@ -32,4 +33,5 @@ urlpatterns = [
     path('story-page/<int:id>/', StoryDetailView.as_view(), name="story_page"),
     path('import-creative-code/', CreativeCodeImportAPIView.as_view(), name='retrieve_creative_code'),
     path('audience/', CommunityAudienceListCreateView.as_view(), name='community_audience_list_create'),
+    path('facebook/<int:id>/', FacebookPostHandlerAPIView.as_view(), name='facebook_post')
 ]
