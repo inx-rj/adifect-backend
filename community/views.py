@@ -769,7 +769,7 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['audience_id', 'name']
-    ordering_fields = ['id', 'name', 'audience_id']
+    ordering_fields = ['id', 'name', 'audience_id', 'opted_out', 'row_count', 'community__name']
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):

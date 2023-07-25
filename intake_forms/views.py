@@ -1,6 +1,7 @@
 import json
 
 from django.db import transaction
+from django.db.models import OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, serializers
@@ -31,12 +32,10 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
         return custom_handle_exception(request=self.request, exc=exc)
 
     serializer_class = IntakeFormSerializer
-    queryset = IntakeForm.objects.filter(is_trashed=False).order_by('-id')
+    queryset = IntakeForm.objects.filter().order_by('-id')
     filter_backends = [OrderingFilter, SearchFilter]
-    search_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
-                     'intake_form_field_version_form__version']
-    ordering_fields = ['title', 'intake_form_field_version_form__user__username', 'created',
-                       'intake_form_field_version_form__version']
+    search_fields = ['title', 'intake_form_field_version_form__user__username', 'created']
+    ordering_fields = ['title', 'intake_form_field_version_form__user__username', 'created']
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated]
 
@@ -44,8 +43,10 @@ class IntakeFormListCreateView(generics.ListCreateAPIView):
         """
         API to get list of intake form
         """
-        self.queryset = self.filter_queryset(self.queryset)
-        page = self.paginate_queryset(self.queryset)
+        queryset = self.filter_queryset(self.get_queryset().annotate(
+            intake_form_field_version_form__user__username=IntakeFormFieldVersion.objects.filter(
+                intake_form_id=OuterRef('id')).values('user__username')[:1]))
+        page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)

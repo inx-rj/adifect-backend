@@ -599,7 +599,8 @@ class MemberApprovals(BaseModel):
     approver = models.ForeignKey(InviteMember, related_name="job_approvers", on_delete=models.SET_NULL,
                                  null=True, blank=True)
     status = models.IntegerField(choices=Status.choices, default=Status.Pending)
-    message = models.CharField(default=None, max_length=50000, blank=True, null=True)
+    message = models.TextField(default=None, blank=True, null=True)
+    comment = models.TextField(blank=True, null=True)
     workflow_stage = models.ForeignKey(Workflow_Stages, related_name="job_stages", on_delete=models.SET_NULL,
                                        null=True, blank=True)
     nudge_status = models.CharField(default='', max_length=50000, blank=True, null=True)
