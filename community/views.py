@@ -818,21 +818,22 @@ class FacebookPostHandlerAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         base_url = os.environ.get("FACEBOOK_API_URL", "")
-        request_url = request.data.get("url")
+        request_url = request.data.get("url", "")
         story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
-        params = {}
         url = base_url
         http_method = "GET"
 
         if not request_url:
             raise serializers.ValidationError({"url": ["This field is required!"]})
 
+        facebook_obj = CommunityChannel.objects.filter(
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='facebook').first()
+
         if request_url == "oauth/access_token":
-            # Generate long-lived Token from short-lived token
+            # Generate long-lived Token from short-lived token.
+
             short_token = request.data.get("token")
-            facebook_obj = CommunityChannel.objects.filter(
-                community_setting=story_obj.community.community_setting_community.first(),
-                channel__name__iexact='facebook').first()
             url += "oauth/access_token"
             params = {"grant_type": "fb_exchange_token",
                       "client_id": facebook_obj.url, "client_secret": facebook_obj.api_key,
@@ -840,13 +841,17 @@ class FacebookPostHandlerAPIView(APIView):
 
         elif request_url == "me/accounts":
             # Get all pages from user facebook account.
-            # TODO: Fetch the long-lived token from DB.
 
+            fb_access_token = facebook_obj.meta_data.get("fb_access_token", "")
             url += "me/accounts"
-            params = {"fields": "name,access_token", "access_token": ""}
+            params = {"fields": "name,access_token", "access_token": fb_access_token}
 
         elif request_url == "feed":
-            params = {"fields": "name,access_token", "access_token": ""}
+            # Get all pages from user facebook account.
+            # Map the page name with id and page access token and pass in params in next API.
+
+            fb_access_token = facebook_obj.meta_data.get("fb_access_token", "")
+            params = {"fields": "name,access_token", "access_token": fb_access_token}
             page_resp = requests.request(http_method, f"{base_url}me/accounts", params=params)
 
             if page_resp.status_code == 200:
@@ -859,13 +864,24 @@ class FacebookPostHandlerAPIView(APIView):
 
                 params = {"link": story_obj.story_url, "access_token": page_access, "message": ""}
                 url += f"{page_id}/feed"
-                http_method = "POST"
+            http_method = "POST"
+
+        else:
+            raise serializers.ValidationError({"url": ["Invalid Url."]})
 
         resp = requests.request(http_method, url, params=params)
+        if resp.status_code == 200 and "oauth" in url:
+            # If the response is success then store the long-lived access token into the DB.
 
-        if resp.status_code == 200 and url == "oauth/access_token":
-            # TODO: Store the generated long-lived token into the DB.
-            pass
+            facebook_obj.meta_data = {
+                "fb_access_token": resp.json().get("access_token")
+            }
+            facebook_obj.save(update_fields=["meta_data"])
 
+        if resp.status_code == 200:
+            response_data = {"data": resp.json()}
+        else:
+            response_data = {"message": resp.json().get("error", {}).get("message"), "error": True}
 
+        return Response(response_data, status=resp.status_code)
 
