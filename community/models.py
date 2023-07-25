@@ -126,6 +126,7 @@ class CommunityChannel(BaseModel):
     channel = models.ForeignKey(Channel, related_name='community_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
     url = models.CharField(max_length=200)
     api_key = models.CharField(max_length=200)
+    meta_data = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'CommunityChannels'

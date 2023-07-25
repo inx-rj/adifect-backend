@@ -11,7 +11,7 @@ from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
-from rest_framework import generics, status
+from rest_framework import generics, status, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
@@ -804,3 +804,84 @@ class CommunityAudienceListCreateView(generics.ListAPIView):
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
             return Response({'data': response.data, 'message': AUDIENCE_RETRIEVED_SUCCESSFULLY})
+
+
+class FacebookPostHandlerAPIView(APIView):
+    """
+    API to handle all the Facebook post on specified page.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+        base_url = os.environ.get("FACEBOOK_API_URL", "")
+        request_url = request.data.get("url", "")
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        url = base_url
+        http_method = "GET"
+
+        if not request_url:
+            raise serializers.ValidationError({"url": ["This field is required!"]})
+
+        facebook_obj = CommunityChannel.objects.filter(
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='facebook').first()
+
+        if request_url == "oauth/access_token":
+            # Generate long-lived Token from short-lived token.
+
+            short_token = request.data.get("token")
+            url += "oauth/access_token"
+            params = {"grant_type": "fb_exchange_token",
+                      "client_id": facebook_obj.url, "client_secret": facebook_obj.api_key,
+                      "fb_exchange_token": short_token}
+
+        elif request_url == "me/accounts":
+            # Get all pages from user facebook account.
+
+            fb_access_token = facebook_obj.meta_data.get("fb_access_token", "")
+            url += "me/accounts"
+            params = {"fields": "name,access_token", "access_token": fb_access_token}
+
+        elif request_url == "feed":
+            # Get all pages from user facebook account.
+            # Map the page name with id and page access token and pass in params in next API.
+
+            fb_access_token = facebook_obj.meta_data.get("fb_access_token", "")
+            params = {"fields": "name,access_token", "access_token": fb_access_token}
+            page_resp = requests.request(http_method, f"{base_url}me/accounts", params=params)
+
+            if page_resp.status_code == 200:
+                page_access = None
+                page_id = None
+                for page in page_resp.json().get("data", []):
+                    if page.get("name") == request.data.get("page_name", ""):
+                        page_access = page.get("access_token")
+                        page_id = page.get("id")
+
+                params = {"link": story_obj.story_url, "access_token": page_access, "message": ""}
+                url += f"{page_id}/feed"
+            http_method = "POST"
+
+        else:
+            raise serializers.ValidationError({"url": ["Invalid Url."]})
+
+        resp = requests.request(http_method, url, params=params)
+        if resp.status_code == 200 and "oauth" in url:
+            # If the response is success then store the long-lived access token into the DB.
+
+            facebook_obj.meta_data = {
+                "fb_access_token": resp.json().get("access_token")
+            }
+            facebook_obj.save(update_fields=["meta_data"])
+
+        if resp.status_code == 200:
+            response_data = {"data": resp.json()}
+        else:
+            response_data = {"message": resp.json().get("error", {}).get("message"), "error": True}
+
+        return Response(response_data, status=resp.status_code)
+
