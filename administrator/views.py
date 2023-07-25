@@ -215,7 +215,7 @@ class SkillsViewSet(viewsets.ModelViewSet):
     queryset = Skills.objects.all().order_by('-modified')
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['skill_name', 'created']
-    ordering_fields = ['skill_name', 'created']
+    ordering_fields = ['skill_name', 'created', 'is_active']
     pagination_class = CustomPagination
 
     def handle_exception(self, exc):
@@ -1450,7 +1450,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = CustomPagination
     search_fields = ['company__name', 'name']
-    ordering_fields = ['company__name', 'name']
+    ordering_fields = ['company__name', 'name', 'is_active']
 
     def list(self, request, *args, **kwargs):
         workflow_data = self.filter_queryset(self.get_queryset())
@@ -4223,7 +4223,7 @@ class CollectionDAMFilter(viewsets.ModelViewSet):
         data = self.request.GET.get('ordering', None)
         queryset = self.queryset
         if not is_parent:
-            queryset = queryset.filter(parent__isnull=True)
+            queryset = queryset.filter(dam__parent__isnull=True)
         if data == '-job_count':
             return queryset.order_by('-created')
 
