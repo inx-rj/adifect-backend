@@ -66,7 +66,7 @@ class IndustryViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['user']
     search_fields = ['industry_name', 'created']
-    ordering_fields = ['industry_name', 'created']
+    ordering_fields = ['industry_name', 'created', 'is_active']
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
