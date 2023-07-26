@@ -22,7 +22,7 @@ class CommunityChannelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunityChannel
-        fields = ('community_setting', 'channel', 'url', 'api_key', 'channel_data')
+        fields = ('community_setting', 'channel', 'meta_data', 'channel_data')
 
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
@@ -162,9 +162,11 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
             for channel in channel_data:
                 if not channel.get('channel'):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
+                if type(channel.get('meta_data')) != dict:
+                    channel["meta_data"] = {}
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
-                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'))
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj,
+                                                meta_data=channel.get('meta_data', {}))
         return instance
 
     def update(self, instance, validated_data):
@@ -175,9 +177,11 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
             for channel in validated_data.get("channel", []):
                 if not channel.get('channel'):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
+                if type(channel.get('meta_data')) != dict:
+                    channel["meta_data"] = {}
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
-                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'))
+                CommunityChannel.objects.create(community_setting=instance, channel=channel_obj,
+                                                meta_data=channel.get('meta_data', {}))
         return instance
 
     def to_representation(self, instance):
