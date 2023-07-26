@@ -843,7 +843,7 @@ class FacebookPostHandlerAPIView(APIView):
             short_token = request.data.get("token")
             url += "oauth/access_token"
             params = {"grant_type": "fb_exchange_token",
-                      "client_id": facebook_obj.meta_data.get("client_id", ""),
+                      "client_id": facebook_obj.meta_data.get("app_id", ""),
                       "client_secret": facebook_obj.meta_data.get("app_secret_key", ""),
                       "fb_exchange_token": short_token}
 
