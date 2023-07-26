@@ -50,6 +50,7 @@ language-data==1.1
 marisa-trie==0.7.8
 msgpack==1.0.4
 multidict==6.0.4
+oauthlib==3.2.2
 paramiko==2.11.0
 Pillow==8.4.0
 prompt-toolkit==3.0.36
@@ -71,6 +72,7 @@ pytz==2022.1
 PyYAML==6.0
 redis==4.4.0
 requests==2.27.1
+requests-oauthlib==1.3.1
 s3transfer==0.5.2
 sendgrid==6.9.7
 service-identity==21.1.0
@@ -80,6 +82,7 @@ SkPy==0.10.4
 soupsieve==2.3.2.post1
 sqlparse==0.4.2
 starkbank-ecdsa==2.0.3
+tweepy==4.14.0
 twilio==7.14.0
 Twisted==22.10.0
 txaio==22.2.1

@@ -6,6 +6,7 @@ import zipfile
 import requests
 import io
 
+import tweepy
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
@@ -885,3 +886,32 @@ class FacebookPostHandlerAPIView(APIView):
 
         return Response(response_data, status=resp.status_code)
 
+
+class TwitterPostHandlerAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+
+        # Get the tweet content from the request data
+
+        try:
+            story_obj = Story.objects.get(id=kwargs.get('id'))
+            consumer_key = request.data.get('consumer_key')
+            consumer_secret = request.data.get('consumer_secret')
+            access_token = request.data.get('access_token')
+            access_token_secret = request.data.get('access_token_secret')
+            bearer_token = request.data.get('bearer_token')
+
+            client = tweepy.Client(bearer_token, consumer_key, consumer_secret, access_token, access_token_secret)
+            # Post the tweet using Tweepy client
+            response = client.create_tweet(text=story_obj.story_url)
+            if response.data:
+                return Response(data={"message": "Tweet posted successfully!"})
+            else:
+                return Response(data={"error": "Failed to post tweet."}, status=response.status_code)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
