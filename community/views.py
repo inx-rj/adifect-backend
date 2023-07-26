@@ -823,6 +823,8 @@ class FacebookPostHandlerAPIView(APIView):
         url = base_url
         http_method = "GET"
 
+        if not story_obj.story_url:
+            raise serializers.ValidationError("No story_url found for this story.")
         if not request_url:
             raise serializers.ValidationError({"url": ["This field is required!"]})
 
