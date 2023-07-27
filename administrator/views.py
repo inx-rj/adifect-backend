@@ -1370,7 +1370,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by('-modified')
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = ['modified', 'created']
-    ordering = ['-modified', 'created']
+    ordering = ['-modified', 'created', 'is_active']
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['is_active', 'agency__username', 'name', 'id']
     pagination_class = CustomPagination
