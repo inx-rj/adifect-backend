@@ -6,12 +6,12 @@ import zipfile
 import requests
 import io
 
-import tweepy
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
+from requests_oauthlib import OAuth1Session
 from rest_framework import generics, status, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -897,23 +897,36 @@ class TwitterPostHandlerAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
 
-        # Get the tweet content from the request data
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        if not story_obj.story_url:
+            raise serializers.ValidationError("No story url found for this story!")
+        twitter_obj = CommunityChannel.objects.filter(
+            community_setting__community__story_community__id=story_obj.id, channel__name__iexact='twitter').first()
+        if not twitter_obj:
+            raise serializers.ValidationError("Twitter credentials not provided!")
 
-        try:
-            story_obj = Story.objects.get(id=kwargs.get('id'))
-            consumer_key = request.data.get('consumer_key')
-            consumer_secret = request.data.get('consumer_secret')
-            access_token = request.data.get('access_token')
-            access_token_secret = request.data.get('access_token_secret')
-            bearer_token = request.data.get('bearer_token')
+        consumer_key = twitter_obj.meta_data.get('consumer_key')
+        consumer_secret = twitter_obj.meta_data.get('consumer_secret')
+        access_token = twitter_obj.meta_data.get('access_token')
+        access_token_secret = twitter_obj.meta_data.get('access_token_secret')
 
-            client = tweepy.Client(bearer_token, consumer_key, consumer_secret, access_token, access_token_secret)
-            # Post the tweet using Tweepy client
-            response = client.create_tweet(text=story_obj.story_url)
-            if response.data:
-                return Response(data={"message": "Tweet posted successfully!"})
-            else:
-                return Response(data={"error": "Failed to post tweet."}, status=response.status_code)
+        oauth = OAuth1Session(
+            consumer_key,
+            client_secret=consumer_secret,
+            resource_owner_key=access_token,
+            resource_owner_secret=access_token_secret,
+        )
+        response = oauth.post(
+            "https://api.twitter.com/2/tweets",
+            json={
+                "text": story_obj.story_url
+            },
+        )
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        if response.status_code != 201:
+            response_data = {"error": True, "message": response.text}
+        else:
+            response_data = {"message": "Tweet posted successfully!"}
+
+        return Response(data=response_data, status=response.status_code)
+
