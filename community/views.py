@@ -11,6 +11,7 @@ from django.db.models import F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
+from requests_oauthlib import OAuth1Session
 from rest_framework import generics, status, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -886,4 +887,48 @@ class FacebookPostHandlerAPIView(APIView):
             response_data = {"message": resp.json().get("error", {}).get("message"), "error": True}
 
         return Response(response_data, status=resp.status_code)
+
+
+class TwitterPostHandlerAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        if not story_obj.story_url:
+            raise serializers.ValidationError("No story url found for this story!")
+        twitter_obj = CommunityChannel.objects.filter(
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='twitter').first()
+        if not twitter_obj:
+            raise serializers.ValidationError("Twitter credentials not provided!")
+
+        consumer_key = twitter_obj.meta_data.get('consumer_key')
+        consumer_secret = twitter_obj.meta_data.get('consumer_secret')
+        access_token = twitter_obj.meta_data.get('access_token')
+        access_token_secret = twitter_obj.meta_data.get('access_token_secret')
+
+        oauth = OAuth1Session(
+            consumer_key,
+            client_secret=consumer_secret,
+            resource_owner_key=access_token,
+            resource_owner_secret=access_token_secret,
+        )
+        response = oauth.post(
+            os.environ.get("TWITTER_POST_API_URL", ""),
+            json={
+                "text": story_obj.story_url
+            },
+        )
+
+        if response.status_code != 201:
+            response_data = {"error": True,
+                             "message": response.json().get("title", "") or response.json().get("detail", "")}
+        else:
+            response_data = {"message": "Tweet posted successfully!"}
+
+        return Response(data=response_data, status=response.status_code)
 

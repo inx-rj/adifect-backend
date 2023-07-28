@@ -124,9 +124,9 @@ class CommunitySetting(BaseModel):
 class CommunityChannel(BaseModel):
     community_setting = models.ForeignKey(CommunitySetting, related_name='community_channel_community', on_delete=models.SET_NULL, null=True, blank=True)
     channel = models.ForeignKey(Channel, related_name='community_channel_channel', on_delete=models.SET_NULL, null=True, blank=True)
-    url = models.CharField(max_length=200)
-    api_key = models.CharField(max_length=200)
-    meta_data = models.JSONField(null=True, blank=True)
+    url = models.CharField(max_length=200, null=True, blank=True)
+    api_key = models.CharField(max_length=200, null=True, blank=True)
+    meta_data = models.JSONField(default=dict)
 
     class Meta:
         verbose_name_plural = 'CommunityChannels'
