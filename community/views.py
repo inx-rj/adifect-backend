@@ -194,13 +194,16 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
         opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
                                                          channel__name__iexact='opnsesame').first()
-        if opn_sesame_obj and validate_client_id_opnsesame(client_id=opn_sesame_obj.url,
-                                                           api_key=opn_sesame_obj.api_key):
+
+        organization_id = opn_sesame_obj.meta_data.get("organization_id", "")
+        api_key = opn_sesame_obj.meta_data.get("api_key", "")
+        if opn_sesame_obj and validate_client_id_opnsesame(client_id=organization_id,
+                                                           api_key=api_key):
+
             # Call Background task for fetching audiences
             logger.info("VALID CLIENT_ID")
             logger.info("Calling background task to add audiences.")
-            add_community_audiences.delay(opn_sesame_obj.url, opn_sesame_obj.api_key,
-                                          community_setting_obj.community_id)
+            add_community_audiences.delay(organization_id, api_key, community_setting_obj.community_id)
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
@@ -218,13 +221,13 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         community_id = instance.community.community_id
         old_opn_obj = CommunityChannel.objects.filter(community_setting=instance,
                                                       channel__name__iexact='opnsesame').first()
-        old_opn_url = None
+        old_opn_organization_id = None
         old_opn_api_key = None
         old_community_id = instance.community.id
 
         if old_opn_obj:
-            old_opn_url = old_opn_obj.url
-            old_opn_api_key = old_opn_obj.api_key
+            old_opn_organization_id = old_opn_obj.meta_data.get("organization_id", "")
+            old_opn_api_key = old_opn_obj.meta_data.get("api_key", "")
 
         with transaction.atomic():
             CommunityChannel.objects.filter(community_setting=instance).delete()
@@ -245,17 +248,19 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                 new_opn_obj
                 and (
                     old_community_id != community_setting_obj.community.id
-                    or old_opn_url != new_opn_obj.url
-                    or old_opn_api_key != new_opn_obj.api_key
+                    or old_opn_organization_id != new_opn_obj.meta_data.get("organization_id", "")
+                    or old_opn_api_key != new_opn_obj.meta_data.get("api_key", "")
                 )
                 and validate_client_id_opnsesame(
-                    client_id=new_opn_obj.url, api_key=new_opn_obj.api_key
+                    client_id=new_opn_obj.meta_data.get("organization_id", ""),
+                    api_key=new_opn_obj.meta_data.get("api_key", "")
                 )
             ):
                 # Call Background task for fetching audiences
                 logger.info("VALID CLIENT_ID")
                 logger.info("Calling background task to add audiences.")
-                add_community_audiences.delay(new_opn_obj.url, new_opn_obj.api_key,
+                add_community_audiences.delay(new_opn_obj.meta_data.get("organization_id", ""),
+                                              new_opn_obj.meta_data.get("api_key", ""),
                                               community_setting_obj.community_id)
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
@@ -839,7 +844,8 @@ class FacebookPostHandlerAPIView(APIView):
             short_token = request.data.get("token")
             url += "oauth/access_token"
             params = {"grant_type": "fb_exchange_token",
-                      "client_id": facebook_obj.url, "client_secret": facebook_obj.api_key,
+                      "client_id": facebook_obj.meta_data.get("app_id", ""),
+                      "client_secret": facebook_obj.meta_data.get("app_secret_key", ""),
                       "fb_exchange_token": short_token}
 
         elif request_url == "me/accounts":
@@ -876,9 +882,7 @@ class FacebookPostHandlerAPIView(APIView):
         if resp.status_code == 200 and "oauth" in url:
             # If the response is success then store the long-lived access token into the DB.
 
-            facebook_obj.meta_data = {
-                "fb_access_token": resp.json().get("access_token")
-            }
+            facebook_obj.meta_data["fb_access_token"] = resp.json().get("access_token")
             facebook_obj.save(update_fields=["meta_data"])
 
         if resp.status_code == 200:
