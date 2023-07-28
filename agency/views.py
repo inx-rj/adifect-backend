@@ -90,7 +90,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_active', 'agency', 'is_blocked']
     search_fields = ['name', 'created', 'id']
-    ordering_fields = ['name', 'created', 'agency__role']
+    ordering_fields = ['name', 'created', 'agency__role', 'is_active']
 
     def get_queryset(self):
         user = self.request.user
