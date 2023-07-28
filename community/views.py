@@ -901,7 +901,8 @@ class TwitterPostHandlerAPIView(APIView):
         if not story_obj.story_url:
             raise serializers.ValidationError("No story url found for this story!")
         twitter_obj = CommunityChannel.objects.filter(
-            community_setting__community__story_community__id=story_obj.id, channel__name__iexact='twitter').first()
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='twitter').first()
         if not twitter_obj:
             raise serializers.ValidationError("Twitter credentials not provided!")
 
@@ -917,7 +918,7 @@ class TwitterPostHandlerAPIView(APIView):
             resource_owner_secret=access_token_secret,
         )
         response = oauth.post(
-            "https://api.twitter.com/2/tweets",
+            os.environ.get("TWITTER_POST_API_URL", ""),
             json={
                 "text": story_obj.story_url
             },

@@ -22,7 +22,10 @@ class CommunityChannelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunityChannel
-        fields = ('community_setting', 'channel', 'url', 'api_key', 'channel_data')
+        fields = ('community_setting', 'channel', 'url', 'api_key', 'channel_data', 'meta_data')
+
+    def validate_meta_data(self, value):
+        return {} if type(value) != dict else value
 
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
@@ -164,7 +167,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
                 CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'))
+                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data'))
         return instance
 
     def update(self, instance, validated_data):
@@ -177,7 +180,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
                 CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'))
+                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data'))
         return instance
 
     def to_representation(self, instance):
