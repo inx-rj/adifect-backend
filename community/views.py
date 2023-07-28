@@ -925,7 +925,8 @@ class TwitterPostHandlerAPIView(APIView):
         )
 
         if response.status_code != 201:
-            response_data = {"error": True, "message": response.text}
+            response_data = {"error": True,
+                             "message": response.json().get("title", "") or response.json().get("detail", "")}
         else:
             response_data = {"message": "Tweet posted successfully!"}
 

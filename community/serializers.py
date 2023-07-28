@@ -167,7 +167,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
                 CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data'))
+                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data', {}))
         return instance
 
     def update(self, instance, validated_data):
@@ -180,7 +180,7 @@ class CommunitySettingsSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"channel": ["This field is required!"]})
                 channel_obj = Channel.objects.get(id=channel.get('channel').id)
                 CommunityChannel.objects.create(community_setting=instance, channel=channel_obj, url=channel.get('url'),
-                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data'))
+                                                api_key=channel.get('api_key'), meta_data=channel.get('meta_data', {}))
         return instance
 
     def to_representation(self, instance):
