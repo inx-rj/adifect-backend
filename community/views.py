@@ -188,17 +188,19 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
 
     def post(self, request, *args, **kwargs):
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        community_setting_obj = serializer.save()
-        StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
-        if opn_sesame_obj := CommunityChannel.objects.filter(
-            community_setting=community_setting_obj,
-            channel__name__iexact='opnsesame',
-        ).first():
-            organization_id = opn_sesame_obj.meta_data.get("organization_id", "")
-            api_key = opn_sesame_obj.meta_data.get("api_key", "")
-            if validate_client_id_opnsesame(client_id=organization_id, api_key=api_key):
+        with transaction.atomic():
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            community_setting_obj = serializer.save()
+            StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
+            if opn_sesame_obj := CommunityChannel.objects.filter(
+                community_setting=community_setting_obj,
+                channel__name__iexact='opnsesame',
+            ).first():
+                organization_id = opn_sesame_obj.meta_data.get("organization_id", "")
+                api_key = opn_sesame_obj.meta_data.get("api_key", "")
+                if not validate_client_id_opnsesame(client_id=organization_id, api_key=api_key):
+                    raise ValidationError('OpnSesame credentials are incorrect!')
 
                 # Call Background task for fetching audiences
                 logger.info("VALID CLIENT_ID")
@@ -244,7 +246,7 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                 StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
                 Audience.objects.filter(community_id=old_community_id).update(is_trashed=True)
 
-            if (
+            if not (
                 new_opn_obj
                 and (
                     old_community_id != community_setting_obj.community.id
@@ -256,12 +258,15 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                     api_key=new_opn_obj.meta_data.get("api_key", "")
                 )
             ):
-                # Call Background task for fetching audiences
-                logger.info("VALID CLIENT_ID")
-                logger.info("Calling background task to add audiences.")
-                add_community_audiences.delay(new_opn_obj.meta_data.get("organization_id", ""),
-                                              new_opn_obj.meta_data.get("api_key", ""),
-                                              community_setting_obj.community_id)
+                raise ValidationError('OpnSesame credentials are incorrect!')
+
+            # Call Background task for fetching audiences
+            logger.info("VALID CLIENT_ID")
+            logger.info("Calling background task to add audiences.")
+            add_community_audiences.delay(new_opn_obj.meta_data.get("organization_id", ""),
+                                          new_opn_obj.meta_data.get("api_key", ""),
+                                          community_setting_obj.community_id)
+
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
