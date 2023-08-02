@@ -192,18 +192,18 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
         serializer.is_valid(raise_exception=True)
         community_setting_obj = serializer.save()
         StoryStatusConfig.objects.create(community=community_setting_obj.community, last_page=0)
-        opn_sesame_obj = CommunityChannel.objects.filter(community_setting=community_setting_obj,
-                                                         channel__name__iexact='opnsesame').first()
+        if opn_sesame_obj := CommunityChannel.objects.filter(
+            community_setting=community_setting_obj,
+            channel__name__iexact='opnsesame',
+        ).first():
+            organization_id = opn_sesame_obj.meta_data.get("organization_id", "")
+            api_key = opn_sesame_obj.meta_data.get("api_key", "")
 
-        organization_id = opn_sesame_obj.meta_data.get("organization_id", "")
-        api_key = opn_sesame_obj.meta_data.get("api_key", "")
-        if opn_sesame_obj and validate_client_id_opnsesame(client_id=organization_id,
-                                                           api_key=api_key):
-
-            # Call Background task for fetching audiences
-            logger.info("VALID CLIENT_ID")
-            logger.info("Calling background task to add audiences.")
-            add_community_audiences.delay(organization_id, api_key, community_setting_obj.community_id)
+            if validate_client_id_opnsesame(client_id=organization_id, api_key=api_key):
+                # Call Background task for fetching audiences
+                logger.info("VALID CLIENT_ID")
+                logger.info("Calling background task to add audiences.")
+                add_community_audiences.delay(organization_id, api_key, community_setting_obj.community_id)
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_SUCCESS}, status=status.HTTP_201_CREATED)
 
@@ -256,12 +256,14 @@ class CommunitySettingsView(generics.ListCreateAPIView, generics.RetrieveUpdateD
                     api_key=new_opn_obj.meta_data.get("api_key", "")
                 )
             ):
+
                 # Call Background task for fetching audiences
                 logger.info("VALID CLIENT_ID")
                 logger.info("Calling background task to add audiences.")
                 add_community_audiences.delay(new_opn_obj.meta_data.get("organization_id", ""),
                                               new_opn_obj.meta_data.get("api_key", ""),
                                               community_setting_obj.community_id)
+
 
         return Response({'data': '', 'message': COMMUNITY_SETTINGS_UPDATE_SUCCESS}, status=status.HTTP_200_OK)
 
