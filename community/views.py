@@ -936,3 +936,88 @@ class TwitterPostHandlerAPIView(APIView):
 
         return Response(data=response_data, status=response.status_code)
 
+
+class LinkedInPostHandlerAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def handle_exception(self, exc):
+        return custom_handle_exception(request=self.request, exc=exc)
+
+    def post(self, request, *args, **kwargs):
+
+        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        if not story_obj.story_url:
+            raise serializers.ValidationError("No story url found for this story!")
+        # linked_in_obj = CommunityChannel.objects.filter(
+        #     community_setting=story_obj.community.community_setting_community.first(),
+        #     channel__name__iexact='linkedIn').first()
+        # if not linked_in_obj:
+        #     raise serializers.ValidationError("LinkedIn credentials not provided!")
+
+        # client_id = request.data.get('client_id')
+        # client_secret = request.data.get('client_secret')
+
+        # access_token_url = 'https://www.linkedin.com/oauth/v2/accessToken'
+        #
+        # payload = {
+        #     'grant_type': 'client_credentials',
+        #     'client_id': client_id,
+        #     'client_secret': client_secret,
+        # }
+
+        # response = requests.post(access_token_url, data=payload)
+        #
+        # if response.status_code != 200:
+        #     response_data = {"error": True,
+        #                      "message": response.json()}
+        # else:
+        #     response_data = {"data": {}, "message": "Content shared successfully on LinkedIn!"}
+        #
+        # return Response(data=response_data, status=response.status_code)
+
+        post_url = os.environ.get('LINKEDIN_POST_API_URL')
+
+        headers = {
+            'Authorization': 'Bearer {Access Token}',
+            'Content-Type': 'application/json',
+            'X-Restli-Protocol-Version': '2.0.0',
+        }
+
+        data = {
+            "author": "urn:li:person:{user_id}",
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {
+                        "text": ""
+                    },
+                    "shareMediaCategory": "ARTICLE",
+                    "media": [
+                        {
+                            "status": "READY",
+                            # "description": {
+                            #     "text": "Official LinkedIn Blog - Your source for insights and information about LinkedIn."
+                            # },
+                            "originalUrl": story_obj.story_url
+                            # "title": {
+                            #     "text": "Official LinkedIn Blog"
+                            # }
+                        }
+                    ]
+                }
+            },
+            "visibility": {
+                "com.linkedin.ugc.MemberNetworkVisibility": "CONNECTIONS"
+            }
+        }
+        response = requests.post(post_url, json=data, headers=headers)
+
+        # response = requests.post(access_token_url, data=payload)
+
+        if response.status_code != 201:
+            response_data = {"error": True,
+                             "message": response.json()}
+        else:
+            response_data = {"data": {}, "message": "Content shared successfully on LinkedIn!"}
+
+        return Response(data=response_data, status=response.status_code)
