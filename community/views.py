@@ -991,7 +991,7 @@ class LinkedInPostHandlerAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
 
-        story_obj = get_object_or_404(Story, pk=request.data.get('story'), is_trashed=False)
+        story_obj = get_object_or_404(Story, pk=request.data.get('story_id'), is_trashed=False)
         if not story_obj.story_url:
             raise serializers.ValidationError("No story url found for this story!")
 
