@@ -956,10 +956,13 @@ class LinkedInPostHandlerAPIView(APIView):
         code = request.query_params.get('code')
         access_token_url = f"{base_url}oauth/v2/accessToken"
 
+        absolute_url = request.build_absolute_uri()
+
+        base_redirect_url = absolute_url.split('?')[0]
         params = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": linkedin_obj.meta_data.get('redirect_uri'),
+            "redirect_uri": base_redirect_url,
             "client_id": linkedin_obj.meta_data.get('client_id'),
             "client_secret": linkedin_obj.meta_data.get('client_secret'),
         }
