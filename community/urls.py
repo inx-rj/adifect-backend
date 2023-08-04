@@ -5,7 +5,7 @@ from community.views import StoriesList, CommunityTagsListCreate, CommunityList,
     ProgramListCreateAPIView, CopyCodeListCreateAPIView, CopyCodeRetrieveUpdateDestroyAPIView, \
     CreativeCodeListCreateAPIView, CreativeCodeRetrieveUpdateDestroyAPIView, ExportArticleCsv, AddStoryTagsView, \
     OpnSesameViewSet, StoryDetailView, CreativeCodeImportAPIView, CommunityAudienceListCreateView, \
-    FacebookPostHandlerAPIView, TwitterPostHandlerAPIView
+    FacebookPostHandlerAPIView, TwitterPostHandlerAPIView, LinkedInPostHandlerAPIView
 
 urlpatterns = [
     path('stories/', StoriesList.as_view(), name='list_stories'),
@@ -34,5 +34,6 @@ urlpatterns = [
     path('import-creative-code/', CreativeCodeImportAPIView.as_view(), name='retrieve_creative_code'),
     path('audience/', CommunityAudienceListCreateView.as_view(), name='community_audience_list_create'),
     path('facebook/<int:id>/', FacebookPostHandlerAPIView.as_view(), name='facebook_post'),
-    path('twitter/<int:id>/', TwitterPostHandlerAPIView.as_view(), name='twitter_post')
+    path('twitter/<int:id>/', TwitterPostHandlerAPIView.as_view(), name='twitter_post'),
+    path('linkedin/', LinkedInPostHandlerAPIView.as_view(), name='linkedIn_post'),
 ]

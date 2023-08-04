@@ -11,3 +11,8 @@ class IsAuthorizedForListCreate(DjangoModelPermissions):
         To check if user has permission for the assigned role
         """
         return request.user.role == 2
+
+
+class LinkedInRequirePostPermission(DjangoModelPermissions):
+    def has_permission(self, request, view):
+        return True if request.method == 'GET' else request.user.is_authenticated
