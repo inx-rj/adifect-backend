@@ -1408,7 +1408,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
                 return Response(context, status=status.HTTP_200_OK)
             else:
                 if instance.job_company.filter(is_active=True).exists():
-                    if serializer.validated_data['is_active']:
+                    if serializer.validated_data.get('is_active'):
                         context = {
                             'message': 'Updated Successfully........',
                             'status': status.HTTP_200_OK,
