@@ -34,7 +34,7 @@ from community.constants import TAG_CREATED, STORIES_RETRIEVE_SUCCESSFULLY, COMM
 from community.filters import StoriesFilter
 from community.models import Story, Community, Tag, CommunitySetting, Channel, CommunityChannel, Program, CopyCode, \
     CreativeCode, StoryTag, Audience, StoryStatusConfig
-from community.permissions import IsAuthorizedForListCreate
+from community.permissions import IsAuthorizedForListCreate, LinkedInRequirePostPermission
 from community.serializers import StorySerializer, CommunityTagsSerializer, \
     TagCreateSerializer, CommunitySettingsSerializer, ChannelListCreateSerializer, \
     ChannelRetrieveUpdateDestroySerializer, CommunityChannelSerializer, ProgramSerializer, CopyCodeSerializer, \
@@ -938,53 +938,82 @@ class TwitterPostHandlerAPIView(APIView):
 
 
 class LinkedInPostHandlerAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [LinkedInRequirePostPermission]
 
     def handle_exception(self, exc):
         return custom_handle_exception(request=self.request, exc=exc)
 
+    def get(self, request, *args, **kwargs):
+        story_obj = get_object_or_404(Story, pk=request.query_params.get('state'), is_trashed=False)
+        base_url = os.environ.get('LINKEDIN_API_URL')
+
+        linkedin_obj = CommunityChannel.objects.filter(
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='linkedin').first()
+
+        code = request.query_params.get('code')
+        access_token_url = f"{base_url}oauth/v2/accessToken"
+
+        params = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": linkedin_obj.meta_data.get('redirect_uri'),
+            "client_id": linkedin_obj.meta_data.get('client_id'),
+            "client_secret": linkedin_obj.meta_data.get('client_secret'),
+        }
+
+        response = requests.request('Post', access_token_url, params=params)
+        if response.status_code == 200:
+            access_token = response.json().get("access_token")
+        else:
+            response_data = {"message": response.json(), "error": True}
+            return Response(data=response_data, status=response.status_code)
+
+        profile_url = f"{base_url}v2/me"
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+
+        response = requests.request('Get', profile_url, headers=headers)
+        if response.status_code == 200:
+            user_id = response.json().get("id")
+        else:
+            response_data = {"message": response.json(), "error": True}
+            return Response(data=response_data, status=response.status_code)
+
+        linkedin_obj.meta_data["access_token"] = access_token
+        linkedin_obj.meta_data["user_id"] = user_id
+        linkedin_obj.save(update_fields=["meta_data"])
+
+        return Response(data={}, status=status.HTTP_200_OK)
+
     def post(self, request, *args, **kwargs):
 
-        story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
+        story_obj = get_object_or_404(Story, pk=request.data.get('story'), is_trashed=False)
         if not story_obj.story_url:
             raise serializers.ValidationError("No story url found for this story!")
-        # linked_in_obj = CommunityChannel.objects.filter(
-        #     community_setting=story_obj.community.community_setting_community.first(),
-        #     channel__name__iexact='linkedIn').first()
-        # if not linked_in_obj:
-        #     raise serializers.ValidationError("LinkedIn credentials not provided!")
 
-        # client_id = request.data.get('client_id')
-        # client_secret = request.data.get('client_secret')
+        base_url = os.environ.get('LINKEDIN_API_URL')
 
-        # access_token_url = 'https://www.linkedin.com/oauth/v2/accessToken'
-        #
-        # payload = {
-        #     'grant_type': 'client_credentials',
-        #     'client_id': client_id,
-        #     'client_secret': client_secret,
-        # }
+        linkedin_obj = CommunityChannel.objects.filter(
+            community_setting=story_obj.community.community_setting_community.first(),
+            channel__name__iexact='linkedin').first()
+        if not linkedin_obj:
+            raise serializers.ValidationError("LinkedIn credentials not provided!")
 
-        # response = requests.post(access_token_url, data=payload)
-        #
-        # if response.status_code != 200:
-        #     response_data = {"error": True,
-        #                      "message": response.json()}
-        # else:
-        #     response_data = {"data": {}, "message": "Content shared successfully on LinkedIn!"}
-        #
-        # return Response(data=response_data, status=response.status_code)
+        access_token = linkedin_obj.meta_data.get('access_token')
+        user_id = linkedin_obj.meta_data.get('user_id')
 
-        post_url = os.environ.get('LINKEDIN_POST_API_URL')
+        post_url = f"{base_url}v2/ugcPosts"
 
         headers = {
-            'Authorization': 'Bearer {Access Token}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
             'X-Restli-Protocol-Version': '2.0.0',
         }
 
         data = {
-            "author": "urn:li:person:{user_id}",
+            "author": f"urn:li:person:{user_id}",
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
@@ -995,24 +1024,16 @@ class LinkedInPostHandlerAPIView(APIView):
                     "media": [
                         {
                             "status": "READY",
-                            # "description": {
-                            #     "text": "Official LinkedIn Blog - Your source for insights and information about LinkedIn."
-                            # },
                             "originalUrl": story_obj.story_url
-                            # "title": {
-                            #     "text": "Official LinkedIn Blog"
-                            # }
                         }
                     ]
                 }
             },
             "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "CONNECTIONS"
+                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
             }
         }
         response = requests.post(post_url, json=data, headers=headers)
-
-        # response = requests.post(access_token_url, data=payload)
 
         if response.status_code != 201:
             response_data = {"error": True,

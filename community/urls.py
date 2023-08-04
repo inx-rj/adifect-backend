@@ -35,5 +35,5 @@ urlpatterns = [
     path('audience/', CommunityAudienceListCreateView.as_view(), name='community_audience_list_create'),
     path('facebook/<int:id>/', FacebookPostHandlerAPIView.as_view(), name='facebook_post'),
     path('twitter/<int:id>/', TwitterPostHandlerAPIView.as_view(), name='twitter_post'),
-    path('linkedIn/<int:id>/', LinkedInPostHandlerAPIView.as_view(), name='linkedIn_post'),
+    path('linkedin/', LinkedInPostHandlerAPIView.as_view(), name='linkedIn_post'),
 ]
