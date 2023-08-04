@@ -957,9 +957,9 @@ class LinkedInPostHandlerAPIView(APIView):
         access_token_url = f"{base_url}oauth/v2/accessToken"
 
         absolute_url = request.build_absolute_uri()
-
+        logger.info(f"absolute_url ===  {absolute_url}", )
         base_redirect_url = absolute_url.split('?')[0]
-        logger.info(base_redirect_url, "base_redirect_url")
+        logger.info(f"base_redirect_url === {base_redirect_url}")
         params = {
             "grant_type": "authorization_code",
             "code": code,
