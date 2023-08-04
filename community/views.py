@@ -959,6 +959,7 @@ class LinkedInPostHandlerAPIView(APIView):
         absolute_url = request.build_absolute_uri()
 
         base_redirect_url = absolute_url.split('?')[0]
+        logger.info(base_redirect_url, "base_redirect_url")
         params = {
             "grant_type": "authorization_code",
             "code": code,
