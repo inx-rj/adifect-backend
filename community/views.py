@@ -972,6 +972,9 @@ class LinkedInPostHandlerAPIView(APIView):
         if response.status_code == 200:
             access_token = response.json().get("access_token")
         else:
+            linkedin_obj.meta_data['error_message'] = response.json()
+            linkedin_obj.meta_data['error_status_code'] = response.status_code
+            linkedin_obj.save(update_fields=["meta_data"])
             response_data = {"message": response.json(), "error": True}
             return Response(data=response_data, status=response.status_code)
 
@@ -984,10 +987,13 @@ class LinkedInPostHandlerAPIView(APIView):
         if response.status_code == 200:
             user_id = response.json().get("id")
         else:
+            linkedin_obj.meta_data['error_message'] = response.json()
+            linkedin_obj.meta_data['error_status_code'] = response.status_code
+            linkedin_obj.save(update_fields=["meta_data"])
             response_data = {"message": response.json(), "error": True}
             return Response(data=response_data, status=response.status_code)
 
-        linkedin_obj.meta_data["access_token"] = access_token
+        linkedin_obj.meta_data["linkedin_access_token"] = access_token
         linkedin_obj.meta_data["user_id"] = user_id
         linkedin_obj.save(update_fields=["meta_data"])
 
@@ -1007,7 +1013,7 @@ class LinkedInPostHandlerAPIView(APIView):
         if not linkedin_obj:
             raise serializers.ValidationError("LinkedIn credentials not provided!")
 
-        access_token = linkedin_obj.meta_data.get('access_token')
+        access_token = linkedin_obj.meta_data.get('linkedin_access_token')
         user_id = linkedin_obj.meta_data.get('user_id')
 
         post_url = f"{base_url}v2/ugcPosts"
@@ -1042,9 +1048,17 @@ class LinkedInPostHandlerAPIView(APIView):
         response = requests.post(post_url, json=data, headers=headers)
 
         if response.status_code != 201:
+
+            if linkedin_obj.meta_data.get('error_message'):
+                return Response({"error": True, "message": linkedin_obj.meta_data.get('error_message')},
+                                status=linkedin_obj.meta_data.get('error_status_code'))
+
             response_data = {"error": True,
                              "message": response.json()}
         else:
+            linkedin_obj.meta_data['error_message'] = ""
+            linkedin_obj.meta_data['error_status_code'] = ""
+            linkedin_obj.save(update_fields=["meta_data"])
             response_data = {"data": {}, "message": "Content shared successfully on LinkedIn!"}
 
         return Response(data=response_data, status=response.status_code)

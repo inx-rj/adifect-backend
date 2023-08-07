@@ -30,6 +30,14 @@ class CommunityChannelSerializer(serializers.ModelSerializer):
     def get_channel_data(self, obj):
         return ChannelRetrieveUpdateDestroySerializer(instance=obj.channel).data
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['meta_data'] = {}
+        for key, value in instance.meta_data.items():
+            if key not in ['fb_access_token', 'error_status_code', 'error_message', 'user_id', 'linkedin_access_token']:
+                representation['meta_data'][key] = value
+        return representation
+
 
 class CommunitySerializer(serializers.ModelSerializer):
     """
