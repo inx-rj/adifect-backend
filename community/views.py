@@ -831,8 +831,13 @@ class FacebookPostHandlerAPIView(APIView):
         url = base_url
         http_method = "GET"
 
-        if not story_obj.story_url:
-            raise serializers.ValidationError("No story_url found for this story.")
+        story_url = story_obj.story_url
+        if not story_url:
+            if request.data.get('story_url'):
+                story_url = request.data.get('story_url')
+            else:
+                raise serializers.ValidationError("No story_url found for this story!")
+
         if not request_url:
             raise serializers.ValidationError({"url": ["This field is required!"]})
 
@@ -873,7 +878,7 @@ class FacebookPostHandlerAPIView(APIView):
                         page_access = page.get("access_token")
                         page_id = page.get("id")
 
-                params = {"link": story_obj.story_url, "access_token": page_access, "message": ""}
+                params = {"link": story_url, "access_token": page_access, "message": ""}
                 url += f"{page_id}/feed"
             http_method = "POST"
 
@@ -904,8 +909,13 @@ class TwitterPostHandlerAPIView(APIView):
     def post(self, request, *args, **kwargs):
 
         story_obj = get_object_or_404(Story, pk=kwargs.get('id'), is_trashed=False)
-        if not story_obj.story_url:
-            raise serializers.ValidationError("No story url found for this story!")
+
+        story_url = story_obj.story_url
+        if not story_url:
+            if request.data.get('story_url'):
+                story_url = request.data.get('story_url')
+            else:
+                raise serializers.ValidationError("No story_url found for this story!")
         twitter_obj = CommunityChannel.objects.filter(
             community_setting=story_obj.community.community_setting_community.first(),
             channel__name__iexact='twitter').first()
@@ -926,7 +936,7 @@ class TwitterPostHandlerAPIView(APIView):
         response = oauth.post(
             os.environ.get("TWITTER_POST_API_URL", ""),
             json={
-                "text": story_obj.story_url
+                "text": story_url
             },
         )
 
@@ -1002,8 +1012,14 @@ class LinkedInPostHandlerAPIView(APIView):
     def post(self, request, *args, **kwargs):
 
         story_obj = get_object_or_404(Story, pk=request.data.get('story_id'), is_trashed=False)
-        if not story_obj.story_url:
-            raise serializers.ValidationError("No story url found for this story!")
+
+        story_url = story_obj.story_url
+        if not story_url:
+            if request.data.get('story_url'):
+                story_url = request.data.get('story_url')
+
+            else:
+                raise serializers.ValidationError("No story_url found for this story!")
 
         base_url = os.environ.get('LINKEDIN_API_URL')
 
@@ -1036,7 +1052,7 @@ class LinkedInPostHandlerAPIView(APIView):
                     "media": [
                         {
                             "status": "READY",
-                            "originalUrl": story_obj.story_url
+                            "originalUrl": story_url
                         }
                     ]
                 }
@@ -1047,18 +1063,17 @@ class LinkedInPostHandlerAPIView(APIView):
         }
         response = requests.post(post_url, json=data, headers=headers)
 
-        if response.status_code != 201:
-
-            if linkedin_obj.meta_data.get('error_message'):
-                return Response({"error": True, "message": linkedin_obj.meta_data.get('error_message')},
-                                status=linkedin_obj.meta_data.get('error_status_code'))
-
-            response_data = {"error": True,
-                             "message": response.json()}
-        else:
+        if response.status_code == 201:
             linkedin_obj.meta_data['error_message'] = ""
             linkedin_obj.meta_data['error_status_code'] = ""
             linkedin_obj.save(update_fields=["meta_data"])
             response_data = {"data": {}, "message": "Content shared successfully on LinkedIn!"}
 
+        elif linkedin_obj.meta_data.get('error_message'):
+            return Response({"error": True, "message": linkedin_obj.meta_data.get('error_message')},
+                            status=linkedin_obj.meta_data.get('error_status_code'))
+
+        else:
+            response_data = {"error": True,
+                             "message": response.json()}
         return Response(data=response_data, status=response.status_code)
