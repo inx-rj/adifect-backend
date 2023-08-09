@@ -532,7 +532,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
     filterset_fields = ['company']
     search_fields = ['company__name', 'email', 'user__user__username']
-    ordering_fields = ['company__name', 'email', 'user__user__username', 'user__levels']
+    ordering_fields = ['company__name', 'email', 'user__user__username', 'user__levels', 'status']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset()).filter(agency=request.user, is_trashed=False,
