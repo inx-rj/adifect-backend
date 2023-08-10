@@ -539,8 +539,7 @@ class InviteMemberViewSet(viewsets.ModelViewSet):
                                                                     user__isnull=False,
                                                                     agency__is_account_closed=False,
                                                                     company__is_active=True,
-                                                                    is_inactive=False).order_by(
-            '-modified')
+                                                                    is_inactive=False)
         if request.GET.get('company'):
             queryset = queryset.filter(company=request.GET.get('company'))
 
