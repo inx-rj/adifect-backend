@@ -1,0 +1,1 @@
+web: gunicorn adifect.wsgi --log-file -
