@@ -19,3 +19,4 @@ RUN python manage.py collectstatic
 RUN chmod +x gunicorn.sh
 EXPOSE 8000
 ENTRYPOINT ["./gunicorn.sh"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
