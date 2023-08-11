@@ -81,4 +81,5 @@ urllib3==1.26.12
 vine==5.0.0
 wcwidth==0.2.5
 websockets==10.4
+whitenoise==6.5.0
 zope.interface==5.5.2

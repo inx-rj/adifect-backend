@@ -61,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -103,7 +104,6 @@ ASGI_APPLICATION = "adifect.asgi.application"
 #         },
 #     },
 # }
-
 
 
 # ------ django celery -----#
@@ -210,10 +210,9 @@ AUTH_USER_MODEL = 'authentication.CustomUser'
 
 SEND_GRID_API_key = os.environ.get('SEND_GRID_API_KEY')
 SEND_GRID_FROM_EMAIL = os.environ.get('SEND_GRID_FROM_EMAIL')
-#---- send grid help support  email ----#
+# ---- send grid help support  email ----#
 HELP_EMAIL_SUPPORT = os.environ.get('HELP_EMAIL_SUPPORT')
-ABC="mukesh"
-
+ABC = "mukesh"
 
 FRONTEND_SITE_URL = f"https://{os.environ.get('FRONTEND_SITE_URL')}"
 BACKEND_SITE_URL = f"https://{os.environ.get('BACKEND_SITE_URL')}"
@@ -292,3 +291,5 @@ TWILIO_NUMBER_WHATSAPP = ''
 TWILIO_ACCOUNT_SID2 = ''
 TWILIO_AUTH_TOKEN2 = ''
 # ----------------- end ------------------------------#
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
